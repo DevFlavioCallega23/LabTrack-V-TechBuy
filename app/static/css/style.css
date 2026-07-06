@@ -52,3 +52,8 @@ body {
 .clickable-row .action-btns a {
     cursor: pointer;
 }
+
+.field-group {
+    transition: opacity 0.2s;
+}
+

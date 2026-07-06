@@ -33,39 +33,39 @@
                         <label class="text-secondary small d-block">Tipo</label>
                         <span class="badge bg-secondary fs-6">{{ protocol.type_label() }}</span>
                     </div>
+                    {% if protocol.client_name %}
                     <div class="col-md-6">
                         <label class="text-secondary small d-block">Cliente</label>
                         <strong>{{ protocol.client_name }}</strong>
                     </div>
+                    {% endif %}
+                    {% if protocol.contact %}
                     <div class="col-md-6">
                         <label class="text-secondary small d-block">Contato</label>
-                        <strong>{{ protocol.contact or '-' }}</strong>
+                        <strong>{{ protocol.contact }}</strong>
                     </div>
-                    <div class="col-md-4">
-                        <label class="text-secondary small d-block">Número de Série</label>
-                        <strong>{{ protocol.serial_number or '-' }}</strong>
+                    {% endif %}
+                    {% if protocol.lote %}
+                    <div class="col-md-3">
+                        <label class="text-secondary small d-block">Lote</label>
+                        <strong>{{ protocol.lote }}</strong>
                     </div>
-                    <div class="col-md-4">
-                        <label class="text-secondary small d-block">Número do Pedido</label>
-                        <strong>{{ protocol.order_number or '-' }}</strong>
+                    {% endif %}
+                    {% if protocol.order_number %}
+                    <div class="col-md-3">
+                        <label class="text-secondary small d-block">Nº do Pedido</label>
+                        <strong>{{ protocol.order_number }}</strong>
                     </div>
-                    <div class="col-md-2">
-                        <label class="text-secondary small d-block">Marca</label>
-                        <strong>{{ protocol.brand or '-' }}</strong>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="text-secondary small d-block">Modelo</label>
-                        <strong>{{ protocol.model or '-' }}</strong>
-                    </div>
-                    <div class="col-md-4">
+                    {% endif %}
+                    <div class="col-md-3">
                         <label class="text-secondary small d-block">Data de Entrada</label>
                         <strong>{{ protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else '-' }}</strong>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="text-secondary small d-block">Data de Saída</label>
                         <strong>{{ protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else '-' }}</strong>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="text-secondary small d-block">Status</label>
                         <strong>
                             {% if protocol.status == 'pendente' %}
@@ -80,6 +80,33 @@
                         </strong>
                     </div>
                 </div>
+
+                {% if protocol.components %}
+                <hr>
+                <div>
+                    <label class="text-secondary small d-block mb-2"><i class="bi bi-motherboard"></i> Componentes</label>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Componente</th>
+                                    <th>Especificação</th>
+                                    <th>Nº de Série</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for comp in protocol.components %}
+                                <tr>
+                                    <td>{{ comp.type_label() }}</td>
+                                    <td>{{ comp.specification or '-' }}</td>
+                                    <td><code>{{ comp.serial_number or '-' }}</code></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
 
                 {% if protocol.observations %}
                 <hr>
@@ -108,10 +135,6 @@
                 <div class="mb-3">
                     <label class="text-secondary small d-block">Última atualização</label>
                     <strong>{{ protocol.updated_at.strftime('%d/%m/%Y às %H:%M') }}</strong>
-                </div>
-                <div class="mb-3">
-                    <label class="text-secondary small d-block">Dias em aberto</label>
-                    <strong>{{ (protocol.updated_at - protocol.created_at).days }} dias</strong>
                 </div>
             </div>
         </div>

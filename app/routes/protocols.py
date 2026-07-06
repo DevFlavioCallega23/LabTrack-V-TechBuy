@@ -2,10 +2,25 @@ from datetime import datetime, date
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app import db
-from app.models import Protocol, User
+from app.models import Protocol, Component, User
 from app.forms import ProtocolForm, UserForm
 
 protocols_bp = Blueprint('protocols', __name__, url_prefix='/protocolos')
+
+def parse_components(request_form):
+    components = []
+    types = request_form.getlist('comp_type[]')
+    specs = request_form.getlist('comp_spec[]')
+    serials = request_form.getlist('comp_serial[]')
+    for i in range(len(types)):
+        if types[i].strip():
+            components.append(Component(
+                component_type=types[i].strip(),
+                specification=specs[i].strip() if i < len(specs) else '',
+                serial_number=serials[i].strip() if i < len(serials) else '',
+                sort_order=i
+            ))
+    return components
 
 @protocols_bp.route('/')
 @login_required
@@ -22,7 +37,7 @@ def list_protocols():
             db.or_(
                 Protocol.protocol_number.ilike(f'%{search}%'),
                 Protocol.client_name.ilike(f'%{search}%'),
-                Protocol.serial_number.ilike(f'%{search}%'),
+                Protocol.lote.ilike(f'%{search}%'),
                 Protocol.order_number.ilike(f'%{search}%'),
                 Protocol.observations.ilike(f'%{search}%')
             )
@@ -62,16 +77,18 @@ def create_protocol():
             type=form.type.data,
             client_name=form.client_name.data,
             contact=form.contact.data,
-            serial_number=form.serial_number.data,
+            lote=form.lote.data,
             order_number=form.order_number.data,
-            brand=form.brand.data,
-            model=form.model.data,
             status=form.status.data,
             entry_date=datetime.combine(entry, datetime.min.time()) if entry else datetime.utcnow(),
             exit_date=datetime.combine(exit, datetime.min.time()) if exit else None,
             observations=form.observations.data,
             created_by=current_user.id
         )
+
+        components = parse_components(request.form)
+        protocol.components = components
+
         db.session.add(protocol)
         db.session.commit()
         flash(f'Protocolo {protocol_number} criado com sucesso!', 'success')
@@ -101,6 +118,11 @@ def edit_protocol(id):
         protocol.entry_date = datetime.combine(entry, datetime.min.time()) if entry else datetime.utcnow()
         protocol.exit_date = datetime.combine(exit, datetime.min.time()) if exit else None
         protocol.updated_at = datetime.utcnow()
+
+        Component.query.filter_by(protocol_id=protocol.id).delete()
+        components = parse_components(request.form)
+        protocol.components = components
+
         db.session.commit()
         flash(f'Protocolo {protocol.protocol_number} atualizado!', 'success')
         return redirect(url_for('protocols.detail_protocol', id=protocol.id))

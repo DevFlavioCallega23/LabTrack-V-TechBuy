@@ -8,19 +8,17 @@ class LoginForm(FlaskForm):
     submit = SubmitField('Entrar')
 
 class ProtocolForm(FlaskForm):
-    type = SelectField('Tipo', choices=[
+    type = SelectField('Tipo de Protocolo', choices=[
         ('venda', 'Venda'),
         ('ponta_entrega', 'Ponta Entrega'),
         ('venda_ponta_entrega', 'Venda Ponta Entrega'),
         ('rma', 'RMA (Garantia)'),
         ('servico', 'Serviço Fora de Garantia')
     ], validators=[DataRequired()])
-    client_name = StringField('Cliente / Nome', validators=[DataRequired(), Length(max=200)])
+    client_name = StringField('Cliente / Nome', validators=[Optional(), Length(max=200)])
     contact = StringField('Contato', validators=[Optional(), Length(max=100)])
-    serial_number = StringField('Número de Série', validators=[Optional(), Length(max=100)])
+    lote = StringField('Lote', validators=[Optional(), Length(max=50)])
     order_number = StringField('Número do Pedido', validators=[Optional(), Length(max=100)])
-    brand = StringField('Marca', validators=[Optional(), Length(max=100)])
-    model = StringField('Modelo', validators=[Optional(), Length(max=100)])
     status = SelectField('Status', choices=[
         ('pendente', 'Pendente'),
         ('andamento', 'Em Andamento'),
