@@ -13,7 +13,8 @@ class ProtocolForm(FlaskForm):
         ('ponta_entrega', 'Ponta Entrega'),
         ('venda_ponta_entrega', 'Venda Ponta Entrega'),
         ('rma', 'RMA (Garantia)'),
-        ('servico', 'Serviço Fora de Garantia')
+        ('servico', 'Serviço Fora de Garantia'),
+        ('nao_comprado', 'Não comprado na TechBuy')
     ], validators=[DataRequired()])
     client_name = StringField('Cliente / Nome', validators=[Optional(), Length(max=200)])
     contact = StringField('Contato', validators=[Optional(), Length(max=100)])

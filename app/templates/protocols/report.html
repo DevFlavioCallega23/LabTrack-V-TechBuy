@@ -19,7 +19,7 @@
                             {% for type_key, count in by_type.items() %}
                             <tr>
                                 <td>
-                                    {% set labels = {'venda': 'Venda', 'ponta_entrega': 'Ponta Entrega', 'venda_ponta_entrega': 'Venda Ponta Entrega', 'rma': 'RMA (Garantia)', 'servico': 'Serviço'} %}
+                                    {% set labels = {'venda': 'Venda', 'ponta_entrega': 'Ponta Entrega', 'venda_ponta_entrega': 'Venda Ponta Entrega', 'rma': 'RMA (Garantia)', 'servico': 'Serviço', 'nao_comprado': 'Não comprado na TechBuy'} %}
                                     {{ labels.get(type_key, type_key) }}
                                 </td>
                                 <td class="text-end"><strong>{{ count }}</strong></td>

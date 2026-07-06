@@ -12,20 +12,9 @@
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-2 align-items-end">
-            <div class="col-md-5">
-                <label class="form-label"><i class="bi bi-search"></i> Buscar</label>
-                <input type="text" name="search" class="form-control" placeholder="Protocolo, cliente, lote, pedido..." value="{{ search }}">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Tipo</label>
-                <select name="type" class="form-select">
-                    <option value="">Todos</option>
-                    <option value="venda" {{ 'selected' if type_filter == 'venda' }}>Venda</option>
-                    <option value="ponta_entrega" {{ 'selected' if type_filter == 'ponta_entrega' }}>Ponta Entrega</option>
-                    <option value="venda_ponta_entrega" {{ 'selected' if type_filter == 'venda_ponta_entrega' }}>Venda Ponta Entrega</option>
-                    <option value="rma" {{ 'selected' if type_filter == 'rma' }}>RMA (Garantia)</option>
-                    <option value="servico" {{ 'selected' if type_filter == 'servico' }}>Serviço</option>
-                </select>
+            <div class="col-md-6">
+                <label class="form-label"><i class="bi bi-search"></i> Pesquisa</label>
+                <input type="text" name="search" class="form-control" placeholder="Buscar por Pedido ou NS..." value="{{ search }}">
             </div>
             <div class="col-md-2">
                 <label class="form-label">Status</label>
@@ -37,7 +26,7 @@
                     <option value="cancelado" {{ 'selected' if status_filter == 'cancelado' }}>Cancelado</option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <button type="submit" class="btn btn-outline-info w-100"><i class="bi bi-funnel"></i> Filtrar</button>
             </div>
         </form>
@@ -109,7 +98,7 @@
                 {% for page_num in protocols.iter_pages() %}
                     {% if page_num %}
                     <li class="page-item {{ 'active' if page_num == protocols.page }}">
-                        <a class="page-link" href="{{ url_for('protocols.list_protocols', page=page_num, search=search, type=type_filter, status=status_filter) }}">{{ page_num }}</a>
+                        <a class="page-link" href="{{ url_for('protocols.list_protocols', page=page_num, search=search, status=status_filter) }}">{{ page_num }}</a>
                     </li>
                     {% else %}
                     <li class="page-item disabled"><span class="page-link">...</span></li>

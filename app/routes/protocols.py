@@ -33,15 +33,12 @@ def list_protocols():
     query = Protocol.query
 
     if search:
-        query = query.filter(
+        query = query.outerjoin(Protocol.components).filter(
             db.or_(
-                Protocol.protocol_number.ilike(f'%{search}%'),
-                Protocol.client_name.ilike(f'%{search}%'),
-                Protocol.lote.ilike(f'%{search}%'),
                 Protocol.order_number.ilike(f'%{search}%'),
-                Protocol.observations.ilike(f'%{search}%')
+                Component.serial_number.ilike(f'%{search}%')
             )
-        )
+        ).distinct()
     if type_filter:
         query = query.filter_by(type=type_filter)
     if status_filter:

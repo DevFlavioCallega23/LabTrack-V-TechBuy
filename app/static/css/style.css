@@ -1,9 +1,19 @@
+:root {
+    --tb-primary: #1ecbe1;
+    --tb-primary-dark: #17a9bd;
+    --tb-gradient: linear-gradient(135deg, #1ecbe1, #3b82f6);
+    --tb-bg: #0a0a12;
+    --tb-card: #14141f;
+    --tb-border: rgba(255,255,255,0.08);
+}
+
 body {
-    background-color: #0a0a0f;
+    background-color: var(--tb-bg);
 }
 
 .card {
-    border-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--tb-border);
+    background-color: var(--tb-card);
 }
 
 .table > :not(caption) > * > * {
@@ -11,7 +21,16 @@ body {
 }
 
 .navbar {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--tb-border);
+    background: linear-gradient(180deg, #0d0d1a 0%, var(--tb-bg) 100%) !important;
+}
+
+.navbar-brand {
+    background: var(--tb-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
 }
 
 .nav-link:hover {
@@ -33,8 +52,8 @@ body {
 }
 
 .pagination .page-item.active .page-link {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
+    background: var(--tb-gradient);
+    border-color: transparent;
 }
 
 .clickable-row {
@@ -42,7 +61,7 @@ body {
 }
 
 .clickable-row:hover {
-    background-color: rgba(13, 110, 253, 0.08) !important;
+    background-color: rgba(30, 203, 225, 0.06) !important;
 }
 
 .clickable-row .action-btns {
@@ -57,3 +76,67 @@ body {
     transition: opacity 0.2s;
 }
 
+.btn-primary {
+    background: var(--tb-gradient);
+    border: none;
+    color: #000;
+    font-weight: 600;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #17a9bd, #2563eb);
+    color: #000;
+}
+
+.btn-outline-info {
+    border-color: var(--tb-primary);
+    color: var(--tb-primary);
+}
+
+.btn-outline-info:hover {
+    background: var(--tb-primary);
+    color: #000;
+}
+
+.border-primary {
+    border-color: var(--tb-primary) !important;
+}
+
+.text-primary {
+    color: var(--tb-primary) !important;
+}
+
+.bg-primary {
+    background: var(--tb-gradient) !important;
+}
+
+.alert-success {
+    background: rgba(30, 203, 225, 0.15);
+    border-color: var(--tb-primary);
+    color: var(--tb-primary);
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--tb-primary);
+    box-shadow: 0 0 0 0.2rem rgba(30, 203, 225, 0.25);
+}
+
+.dashboard-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    background: var(--tb-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.card-header {
+    background: rgba(255,255,255,0.03);
+    border-bottom-color: var(--tb-border);
+}
+
+.card .card-footer {
+    background: rgba(255,255,255,0.02);
+    border-top-color: var(--tb-border);
+}

@@ -6,3 +6,6 @@ __pycache__/
 instance/
 *.pyc
 __pycache__/
+
+app.log
+check_db.py

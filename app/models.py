@@ -65,7 +65,8 @@ class Protocol(db.Model):
         'ponta_entrega': 'Ponta Entrega',
         'venda_ponta_entrega': 'Venda Ponta Entrega',
         'rma': 'RMA (Garantia)',
-        'servico': 'Serviço Fora de Garantia'
+        'servico': 'Serviço Fora de Garantia',
+        'nao_comprado': 'Não comprado na TechBuy'
     }
 
     STATUS_LABELS = {
