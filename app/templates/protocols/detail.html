@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-file-text"></i> Protocolo {{ protocol.protocol_number }}</h3>
+    <div>
+        <a href="{{ url_for('protocols.list_protocols') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Voltar
+        </a>
+        {% if current_user.is_manager() %}
+        <a href="{{ url_for('protocols.edit_protocol', id=protocol.id) }}" class="btn btn-warning">
+            <i class="bi bi-pencil"></i> Editar
+        </a>
+        {% endif %}
+        {% if current_user.is_admin() %}
+        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+            <i class="bi bi-trash"></i> Excluir
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-info-circle"></i> Informações do Protocolo</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="text-secondary small d-block">Protocolo</label>
+                        <strong>{{ protocol.protocol_number }}</strong>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-secondary small d-block">Tipo</label>
+                        <span class="badge bg-secondary fs-6">{{ protocol.type_label() }}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-secondary small d-block">Cliente</label>
+                        <strong>{{ protocol.client_name }}</strong>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-secondary small d-block">Contato</label>
+                        <strong>{{ protocol.contact or '-' }}</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="text-secondary small d-block">Número de Série</label>
+                        <strong>{{ protocol.serial_number or '-' }}</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="text-secondary small d-block">Número do Pedido</label>
+                        <strong>{{ protocol.order_number or '-' }}</strong>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="text-secondary small d-block">Marca</label>
+                        <strong>{{ protocol.brand or '-' }}</strong>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="text-secondary small d-block">Modelo</label>
+                        <strong>{{ protocol.model or '-' }}</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="text-secondary small d-block">Data de Entrada</label>
+                        <strong>{{ protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else '-' }}</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="text-secondary small d-block">Data de Saída</label>
+                        <strong>{{ protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else '-' }}</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="text-secondary small d-block">Status</label>
+                        <strong>
+                            {% if protocol.status == 'pendente' %}
+                            <span class="badge bg-warning text-dark fs-6">Pendente</span>
+                            {% elif protocol.status == 'andamento' %}
+                            <span class="badge bg-info fs-6">Em Andamento</span>
+                            {% elif protocol.status == 'concluido' %}
+                            <span class="badge bg-success fs-6">Concluído</span>
+                            {% elif protocol.status == 'cancelado' %}
+                            <span class="badge bg-danger fs-6">Cancelado</span>
+                            {% endif %}
+                        </strong>
+                    </div>
+                </div>
+
+                {% if protocol.observations %}
+                <hr>
+                <div>
+                    <label class="text-secondary small d-block mb-2">Observações</label>
+                    <div class="p-3 bg-dark rounded">
+                        {{ protocol.observations | nl2br }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-clock"></i> Auditoria</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="text-secondary small d-block">Criado por</label>
+                    <strong><i class="bi bi-person-circle"></i> {{ protocol.author.username }}</strong>
+                </div>
+                <div class="mb-3">
+                    <label class="text-secondary small d-block">Criado em</label>
+                    <strong>{{ protocol.created_at.strftime('%d/%m/%Y às %H:%M') }}</strong>
+                </div>
+                <div class="mb-3">
+                    <label class="text-secondary small d-block">Última atualização</label>
+                    <strong>{{ protocol.updated_at.strftime('%d/%m/%Y às %H:%M') }}</strong>
+                </div>
+                <div class="mb-3">
+                    <label class="text-secondary small d-block">Dias em aberto</label>
+                    <strong>{{ (protocol.updated_at - protocol.created_at).days }} dias</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if current_user.is_admin() %}
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle text-danger"></i> Confirmar Exclusão</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja excluir o protocolo <strong>{{ protocol.protocol_number }}</strong>?</p>
+                <p class="text-danger small"><i class="bi bi-info-circle"></i> Esta ação não pode ser desfeita.</p>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form action="{{ url_for('protocols.delete_protocol', id=protocol.id) }}" method="POST" style="display:inline;">
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-trash"></i> Excluir</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

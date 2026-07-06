@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  labtrack:
+    build: .
+    container_name: labtrack
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./labtrack.db:/app/labtrack.db
+      - ./instance:/app/instance
+    environment:
+      - SECRET_KEY=change-this-to-a-secure-key
+    restart: unless-stopped

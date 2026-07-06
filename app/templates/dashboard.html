@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-speedometer2"></i> Dashboard</h3>
+    {% if current_user.is_manager() %}
+    <a href="{{ url_for('protocols.create_protocol') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Novo Protocolo
+    </a>
+    {% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <h1 class="text-primary mb-0">{{ total }}</h1>
+                <p class="text-secondary mb-0">Total de Protocolos</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <h1 class="text-warning mb-0">{{ pendentes }}</h1>
+                <p class="text-secondary mb-0">Pendentes</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <h1 class="text-info mb-0">{{ andamento }}</h1>
+                <p class="text-secondary mb-0">Em Andamento</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <h1 class="text-success mb-0">{{ concluidos }}</h1>
+                <p class="text-secondary mb-0">Concluídos</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-clock-history"></i> Protocolos Recentes</span>
+        <a href="{{ url_for('protocols.list_protocols') }}" class="btn btn-sm btn-outline-secondary">Ver todos</a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Protocolo</th>
+                        <th>Tipo</th>
+                        <th>Cliente</th>
+                        <th>Nº Série</th>
+                        <th>Status</th>
+                        <th>Data</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in recentes %}
+                    <tr class="clickable-row" data-href="{{ url_for('protocols.detail_protocol', id=p.id) }}">
+                        <td><strong>{{ p.protocol_number }}</strong></td>
+                        <td><span class="badge bg-secondary">{{ p.type_label() }}</span></td>
+                        <td>{{ p.client_name }}</td>
+                        <td>{{ p.serial_number or '-' }}</td>
+                        <td>
+                            {% if p.status == 'pendente' %}
+                            <span class="badge bg-warning text-dark">Pendente</span>
+                            {% elif p.status == 'andamento' %}
+                            <span class="badge bg-info">Em Andamento</span>
+                            {% elif p.status == 'concluido' %}
+                            <span class="badge bg-success">Concluído</span>
+                            {% elif p.status == 'cancelado' %}
+                            <span class="badge bg-danger">Cancelado</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ p.created_at.strftime('%d/%m/%Y') }}</td>
+                        <td></td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-secondary py-4">
+                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                            Nenhum protocolo registrado ainda.
+                            {% if current_user.is_manager() %}
+                            <a href="{{ url_for('protocols.create_protocol') }}" class="d-block mt-2">Criar primeiro protocolo</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

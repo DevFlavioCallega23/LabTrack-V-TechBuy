@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>
+        {% if editing %}
+        <i class="bi bi-pencil"></i> Editar Protocolo {{ protocol.protocol_number }}
+        {% else %}
+        <i class="bi bi-plus-circle"></i> Novo Protocolo
+        {% endif %}
+    </h3>
+    <a href="{{ url_for('protocols.list_protocols') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Voltar
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            {{ form.hidden_tag() }}
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.type.label }}</label>
+                    {{ form.type(class='form-select') }}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.client_name.label }}</label>
+                    {{ form.client_name(class='form-control', placeholder='Nome do cliente ou solicitante') }}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.contact.label }}</label>
+                    {{ form.contact(class='form-control', placeholder='Telefone ou email') }}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.serial_number.label }}</label>
+                    {{ form.serial_number(class='form-control', placeholder='Número de série do equipamento') }}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">{{ form.order_number.label }}</label>
+                    {{ form.order_number(class='form-control', placeholder='Número do pedido / NF') }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">{{ form.brand.label }}</label>
+                    {{ form.brand(class='form-control', placeholder='Marca') }}
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">{{ form.model.label }}</label>
+                    {{ form.model(class='form-control', placeholder='Modelo') }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{{ form.status.label }}</label>
+                    {{ form.status(class='form-select') }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{{ form.entry_date.label }}</label>
+                    {{ form.entry_date(class='form-control', type='date') }}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">{{ form.exit_date.label }}</label>
+                    {{ form.exit_date(class='form-control', type='date') }}
+                </div>
+                <div class="col-12">
+                    <label class="form-label">{{ form.observations.label }}</label>
+                    {{ form.observations(class='form-control', rows=4, placeholder='Observações, defeitos relatados, peças trocadas, etc.') }}
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg"></i> {{ 'Atualizar' if editing else 'Criar Protocolo' }}
+                    </button>
+                    <a href="{{ url_for('protocols.list_protocols') }}" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

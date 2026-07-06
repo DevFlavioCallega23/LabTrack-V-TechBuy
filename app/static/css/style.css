@@ -1,0 +1,54 @@
+body {
+    background-color: #0a0a0f;
+}
+
+.card {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.table > :not(caption) > * > * {
+    border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+.navbar {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.nav-link:hover {
+    opacity: 0.8;
+}
+
+.badge {
+    font-weight: 500;
+}
+
+.pagination .page-link {
+    background-color: transparent;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #dee2e6;
+}
+
+.pagination .page-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.clickable-row {
+    cursor: pointer;
+}
+
+.clickable-row:hover {
+    background-color: rgba(13, 110, 253, 0.08) !important;
+}
+
+.clickable-row .action-btns {
+    cursor: default;
+}
+
+.clickable-row .action-btns a {
+    cursor: pointer;
+}

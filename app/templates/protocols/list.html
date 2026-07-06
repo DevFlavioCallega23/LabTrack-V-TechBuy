@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-list-ul"></i> Protocolos</h3>
+    {% if current_user.is_manager() %}
+    <a href="{{ url_for('protocols.create_protocol') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Novo Protocolo
+    </a>
+    {% endif %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label"><i class="bi bi-search"></i> Buscar</label>
+                <input type="text" name="search" class="form-control" placeholder="Protocolo, cliente, série, pedido..." value="{{ search }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Tipo</label>
+                <select name="type" class="form-select">
+                    <option value="">Todos</option>
+                    <option value="venda" {{ 'selected' if type_filter == 'venda' }}>Venda</option>
+                    <option value="ponta_entrega" {{ 'selected' if type_filter == 'ponta_entrega' }}>Ponta Entrega</option>
+                    <option value="venda_ponta_entrega" {{ 'selected' if type_filter == 'venda_ponta_entrega' }}>Venda Ponta Entrega</option>
+                    <option value="rma" {{ 'selected' if type_filter == 'rma' }}>RMA (Garantia)</option>
+                    <option value="servico" {{ 'selected' if type_filter == 'servico' }}>Serviço</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">Todos</option>
+                    <option value="pendente" {{ 'selected' if status_filter == 'pendente' }}>Pendente</option>
+                    <option value="andamento" {{ 'selected' if status_filter == 'andamento' }}>Em Andamento</option>
+                    <option value="concluido" {{ 'selected' if status_filter == 'concluido' }}>Concluído</option>
+                    <option value="cancelado" {{ 'selected' if status_filter == 'cancelado' }}>Cancelado</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-outline-info w-100"><i class="bi bi-funnel"></i> Filtrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Protocolo</th>
+                        <th>Tipo</th>
+                        <th>Cliente</th>
+                        <th>Nº Série</th>
+                        <th>Pedido</th>
+                        <th>Status</th>
+                        <th>Data</th>
+                        <th>Autor</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in protocols.items %}
+                    <tr class="clickable-row" data-href="{{ url_for('protocols.detail_protocol', id=p.id) }}">
+                        <td><strong>{{ p.protocol_number }}</strong></td>
+                        <td><span class="badge bg-secondary">{{ p.type_label() }}</span></td>
+                        <td>{{ p.client_name }}</td>
+                        <td>{{ p.serial_number or '-' }}</td>
+                        <td>{{ p.order_number or '-' }}</td>
+                        <td>
+                            {% if p.status == 'pendente' %}
+                            <span class="badge bg-warning text-dark">Pendente</span>
+                            {% elif p.status == 'andamento' %}
+                            <span class="badge bg-info">Em Andamento</span>
+                            {% elif p.status == 'concluido' %}
+                            <span class="badge bg-success">Concluído</span>
+                            {% elif p.status == 'cancelado' %}
+                            <span class="badge bg-danger">Cancelado</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ p.created_at.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ p.author.username }}</td>
+                        <td class="action-btns">
+                            {% if current_user.is_manager() %}
+                            <a href="{{ url_for('protocols.edit_protocol', id=p.id) }}" class="btn btn-sm btn-outline-warning">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-secondary py-4">
+                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                            Nenhum protocolo encontrado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if protocols.pages > 1 %}
+    <div class="card-footer">
+        <nav>
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+                {% for page_num in protocols.iter_pages() %}
+                    {% if page_num %}
+                    <li class="page-item {{ 'active' if page_num == protocols.page }}">
+                        <a class="page-link" href="{{ url_for('protocols.list_protocols', page=page_num, search=search, type=type_filter, status=status_filter) }}">{{ page_num }}</a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
