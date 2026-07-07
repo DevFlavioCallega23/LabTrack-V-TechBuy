@@ -19,11 +19,14 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+    def is_master(self):
+        return self.role == 'master'
+
     def is_admin(self):
-        return self.role == 'admin'
+        return self.role in ('master', 'admin')
 
     def is_manager(self):
-        return self.role in ('admin', 'manager')
+        return self.role in ('master', 'admin')
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -49,6 +52,7 @@ class Protocol(db.Model):
     contact = db.Column(db.String(100))
     lote = db.Column(db.String(50))
     order_number = db.Column(db.String(100))
+    seller = db.Column(db.String(50))
     status = db.Column(db.String(20), default='pendente')
     entry_date = db.Column(db.DateTime, default=datetime.utcnow)
     exit_date = db.Column(db.DateTime, nullable=True)
@@ -59,6 +63,9 @@ class Protocol(db.Model):
     components = db.relationship('Component', backref='protocol', lazy=True,
                                 order_by='Component.sort_order',
                                 cascade='all, delete-orphan')
+    defects = db.relationship('Defect', backref='protocol', lazy=True,
+                             order_by='Defect.sort_order',
+                             cascade='all, delete-orphan')
 
     TYPE_LABELS = {
         'venda': 'Venda',
@@ -93,14 +100,15 @@ class Component(db.Model):
     serial_number = db.Column(db.String(100))
     sort_order = db.Column(db.Integer, default=0)
 
-    FIXED_TYPES = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte']
+    FIXED_TYPES = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'monitor']
 
     TYPE_LABELS = {
         'processador': 'Processador',
         'placa_mae': 'Placa-Mãe (Soquete)',
         'ram': 'RAM',
         'ssd': 'SSD',
-        'fonte': 'Fonte'
+        'fonte': 'Fonte',
+        'monitor': 'Monitor'
     }
 
     def type_label(self):
@@ -108,3 +116,26 @@ class Component(db.Model):
 
     def __repr__(self):
         return f'<Component {self.component_type}: {self.serial_number}>'
+
+class Defect(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    protocol_id = db.Column(db.Integer, db.ForeignKey('protocol.id'), nullable=False)
+    component_type = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text)
+    sort_order = db.Column(db.Integer, default=0)
+
+    TYPE_LABELS = {
+        'processador': 'Processador',
+        'placa_mae': 'Placa-Mãe (Soquete)',
+        'ram': 'RAM',
+        'ssd': 'SSD',
+        'fonte': 'Fonte',
+        'monitor': 'Monitor',
+        'outro': 'Outro'
+    }
+
+    def type_label(self):
+        return self.TYPE_LABELS.get(self.component_type, self.component_type)
+
+    def __repr__(self):
+        return f'<Defect {self.component_type}>'

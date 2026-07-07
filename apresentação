@@ -1,15 +1,61 @@
-Olá todos Sou FlavioCallega desenvolvedor principal do dono desse projeto 
-estou criando esse projeto no dia 06/07/26 
+# Projeto ControleLab
 
-Meu objetivo com ele é organizar e simplificar minhas entradas e saidas de pedidos e RMA´s em meu laborátorio,
-"meu controle de estoque e passagens" no meu ambiente de trabalho. 
+Olá a todos!  
+Sou **Flavio Callega**, desenvolvedor principal e dono deste projeto.  
+Iniciei este projeto em **06/07/2026** com o objetivo de **organizar e simplificar minhas entradas e saídas de pedidos e RMA´s** em meu laboratório — ou seja, controlar estoque e passagens no meu ambiente de trabalho.
+
+---
+
+## 🎯 Objetivo
+O sistema foi criado para atender às principais situações do meu dia a dia:
+- **Pedidos**
+- **Pronta-Entrega**
+- **RMA**
+- **Serviços**
+
+Inicialmente, temos **3 usuários** cadastrados. Eu atuo como **administrador e desenvolvedor** do sistema.  
+Com o tempo, espero expandir as funcionalidades e compartilhar mais novidades.
+
+---
+
+## ⚙️ Dependências
+
+O projeto utiliza **Python 3.13** e as seguintes bibliotecas:
+
+- Flask==3.0.0  
+- Flask-SQLAlchemy==3.1.1  
+- Flask-Login==0.6.3  
+- Flask-WTF==1.2.1  
+- WTForms==3.1.1  
+- Werkzeug==3.0.1  
+- Jinja2>=3.1.2  
+- itsdangerous>=2.1.2  
+- click>=8.1.3  
+- blinker>=1.6.2  
+- SQLAlchemy>=2.0.16  
+
+Todas essas dependências já estão listadas no arquivo `requirements.txt`.
+
+---
+
+## 🚀 Como rodar o projeto
+
+### 1. Clonar o repositório
+```bash
+git clone <https://github.com/DevFlavioCallega23/ProjetoNovoControleLab.git>
+cd ProjetoNovoControleLab
 
 
-inicialmente temos 3 Ursers nele, eu sou o administrador e desenvolvedor dele. 
+faça um ambiente saudavel para o projeto -------
+python -m venv venv
+venv\Scripts\activate   # Windows
+source venv/bin/activate # Linux/Mac
+
+Instale as dependencias -------
 
 
-dado inicio ao projeto quero implementar funções de Pedidos, pronta-Entrega, RMA e Serviços. São ás principais situações em meu dia a dia no meu trabalho,
-com isso espero que futuramente tenho mais o que falar. 
+pip install -r requirements.txt
 
 
-PS. a quem estou enganado, estou escrevendo isso para mim kskskskskskskskks
+depois rode------ 
+python run.py

@@ -7,6 +7,41 @@ class LoginForm(FlaskForm):
     password = PasswordField('Senha', validators=[DataRequired()])
     submit = SubmitField('Entrar')
 
+class UserForm(FlaskForm):
+    username = StringField('Usuário', validators=[DataRequired(), Length(max=80)])
+    email = StringField('Email', validators=[Optional(), Email(), Length(max=120)])
+    role = SelectField('Nível de Acesso', choices=[
+        ('viewer', 'Visualização'),
+        ('admin', 'Administrador')
+    ], default='viewer')
+    submit = SubmitField('Salvar')
+
+class CreateUserForm(UserForm):
+    password = PasswordField('Senha', validators=[DataRequired(), Length(min=4)])
+    submit = SubmitField('Criar Usuário')
+
+class MasterUserForm(UserForm):
+    role = SelectField('Nível de Acesso', choices=[
+        ('viewer', 'Visualização'),
+        ('admin', 'Administrador'),
+        ('master', 'Master')
+    ], default='viewer')
+    submit = SubmitField('Salvar')
+
+class MasterCreateUserForm(CreateUserForm):
+    role = SelectField('Nível de Acesso', choices=[
+        ('viewer', 'Visualização'),
+        ('admin', 'Administrador'),
+        ('master', 'Master')
+    ], default='viewer')
+    submit = SubmitField('Criar Usuário')
+
+class ChangePasswordForm(FlaskForm):
+    current_password = PasswordField('Senha Atual', validators=[DataRequired()])
+    new_password = PasswordField('Nova Senha', validators=[DataRequired(), Length(min=4)])
+    confirm_password = PasswordField('Confirmar Nova Senha', validators=[DataRequired()])
+    submit = SubmitField('Alterar Senha')
+
 class ProtocolForm(FlaskForm):
     type = SelectField('Tipo de Protocolo', choices=[
         ('venda', 'Venda'),
@@ -17,9 +52,18 @@ class ProtocolForm(FlaskForm):
         ('nao_comprado', 'Não comprado na TechBuy')
     ], validators=[DataRequired()])
     client_name = StringField('Cliente / Nome', validators=[Optional(), Length(max=200)])
-    contact = StringField('Contato', validators=[Optional(), Length(max=100)])
     lote = StringField('Lote', validators=[Optional(), Length(max=50)])
     order_number = StringField('Número do Pedido', validators=[Optional(), Length(max=100)])
+    seller = SelectField('Vendedor', choices=[
+        ('', 'Selecione...'),
+        ('Myris', 'Myris'),
+        ('Janay', 'Janay'),
+        ('Herbert', 'Herbert'),
+        ('Erica', 'Erica'),
+        ('Roberto', 'Roberto'),
+        ('TechBuy', 'TechBuy'),
+        ('NIL', 'NIL (Não informado)')
+    ], default='')
     status = SelectField('Status', choices=[
         ('pendente', 'Pendente'),
         ('andamento', 'Em Andamento'),
@@ -31,13 +75,4 @@ class ProtocolForm(FlaskForm):
     observations = TextAreaField('Observações', validators=[Optional()])
     submit = SubmitField('Salvar')
 
-class UserForm(FlaskForm):
-    username = StringField('Usuário', validators=[DataRequired(), Length(max=80)])
-    email = StringField('Email', validators=[Optional(), Email(), Length(max=120)])
-    password = PasswordField('Senha', validators=[DataRequired(), Length(min=4)])
-    role = SelectField('Nível de Acesso', choices=[
-        ('viewer', 'Visualização'),
-        ('manager', 'Gerente'),
-        ('admin', 'Administrador')
-    ], default='viewer')
-    submit = SubmitField('Criar Usuário')
+

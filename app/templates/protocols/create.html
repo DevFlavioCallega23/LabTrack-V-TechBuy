@@ -34,9 +34,9 @@
                     <label class="form-label">{{ form.client_name.label }}</label>
                     {{ form.client_name(class='form-control', placeholder='Nome do cliente ou solicitante') }}
                 </div>
-                <div class="col-md-6 field-group" data-show-for="venda,venda_ponta_entrega,rma,servico,nao_comprado">
-                    <label class="form-label">{{ form.contact.label }}</label>
-                    {{ form.contact(class='form-control', placeholder='Telefone ou email') }}
+                <div class="col-md-3">
+                    <label class="form-label">{{ form.seller.label }}</label>
+                    {{ form.seller(class='form-select') }}
                 </div>
             </div>
 
@@ -47,7 +47,7 @@
 
                 <div class="col-md-3">
                     <label class="form-label">{{ form.lote.label }}</label>
-                    {{ form.lote(class='form-control', placeholder='Ex: 01') }}
+                    {{ form.lote(class='form-control', placeholder='Ex: CX001, CX002...') }}
                 </div>
                 <div class="col-md-3 field-group" data-show-for="venda,venda_ponta_entrega,rma,nao_comprado">
                     <label class="form-label">{{ form.order_number.label }}</label>
@@ -61,7 +61,7 @@
                     <label class="form-label">{{ form.entry_date.label }}</label>
                     {{ form.entry_date(class='form-control', type='date') }}
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 field-group-exit" data-show-for="rma,servico">
                     <label class="form-label">{{ form.exit_date.label }}</label>
                     {{ form.exit_date(class='form-control', type='date') }}
                 </div>
@@ -89,9 +89,9 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% set fixed = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte'] %}
-                                {% set labels = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte'} %}
-                                {% set placeholders = {'processador': 'Ex: I3-2120', 'placa_mae': 'Ex: 1155', 'ram': 'Ex: 8GB DDR3', 'ssd': 'Ex: 120GB', 'fonte': 'Ex: 230W Duex'} %}
+                                {% set fixed = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'monitor'] %}
+                                {% set labels = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor'} %}
+                                {% set placeholders = {'processador': 'Ex: I3-2120', 'placa_mae': 'Ex: 1155', 'ram': 'Ex: 8GB DDR3', 'ssd': 'Ex: 120GB', 'fonte': 'Ex: 230W Duex', 'monitor': 'Ex: 22 LED'} %}
 
                                 {% if editing and protocol.components %}
                                     {% set editing_components = protocol.components|list %}
@@ -137,6 +137,64 @@
 
             <div class="row g-3 mt-2">
                 <div class="col-12">
+                    <h6 class="text-secondary border-bottom pb-2">
+                        <i class="bi bi-exclamation-triangle"></i> Defeitos Encontrados
+                        <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="addDefectRow()">
+                            <i class="bi bi-plus-lg"></i> Adicionar
+                        </button>
+                    </h6>
+                </div>
+
+                <div class="col-12">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-sm" id="defectsTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 25%">Componente com Defeito</th>
+                                    <th style="width: 70%">Descrição do Defeito</th>
+                                    <th style="width: 5%"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if editing and protocol.defects %}
+                                    {% for defect in protocol.defects %}
+                                    <tr class="defect-row">
+                                        <td>
+                                            <select name="defect_type[]" class="form-select form-select-sm">
+                                                <option value="">-- Selecione --</option>
+                                                {% for key, label in labels.items() %}
+                                                <option value="{{ key }}" {{ 'selected' if defect.component_type == key }}>{{ label }}</option>
+                                                {% endfor %}
+                                                <option value="outro" {{ 'selected' if defect.component_type not in labels and defect.component_type != '' }}>Outro</option>
+                                            </select>
+                                        </td>
+                                        <td><input type="text" name="defect_desc[]" class="form-control form-control-sm" value="{{ defect.description or '' }}" placeholder="Descreva o defeito encontrado"></td>
+                                        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr class="defect-row">
+                                        <td>
+                                            <select name="defect_type[]" class="form-select form-select-sm">
+                                                <option value="">-- Selecione --</option>
+                                                {% for key, label in labels.items() %}
+                                                <option value="{{ key }}">{{ label }}</option>
+                                                {% endfor %}
+                                                <option value="outro">Outro</option>
+                                            </select>
+                                        </td>
+                                        <td><input type="text" name="defect_desc[]" class="form-control form-control-sm" placeholder="Descreva o defeito encontrado"></td>
+                                        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-2">
+                <div class="col-12">
                     <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-chat-dots"></i> Observações</h6>
                 </div>
                 <div class="col-12 field-group" data-show-for="rma,servico">
@@ -168,6 +226,7 @@ const compLabels = {
     'ram': 'RAM',
     'ssd': 'SSD',
     'fonte': 'Fonte',
+    'monitor': 'Monitor',
     'outro': 'Outro'
 };
 
@@ -186,14 +245,34 @@ function addComponentRow() {
     tbody.appendChild(tr);
 }
 
+function addDefectRow() {
+    const tbody = document.querySelector('#defectsTable tbody');
+    const options = '<option value="">-- Selecione --</option>' +
+        Object.entries(compLabels).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+    const tr = document.createElement('tr');
+    tr.className = 'defect-row';
+    tr.innerHTML = `
+        <td><select name="defect_type[]" class="form-select form-select-sm">${options}</select></td>
+        <td><input type="text" name="defect_desc[]" class="form-control form-control-sm" placeholder="Descreva o defeito encontrado"></td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+    `;
+    tbody.appendChild(tr);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const typeSelect = document.getElementById('protocolType');
     const fieldGroups = document.querySelectorAll('.field-group');
+    const exitGroups = document.querySelectorAll('.field-group-exit');
     const sectionClient = document.getElementById('sectionClientLabel');
 
     function updateFields() {
         const type = typeSelect.value;
         fieldGroups.forEach(function(group) {
+            const showFor = group.getAttribute('data-show-for');
+            if (!showFor) return;
+            group.style.display = showFor.split(',').includes(type) ? 'block' : 'none';
+        });
+        exitGroups.forEach(function(group) {
             const showFor = group.getAttribute('data-show-for');
             if (!showFor) return;
             group.style.display = showFor.split(',').includes(type) ? 'block' : 'none';

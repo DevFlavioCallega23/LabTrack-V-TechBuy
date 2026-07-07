@@ -18,6 +18,7 @@
                         <th>Nível</th>
                         <th>Criado em</th>
                         <th>Protocolos</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -26,16 +27,21 @@
                         <td><i class="bi bi-person-circle"></i> {{ user.username }}</td>
                         <td>{{ user.email }}</td>
                         <td>
-                            {% if user.role == 'admin' %}
-                            <span class="badge bg-danger">Admin</span>
-                            {% elif user.role == 'manager' %}
-                            <span class="badge bg-warning text-dark">Gerente</span>
+                            {% if user.role == 'master' %}
+                            <span class="badge bg-danger">Master</span>
+                            {% elif user.role == 'admin' %}
+                            <span class="badge bg-warning text-dark">Admin</span>
                             {% else %}
                             <span class="badge bg-secondary">Visualização</span>
                             {% endif %}
                         </td>
                         <td>{{ user.created_at.strftime('%d/%m/%Y') }}</td>
                         <td>{{ user.protocols|length }}</td>
+                        <td class="action-btns">
+                            <a href="{{ url_for('protocols.edit_user', id=user.id) }}" class="btn btn-sm btn-outline-warning">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

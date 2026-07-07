@@ -11,7 +11,7 @@
             <i class="bi bi-pencil"></i> Editar
         </a>
         {% endif %}
-        {% if current_user.is_admin() %}
+        {% if current_user.is_master() %}
         <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
             <i class="bi bi-trash"></i> Excluir
         </button>
@@ -39,10 +39,10 @@
                         <strong>{{ protocol.client_name }}</strong>
                     </div>
                     {% endif %}
-                    {% if protocol.contact %}
+                    {% if protocol.seller %}
                     <div class="col-md-6">
-                        <label class="text-secondary small d-block">Contato</label>
-                        <strong>{{ protocol.contact }}</strong>
+                        <label class="text-secondary small d-block">Vendedor</label>
+                        <strong>{{ protocol.seller }}</strong>
                     </div>
                     {% endif %}
                     {% if protocol.lote %}
@@ -108,6 +108,31 @@
                 </div>
                 {% endif %}
 
+                {% if protocol.defects %}
+                <hr>
+                <div>
+                    <label class="text-secondary small d-block mb-2"><i class="bi bi-exclamation-triangle text-danger"></i> Defeitos Encontrados</label>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Componente</th>
+                                    <th>Defeito</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for defect in protocol.defects %}
+                                <tr>
+                                    <td>{{ defect.type_label() }}</td>
+                                    <td class="text-danger">{{ defect.description or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
                 {% if protocol.observations %}
                 <hr>
                 <div>
@@ -141,7 +166,7 @@
     </div>
 </div>
 
-{% if current_user.is_admin() %}
+{% if current_user.is_master() %}
 <div class="modal fade" id="deleteModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content bg-dark">

@@ -12,9 +12,28 @@
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-2 align-items-end">
-            <div class="col-md-6">
-                <label class="form-label"><i class="bi bi-search"></i> Pesquisa</label>
-                <input type="text" name="search" class="form-control" placeholder="Buscar por Pedido ou NS..." value="{{ search }}">
+            <div class="col-md-2">
+                <label class="form-label">Buscar por</label>
+                <select name="search_mode" class="form-select" id="searchMode">
+                    <option value="pedido" {{ 'selected' if search_mode == 'pedido' }}>Pedido</option>
+                    <option value="ns" {{ 'selected' if search_mode == 'ns' }}>Nº Série</option>
+                </select>
+            </div>
+            <div class="col-md-2" id="compTypeGroup" style="{{ 'display:none' if search_mode != 'ns' }}">
+                <label class="form-label">Componente</label>
+                <select name="comp_type" class="form-select">
+                    <option value="">Todos</option>
+                    <option value="processador" {{ 'selected' if comp_type_filter == 'processador' }}>Processador</option>
+                    <option value="placa_mae" {{ 'selected' if comp_type_filter == 'placa_mae' }}>Placa-Mãe</option>
+                    <option value="ram" {{ 'selected' if comp_type_filter == 'ram' }}>Memória RAM</option>
+                    <option value="ssd" {{ 'selected' if comp_type_filter == 'ssd' }}>SSD</option>
+                    <option value="fonte" {{ 'selected' if comp_type_filter == 'fonte' }}>Fonte</option>
+                    <option value="monitor" {{ 'selected' if comp_type_filter == 'monitor' }}>Monitor</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label"><i class="bi bi-search"></i> <span id="searchLabel">Nº do Pedido</span></label>
+                <input type="text" name="search" class="form-control" id="searchInput" placeholder="Digite para buscar..." value="{{ search }}">
             </div>
             <div class="col-md-2">
                 <label class="form-label">Status</label>
@@ -26,7 +45,7 @@
                     <option value="cancelado" {{ 'selected' if status_filter == 'cancelado' }}>Cancelado</option>
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-2">
                 <button type="submit" class="btn btn-outline-info w-100"><i class="bi bi-funnel"></i> Filtrar</button>
             </div>
         </form>
@@ -98,7 +117,7 @@
                 {% for page_num in protocols.iter_pages() %}
                     {% if page_num %}
                     <li class="page-item {{ 'active' if page_num == protocols.page }}">
-                        <a class="page-link" href="{{ url_for('protocols.list_protocols', page=page_num, search=search, status=status_filter) }}">{{ page_num }}</a>
+                        <a class="page-link" href="{{ url_for('protocols.list_protocols', page=page_num, search=search, search_mode=search_mode, comp_type=comp_type_filter, status=status_filter) }}">{{ page_num }}</a>
                     </li>
                     {% else %}
                     <li class="page-item disabled"><span class="page-link">...</span></li>
@@ -109,4 +128,22 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+document.getElementById('searchMode').addEventListener('change', function() {
+    var mode = this.value;
+    var compGroup = document.getElementById('compTypeGroup');
+    var searchLabel = document.getElementById('searchLabel');
+    var searchInput = document.getElementById('searchInput');
+    if (mode === 'ns') {
+        compGroup.style.display = 'block';
+        searchLabel.textContent = 'Nº de Série';
+        searchInput.placeholder = 'Digite o nº de série...';
+    } else {
+        compGroup.style.display = 'none';
+        searchLabel.textContent = 'Nº do Pedido';
+        searchInput.placeholder = 'Digite o nº do pedido...';
+    }
+});
+</script>
 {% endblock %}
