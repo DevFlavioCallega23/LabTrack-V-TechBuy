@@ -11,12 +11,13 @@
 
 <div class="card mb-4">
     <div class="card-body">
-        <form method="GET" class="row g-2 align-items-end">
+        <form method="GET" class="row g-2 align-items-end" autocomplete="off">
             <div class="col-md-2">
                 <label class="form-label">Buscar por</label>
                 <select name="search_mode" class="form-select" id="searchMode">
                     <option value="pedido" {{ 'selected' if search_mode == 'pedido' }}>Pedido</option>
                     <option value="ns" {{ 'selected' if search_mode == 'ns' }}>Nº Série</option>
+                    <option value="os" {{ 'selected' if search_mode == 'os' }}>OS</option>
                 </select>
             </div>
             <div class="col-md-2" id="compTypeGroup" style="{{ 'display:none' if search_mode != 'ns' }}">
@@ -62,6 +63,7 @@
                         <th>Tipo</th>
                         <th>Cliente</th>
                         <th>Lote</th>
+                        <th>OS</th>
                         <th>Pedido</th>
                         <th>Status</th>
                         <th>Data</th>
@@ -76,6 +78,7 @@
                         <td><span class="badge bg-secondary">{{ p.type_label() }}</span></td>
                         <td>{{ p.client_name or '-' }}</td>
                         <td>{{ p.lote or '-' }}</td>
+                        <td>{% if p.os_number %}<span class="text-info">OS: {{ p.os_number }}</span>{% else %}-{% endif %}</td>
                         <td>{{ p.order_number or '-' }}</td>
                         <td>
                             {% if p.status == 'pendente' %}
@@ -100,7 +103,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="9" class="text-center text-secondary py-4">
+                        <td colspan="10" class="text-center text-secondary py-4">
                             <i class="bi bi-inbox fs-3 d-block mb-2"></i>
                             Nenhum protocolo encontrado.
                         </td>
@@ -139,6 +142,10 @@ document.getElementById('searchMode').addEventListener('change', function() {
         compGroup.style.display = 'block';
         searchLabel.textContent = 'Nº de Série';
         searchInput.placeholder = 'Digite o nº de série...';
+    } else if (mode === 'os') {
+        compGroup.style.display = 'none';
+        searchLabel.textContent = 'OS';
+        searchInput.placeholder = 'Digite o nº da OS...';
     } else {
         compGroup.style.display = 'none';
         searchLabel.textContent = 'Nº do Pedido';

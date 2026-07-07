@@ -11,11 +11,12 @@
             <i class="bi bi-pencil"></i> Editar
         </a>
         {% endif %}
-        {% if current_user.is_master() %}
-        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
-            <i class="bi bi-trash"></i> Excluir
-        </button>
+        {% if protocol.os_number %}
+        <span class="badge bg-info fs-6 me-2 align-middle">OS: {{ protocol.os_number }}</span>
         {% endif %}
+        <a href="https://wa.me/?text={{ protocol.protocol_number }}%0A{{ protocol.type_label() }}%0ACliente: {{ protocol.client_name or '' }}%0AStatus: {{ protocol.status_label() }}%0A{{ url_for('protocols.detail_protocol', id=protocol.id, _external=True) }}" target="_blank" class="btn btn-success">
+            <i class="bi bi-whatsapp"></i> Compartilhar
+        </a>
     </div>
 </div>
 
@@ -25,47 +26,51 @@
             <div class="card-header"><i class="bi bi-info-circle"></i> Informações do Protocolo</div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <label class="text-secondary small d-block">Protocolo</label>
                         <strong>{{ protocol.protocol_number }}</strong>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-2">
                         <label class="text-secondary small d-block">Tipo</label>
                         <span class="badge bg-secondary fs-6">{{ protocol.type_label() }}</span>
                     </div>
                     {% if protocol.client_name %}
-                    <div class="col-md-6">
+                    <div class="col-md-2">
                         <label class="text-secondary small d-block">Cliente</label>
                         <strong>{{ protocol.client_name }}</strong>
                     </div>
                     {% endif %}
                     {% if protocol.seller %}
-                    <div class="col-md-6">
+                    <div class="col-md-2">
                         <label class="text-secondary small d-block">Vendedor</label>
                         <strong>{{ protocol.seller }}</strong>
                     </div>
                     {% endif %}
                     {% if protocol.lote %}
-                    <div class="col-md-3">
-                        <label class="text-secondary small d-block">Lote</label>
+                    <div class="col-md-1">
+                        <label class="text-secondary small d-block">Quantidade</label>
                         <strong>{{ protocol.lote }}</strong>
                     </div>
                     {% endif %}
-                    {% if protocol.order_number %}
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="text-secondary small d-block">Nº do Pedido</label>
-                        <strong>{{ protocol.order_number }}</strong>
+                        <strong>{{ protocol.order_number if protocol.order_number else 'Não Informado ao Laboratório' }}</strong>
                     </div>
-                    {% endif %}
-                    <div class="col-md-3">
-                        <label class="text-secondary small d-block">Data de Entrada</label>
+                    <div class="col-md-2">
+                        <label class="text-secondary small d-block">Data da Compra</label>
                         <strong>{{ protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else '-' }}</strong>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="text-secondary small d-block">Data de Saída</label>
                         <strong>{{ protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else '-' }}</strong>
                     </div>
-                    <div class="col-md-3">
+                    {% if protocol.os_number %}
+                    <div class="col-md-1">
+                        <label class="text-secondary small d-block">OS</label>
+                        <strong class="text-info">OS: {{ protocol.os_number }}</strong>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-2">
                         <label class="text-secondary small d-block">Status</label>
                         <strong>
                             {% if protocol.status == 'pendente' %}
@@ -81,6 +86,20 @@
                     </div>
                 </div>
 
+                {% if protocol.ref_ns %}
+                <hr>
+                <div class="mb-2">
+                    <label class="text-secondary small d-block">Referência NS</label>
+                    <strong><code>{{ protocol.ref_ns }}</code></strong>
+                </div>
+                {% endif %}
+                {% if protocol.base_defect %}
+                <div>
+                    <label class="text-secondary small d-block">Defeito de Base (Cliente)</label>
+                    <div class="p-2 bg-dark rounded"><em>{{ protocol.base_defect }}</em></div>
+                </div>
+                {% endif %}
+
                 {% if protocol.components %}
                 <hr>
                 <div>
@@ -90,18 +109,25 @@
                             <thead>
                                 <tr>
                                     <th>Componente</th>
-                                    <th>Especificação</th>
+                                    <th>Modelo</th>
                                     <th>Nº de Série</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for comp in protocol.components %}
+                                {% for comp in protocol.components|sort(attribute='sort_order') %}
                                 <tr>
                                     <td>{{ comp.type_label() }}</td>
-                                    <td>{{ comp.specification or '-' }}</td>
+                                    <td><code>{{ comp.specification or '-' }}</code></td>
                                     <td><code>{{ comp.serial_number or '-' }}</code></td>
                                 </tr>
                                 {% endfor %}
+                                {% if protocol.power_cable %}
+                                <tr>
+                                    <td>Cabo de Força</td>
+                                    <td></td>
+                                    <td>{{ protocol.power_cable }}</td>
+                                </tr>
+                                {% endif %}
                             </tbody>
                         </table>
                     </div>
@@ -117,6 +143,7 @@
                             <thead>
                                 <tr>
                                     <th>Componente</th>
+                                    <th>Nº Série</th>
                                     <th>Defeito</th>
                                 </tr>
                             </thead>
@@ -124,6 +151,7 @@
                                 {% for defect in protocol.defects %}
                                 <tr>
                                     <td>{{ defect.type_label() }}</td>
+                                    <td><code>{{ defect.serial_number or '-' }}</code></td>
                                     <td class="text-danger">{{ defect.description or '-' }}</td>
                                 </tr>
                                 {% endfor %}
@@ -166,26 +194,4 @@
     </div>
 </div>
 
-{% if current_user.is_master() %}
-<div class="modal fade" id="deleteModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content bg-dark">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title"><i class="bi bi-exclamation-triangle text-danger"></i> Confirmar Exclusão</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Tem certeza que deseja excluir o protocolo <strong>{{ protocol.protocol_number }}</strong>?</p>
-                <p class="text-danger small"><i class="bi bi-info-circle"></i> Esta ação não pode ser desfeita.</p>
-            </div>
-            <div class="modal-footer border-secondary">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <form action="{{ url_for('protocols.delete_protocol', id=protocol.id) }}" method="POST" style="display:inline;">
-                    <button type="submit" class="btn btn-danger"><i class="bi bi-trash"></i> Excluir</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
 {% endblock %}

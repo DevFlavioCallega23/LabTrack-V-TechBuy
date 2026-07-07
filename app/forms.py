@@ -52,7 +52,7 @@ class ProtocolForm(FlaskForm):
         ('nao_comprado', 'Não comprado na TechBuy')
     ], validators=[DataRequired()])
     client_name = StringField('Cliente / Nome', validators=[Optional(), Length(max=200)])
-    lote = StringField('Lote', validators=[Optional(), Length(max=50)])
+    lote = StringField('Quantidade', validators=[Optional(), Length(max=50)])
     order_number = StringField('Número do Pedido', validators=[Optional(), Length(max=100)])
     seller = SelectField('Vendedor', choices=[
         ('', 'Selecione...'),
@@ -62,17 +62,32 @@ class ProtocolForm(FlaskForm):
         ('Erica', 'Erica'),
         ('Roberto', 'Roberto'),
         ('TechBuy', 'TechBuy'),
-        ('NIL', 'NIL (Não informado)')
+        ('NIL', 'NIL (Não informado ao Laboratório)')
     ], default='')
     status = SelectField('Status', choices=[
         ('pendente', 'Pendente'),
         ('andamento', 'Em Andamento'),
-        ('concluido', 'Concluído'),
-        ('cancelado', 'Cancelado')
+        ('concluido', 'Concluído')
     ], default='pendente')
-    entry_date = DateField('Data de Entrada', format='%Y-%m-%d', validators=[Optional()])
+    entry_date = StringField('Data da Compra', validators=[Optional()])
     exit_date = DateField('Data de Saída', format='%Y-%m-%d', validators=[Optional()])
+    ref_ns = StringField('Referência NS', validators=[Optional(), Length(max=100)])
+    base_defect = TextAreaField('Defeito de Base', validators=[Optional()])
     observations = TextAreaField('Observações', validators=[Optional()])
     submit = SubmitField('Salvar')
+
+    REQUIRED_CLIENT_SELLER = {'venda', 'servico', 'rma', 'venda_ponta_entrega', 'nao_comprado'}
+
+    def validate(self, extra_validators=None):
+        if not super().validate(extra_validators):
+            return False
+        if self.type.data in self.REQUIRED_CLIENT_SELLER:
+            if not self.client_name.data or not self.client_name.data.strip():
+                self.client_name.errors.append('Cliente é obrigatório para este tipo de protocolo.')
+                return False
+            if not self.seller.data or self.seller.data == '':
+                self.seller.errors.append('Vendedor é obrigatório para este tipo de protocolo.')
+                return False
+        return True
 
 

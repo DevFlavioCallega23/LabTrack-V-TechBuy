@@ -35,6 +35,8 @@ class User(UserMixin, db.Model):
     def create_admin(cls):
         admin = cls.query.filter_by(username='admin').first()
         if not admin:
+            admin = cls.query.filter_by(email='admin@labtrack.local').first()
+        if not admin:
             admin = cls(
                 username='admin',
                 email='admin@labtrack.local',
@@ -52,11 +54,16 @@ class Protocol(db.Model):
     contact = db.Column(db.String(100))
     lote = db.Column(db.String(50))
     order_number = db.Column(db.String(100))
+    os_number = db.Column(db.String(20))
     seller = db.Column(db.String(50))
     status = db.Column(db.String(20), default='pendente')
     entry_date = db.Column(db.DateTime, default=datetime.utcnow)
     exit_date = db.Column(db.DateTime, nullable=True)
     observations = db.Column(db.Text)
+    power_cable = db.Column(db.String(10))
+    power_cables = db.Column(db.Text)
+    ref_ns = db.Column(db.String(100))
+    base_defect = db.Column(db.Text)
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -98,6 +105,7 @@ class Component(db.Model):
     component_type = db.Column(db.String(50), nullable=False)
     specification = db.Column(db.String(200))
     serial_number = db.Column(db.String(100))
+    unit = db.Column(db.String(10))
     sort_order = db.Column(db.Integer, default=0)
 
     FIXED_TYPES = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'monitor']
@@ -121,6 +129,7 @@ class Defect(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     protocol_id = db.Column(db.Integer, db.ForeignKey('protocol.id'), nullable=False)
     component_type = db.Column(db.String(50), nullable=False)
+    serial_number = db.Column(db.String(100))
     description = db.Column(db.Text)
     sort_order = db.Column(db.Integer, default=0)
 
