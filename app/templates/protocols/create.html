@@ -105,11 +105,15 @@
             <div class="row g-3 mt-2">
                 <div class="col-md-3">
                     <label class="form-label">Cabo de Força</label>
-                    <select name="power_cable" class="form-select">
+                    <select name="power_cable" class="form-select" id="powerCable" onchange="togglePowerCableFonte()">
                         <option value="">---</option>
                         <option value="OK" {{ 'selected' if editing and protocol.power_cable == 'OK' }}>OK</option>
-                        <option value="IS" {{ 'selected' if editing and protocol.power_cable == 'IS' }}>IS</option>
+                        <option value="IE" {{ 'selected' if editing and protocol.power_cable == 'IE' }}>Informado ao Estoque</option>
                     </select>
+                </div>
+                <div class="col-md-3" id="powerCableFonteGroup" style="{{ 'display:block' if editing and protocol.power_cable == 'IE' else 'display:none' }}">
+                    <label class="form-label">NS da Fonte sem Cabo</label>
+                    <input type="text" name="power_cable_fonte_serial" class="form-control" placeholder="Nº de série da fonte" value="{{ protocol.power_cable_fonte_serial or '' if editing else '' }}">
                 </div>
             </div>
 
@@ -209,14 +213,15 @@ const COMP_LABELS = {
 const EXTRA_OPTS = '<option value="">-- Selecione --</option>' +
     Object.entries(COMP_LABELS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
 
-let machineCount = 1;
+let machineCount = 0;
 
-function machineHTML(num) {
+function machineHTML(num, name) {
     const n = String(num).padStart(2, '0');
+    const label = name || `Máquina ${n}`;
     return `
     <div class="card bg-dark border-secondary mb-3 machine-block" data-machine="${n}">
         <div class="card-header d-flex justify-content-between align-items-center py-2">
-            <span class="fw-bold"><i class="bi bi-pc-display"></i> Máquina ${n}</span>
+            <input type="text" name="machine_name_${n}" class="form-control form-control-sm bg-dark text-light border-secondary fw-bold" style="width:auto;min-width:200px;display:inline-block" value="${label}">
             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeMachine(this)">
                 <i class="bi bi-x-lg"></i>
             </button>
@@ -237,14 +242,63 @@ function machineHTML(num) {
             <button type="button" class="btn btn-sm btn-outline-success mt-2" onclick="addCompRow(this)">
                 <i class="bi bi-plus"></i> Componente
             </button>
+            <button type="button" class="btn btn-sm btn-outline-info mt-2 ms-1" onclick="replicateMachine(this)">
+                <i class="bi bi-copy"></i> Replicar
+            </button>
         </div>
     </div>`;
 }
 
 function addMachine() {
-    machineCount++;
     const container = document.getElementById('machinesContainer');
-    container.insertAdjacentHTML('beforeend', machineHTML(machineCount));
+    const blocks = container.querySelectorAll('.machine-block');
+    const used = new Set();
+    blocks.forEach(function(b) { used.add(parseInt(b.dataset.machine, 10)); });
+    let next = 1;
+    while (used.has(next)) next++;
+    if (next > machineCount) machineCount = next;
+    container.insertAdjacentHTML('beforeend', machineHTML(next));
+}
+
+function replicateMachine(btn) {
+    const srcBlock = btn.closest('.machine-block');
+    const srcMachine = srcBlock.dataset.machine;
+    const container = document.getElementById('machinesContainer');
+    const blocks = container.querySelectorAll('.machine-block');
+    const used = new Set();
+    blocks.forEach(function(b) { used.add(parseInt(b.dataset.machine, 10)); });
+    let next = 1;
+    while (used.has(next)) next++;
+    if (next > machineCount) machineCount = next;
+    container.insertAdjacentHTML('beforeend', machineHTML(next));
+    const dstBlock = container.lastElementChild;
+    const dstMachine = dstBlock.dataset.machine;
+    const dstTbody = dstBlock.querySelector('.machine-body');
+    const srcRows = srcBlock.querySelectorAll('.machine-body .comp-row');
+    srcRows.forEach(function(row) {
+        const tr = document.createElement('tr');
+        tr.className = 'comp-row';
+        const srcSelect = row.querySelector('select');
+        const srcModel = row.querySelector('input[name^="comp_model_"]');
+        const srcSerial = row.querySelector('input[name^="comp_serial_"]');
+        let serial = srcSerial ? srcSerial.value : '';
+        // Auto-increment serial number if it ends with digits
+        const serialMatch = serial.match(/^(.*?)(\d+)$/);
+        if (serialMatch) {
+            const prefix = serialMatch[1];
+            const num = parseInt(serialMatch[2], 10) + 1;
+            serial = prefix + String(num).padStart(serialMatch[2].length, '0');
+        }
+        tr.innerHTML = `
+            <td><select name="comp_type_${dstMachine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
+            <td><input type="text" name="comp_model_${dstMachine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${srcModel ? srcModel.value : ''}"></td>
+            <td><input type="text" name="comp_serial_${dstMachine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="6" value="${serial}"></td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+        `;
+        const select = tr.querySelector('select');
+        select.value = srcSelect ? srcSelect.value : '';
+        dstTbody.appendChild(tr);
+    });
 }
 
 function removeMachine(btn) {
@@ -278,10 +332,13 @@ function loadMachines(data) {
     machines.forEach(function(m) {
         const num = parseInt(m, 10);
         if (!isNaN(num) && num > maxM) maxM = num;
-        container.insertAdjacentHTML('beforeend', machineHTML(num));
+        const entry = data[m];
+        // entry can be {name, components} (new) or [components] (old)
+        const machineName = entry.name || null;
+        const comps = entry.components || entry || [];
+        container.insertAdjacentHTML('beforeend', machineHTML(num, machineName));
         const block = container.lastElementChild;
         const tbody = block.querySelector('.machine-body');
-        const comps = data[m] || [];
         comps.forEach(function(item) {
             const tr = document.createElement('tr');
             tr.className = 'comp-row';
@@ -296,7 +353,8 @@ function loadMachines(data) {
             tbody.appendChild(tr);
         });
     });
-    machineCount = maxM || 1;
+    machineCount = maxM || 0;
+    if (machineCount === 0) addMachine();
 }
 
 function addDefectRow() {
@@ -321,6 +379,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const sectionClient = document.getElementById('sectionClientLabel');
     const compData = {{ comp_data|safe }};
     loadMachines(compData);
+
+    function togglePowerCableFonte() {
+        const sel = document.getElementById('powerCable');
+        const grp = document.getElementById('powerCableFonteGroup');
+        grp.style.display = sel.value === 'IE' ? 'block' : 'none';
+    }
+    window.togglePowerCableFonte = togglePowerCableFonte;
 
     function updateFields() {
         const type = typeSelect.value;

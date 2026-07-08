@@ -32,6 +32,7 @@ def parse_components(request_form):
         types = request_form.getlist(f'comp_type_{unit}[]')
         models = request_form.getlist(f'comp_model_{unit}[]')
         serials = request_form.getlist(f'comp_serial_{unit}[]')
+        machine_name = request_form.get(f'machine_name_{unit}', '').strip() or f'Máquina {unit}'
         for i in range(len(types)):
             ct = types[i].strip()
             serial = serials[i].strip() if i < len(serials) else ''
@@ -45,6 +46,7 @@ def parse_components(request_form):
                     specification=model,
                     serial_number=serial,
                     unit=unit,
+                    machine_name=machine_name,
                     sort_order=int(unit) * 100 + i
                 ))
     return components
@@ -85,9 +87,9 @@ def list_protocols():
         query = query.join(Protocol.components).filter(
             Component.serial_number.ilike(f'%{search}%')
         )
-    elif search_mode == 'os' and search:
+    elif search_mode == 'cliente' and search:
         query = query.filter(
-            Protocol.os_number.ilike(f'%{search}%')
+            Protocol.client_name.ilike(f'%{search}%')
         )
     elif search:
         query = query.filter(
@@ -138,6 +140,7 @@ def create_protocol():
             os_number = f'OS-{year}-{next_os:04d}'
 
         power_cable = request.form.get('power_cable', '').strip() or None
+        power_cable_fonte = request.form.get('power_cable_fonte_serial', '').strip() or None
 
         protocol = Protocol(
             protocol_number=protocol_number,
@@ -152,6 +155,7 @@ def create_protocol():
             exit_date=parse_date_br(form.exit_date.data) if form.exit_date.data else None,
             observations=form.observations.data,
             power_cable=power_cable,
+            power_cable_fonte_serial=power_cable_fonte,
             ref_ns=form.ref_ns.data or None,
             base_defect=form.base_defect.data or None,
             created_by=current_user.id
@@ -175,13 +179,13 @@ def detail_protocol(id):
     return render_template('protocols/detail.html', protocol=protocol)
 
 def build_component_data(protocol):
-    """Build {unit: [{type, serial, model}]} dict from Protocol for editing."""
+    """Build {unit: {name: str, components: [{type, serial, model}]}} dict for editing."""
     data = {}
     for c in protocol.components:
         u = c.unit or '01'
         if u not in data:
-            data[u] = []
-        data[u].append({
+            data[u] = {'name': c.machine_name or f'Máquina {u}', 'components': []}
+        data[u]['components'].append({
             'type': c.component_type,
             'serial': c.serial_number or '',
             'model': c.specification or ''
@@ -212,6 +216,7 @@ def edit_protocol(id):
         protocol.updated_at = datetime.utcnow()
 
         protocol.power_cable = request.form.get('power_cable', '').strip() or None
+        protocol.power_cable_fonte_serial = request.form.get('power_cable_fonte_serial', '').strip() or None
 
         Component.query.filter_by(protocol_id=protocol.id).delete()
         protocol.components = components
@@ -230,6 +235,21 @@ def edit_protocol(id):
     form.exit_date.data = protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else ''
     return render_template('protocols/create.html', form=form, editing=True, protocol=protocol,
         comp_data=comp_data)
+
+@protocols_bp.route('/<int:id>/excluir', methods=['POST'])
+@login_required
+def delete_protocol(id):
+    if not current_user.is_master():
+        flash('Acesso restrito ao Master.', 'danger')
+        return redirect(url_for('protocols.list_protocols'))
+    protocol = Protocol.query.get_or_404(id)
+    protocol_number = protocol.protocol_number
+    Component.query.filter_by(protocol_id=protocol.id).delete()
+    Defect.query.filter_by(protocol_id=protocol.id).delete()
+    db.session.delete(protocol)
+    db.session.commit()
+    flash(f'Protocolo {protocol_number} excluído com sucesso!', 'success')
+    return redirect(url_for('protocols.list_protocols'))
 
 @protocols_bp.route('/relatorio')
 @login_required

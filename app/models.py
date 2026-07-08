@@ -61,6 +61,7 @@ class Protocol(db.Model):
     exit_date = db.Column(db.DateTime, nullable=True)
     observations = db.Column(db.Text)
     power_cable = db.Column(db.String(10))
+    power_cable_fonte_serial = db.Column(db.String(100))
     power_cables = db.Column(db.Text)
     ref_ns = db.Column(db.String(100))
     base_defect = db.Column(db.Text)
@@ -106,6 +107,7 @@ class Component(db.Model):
     specification = db.Column(db.String(200))
     serial_number = db.Column(db.String(100))
     unit = db.Column(db.String(10))
+    machine_name = db.Column(db.String(100))
     sort_order = db.Column(db.Integer, default=0)
 
     FIXED_TYPES = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'monitor']

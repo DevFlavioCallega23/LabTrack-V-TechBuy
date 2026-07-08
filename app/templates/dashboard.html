@@ -51,7 +51,7 @@
                         <th>Cliente</th>
                         <th>Lote</th>
                         <th>Status</th>
-                        <th>Data</th>
+                        <th>Data Entrada</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -73,7 +73,7 @@
                             <span class="badge bg-danger">Cancelado</span>
                             {% endif %}
                         </td>
-                        <td>{{ p.created_at.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ p.entry_date.strftime('%d/%m/%Y') if p.entry_date else p.created_at.strftime('%d/%m/%Y') }}</td>
                         <td></td>
                     </tr>
                     {% else %}

@@ -14,11 +14,11 @@
         <form method="GET" class="row g-2 align-items-end" autocomplete="off">
             <div class="col-md-2">
                 <label class="form-label">Buscar por</label>
-                <select name="search_mode" class="form-select" id="searchMode">
-                    <option value="pedido" {{ 'selected' if search_mode == 'pedido' }}>Pedido</option>
-                    <option value="ns" {{ 'selected' if search_mode == 'ns' }}>Nº Série</option>
-                    <option value="os" {{ 'selected' if search_mode == 'os' }}>OS</option>
-                </select>
+                    <select name="search_mode" class="form-select" id="searchMode">
+                        <option value="pedido" {{ 'selected' if search_mode == 'pedido' }}>Pedido</option>
+                        <option value="ns" {{ 'selected' if search_mode == 'ns' }}>Nº Série</option>
+                        <option value="cliente" {{ 'selected' if search_mode == 'cliente' }}>Cliente</option>
+                    </select>
             </div>
             <div class="col-md-2" id="compTypeGroup" style="{{ 'display:none' if search_mode != 'ns' }}">
                 <label class="form-label">Componente</label>
@@ -43,7 +43,6 @@
                     <option value="pendente" {{ 'selected' if status_filter == 'pendente' }}>Pendente</option>
                     <option value="andamento" {{ 'selected' if status_filter == 'andamento' }}>Em Andamento</option>
                     <option value="concluido" {{ 'selected' if status_filter == 'concluido' }}>Concluído</option>
-                    <option value="cancelado" {{ 'selected' if status_filter == 'cancelado' }}>Cancelado</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -63,10 +62,9 @@
                         <th>Tipo</th>
                         <th>Cliente</th>
                         <th>Lote</th>
-                        <th>OS</th>
                         <th>Pedido</th>
                         <th>Status</th>
-                        <th>Data</th>
+                        <th>Data Entrada</th>
                         <th>Autor</th>
                         <th></th>
                     </tr>
@@ -78,7 +76,6 @@
                         <td><span class="badge bg-secondary">{{ p.type_label() }}</span></td>
                         <td>{{ p.client_name or '-' }}</td>
                         <td>{{ p.lote or '-' }}</td>
-                        <td>{% if p.os_number %}<span class="text-info">OS: {{ p.os_number }}</span>{% else %}-{% endif %}</td>
                         <td>{{ p.order_number or '-' }}</td>
                         <td>
                             {% if p.status == 'pendente' %}
@@ -91,7 +88,7 @@
                             <span class="badge bg-danger">Cancelado</span>
                             {% endif %}
                         </td>
-                        <td>{{ p.created_at.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ p.entry_date.strftime('%d/%m/%Y') if p.entry_date else p.created_at.strftime('%d/%m/%Y') }}</td>
                         <td>{{ p.author.username }}</td>
                         <td class="action-btns">
                             {% if current_user.is_manager() %}
@@ -99,11 +96,16 @@
                                 <i class="bi bi-pencil"></i>
                             </a>
                             {% endif %}
+                            {% if current_user.is_master() %}
+                            <button onclick="confirmDelete({{ p.id }}, '{{ p.protocol_number }}')" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="10" class="text-center text-secondary py-4">
+                        <td colspan="9" class="text-center text-secondary py-4">
                             <i class="bi bi-inbox fs-3 d-block mb-2"></i>
                             Nenhum protocolo encontrado.
                         </td>
@@ -142,15 +144,27 @@ document.getElementById('searchMode').addEventListener('change', function() {
         compGroup.style.display = 'block';
         searchLabel.textContent = 'Nº de Série';
         searchInput.placeholder = 'Digite o nº de série...';
-    } else if (mode === 'os') {
+    } else if (mode === 'cliente') {
         compGroup.style.display = 'none';
-        searchLabel.textContent = 'OS';
-        searchInput.placeholder = 'Digite o nº da OS...';
+        searchLabel.textContent = 'Nome do Cliente';
+        searchInput.placeholder = 'Digite o nome do cliente...';
     } else {
         compGroup.style.display = 'none';
         searchLabel.textContent = 'Nº do Pedido';
         searchInput.placeholder = 'Digite o nº do pedido...';
     }
 });
+</script>
+
+<form id="deleteForm" method="POST" style="display:none;">
+
+<script>
+function confirmDelete(id, protocolNumber) {
+    if (confirm(`Tem certeza que deseja excluir o protocolo ${protocolNumber}? Esta ação não pode ser desfeita.`)) {
+        var form = document.getElementById('deleteForm');
+        form.action = '/protocolos/' + id + '/excluir';
+        form.submit();
+    }
+}
 </script>
 {% endblock %}
