@@ -133,14 +133,33 @@
                         <table class="table table-dark table-sm" id="defectsTable">
                             <thead>
                                 <tr>
-                                    <th style="width: 18%">Componente com Defeito</th>
-                                    <th style="width: 27%">Nº de Série</th>
-                                    <th style="width: 50%">Descrição do Defeito</th>
+                                    <th style="width: 15%">Componente com Defeito</th>
+                                    <th style="width: 17%">Modelo</th>
+                                    <th style="width: 23%">Nº de Série</th>
+                                    <th style="width: 40%">Descrição do Defeito</th>
                                     <th style="width: 5%"></th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% if editing and protocol.defects %}
+                                {% if defect_data is defined and defect_data %}
+                                    {% for defect in defect_data %}
+                                    <tr class="defect-row">
+                                        <td>
+                                            <select name="defect_type[]" class="form-select form-select-sm">
+                                                <option value="">-- Selecione --</option>
+                                                {% for key, label in labels.items() %}
+                                                <option value="{{ key }}" {{ 'selected' if defect.type == key }}>{{ label }}</option>
+                                                {% endfor %}
+                                                <option value="outro" {{ 'selected' if defect.type not in labels and defect.type != '' }}>Outro</option>
+                                            </select>
+                                        </td>
+                                        <td><input type="text" name="defect_model[]" class="form-control form-control-sm" value="{{ defect.model or '' }}" placeholder="Ex: I5-2400, 8GB..."></td>
+                                        <td><input type="text" name="defect_serial[]" class="form-control form-control-sm" value="{{ defect.serial or '' }}" placeholder="NS do componente com defeito"></td>
+                                        <td><input type="text" name="defect_desc[]" class="form-control form-control-sm" value="{{ defect.desc or '' }}" placeholder="Ex: Não liga, não dá vídeo..."></td>
+                                        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+                                    </tr>
+                                    {% endfor %}
+                                {% elif editing and protocol.defects %}
                                     {% for defect in protocol.defects %}
                                     <tr class="defect-row">
                                         <td>
@@ -152,6 +171,7 @@
                                                 <option value="outro" {{ 'selected' if defect.component_type not in labels and defect.component_type != '' }}>Outro</option>
                                             </select>
                                         </td>
+                                        <td><input type="text" name="defect_model[]" class="form-control form-control-sm" value="{{ defect.specification or '' }}" placeholder="Ex: I5-2400, 8GB..."></td>
                                         <td><input type="text" name="defect_serial[]" class="form-control form-control-sm" value="{{ defect.serial_number or '' }}" placeholder="NS do componente com defeito"></td>
                                         <td><input type="text" name="defect_desc[]" class="form-control form-control-sm" value="{{ defect.description or '' }}" placeholder="Ex: Não liga, não dá vídeo..."></td>
                                         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
@@ -168,6 +188,7 @@
                                                 <option value="outro">Outro</option>
                                             </select>
                                         </td>
+                                        <td><input type="text" name="defect_model[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..."></td>
                                         <td><input type="text" name="defect_serial[]" class="form-control form-control-sm" placeholder="NS do componente com defeito"></td>
                                         <td><input type="text" name="defect_desc[]" class="form-control form-control-sm" placeholder="Ex: Não liga, não dá vídeo..."></td>
                                         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
@@ -365,6 +386,7 @@ function addDefectRow() {
     tr.className = 'defect-row';
     tr.innerHTML = `
         <td><select name="defect_type[]" class="form-select form-select-sm">${opts}</select></td>
+        <td><input type="text" name="defect_model[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..."></td>
         <td><input type="text" name="defect_serial[]" class="form-control form-control-sm" placeholder="NS do componente com defeito"></td>
         <td><input type="text" name="defect_desc[]" class="form-control form-control-sm" placeholder="Ex: Não liga, não dá vídeo..."></td>
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>

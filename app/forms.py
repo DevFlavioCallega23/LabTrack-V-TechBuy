@@ -70,7 +70,7 @@ class ProtocolForm(FlaskForm):
         ('concluido', 'Concluído')
     ], default='pendente')
     entry_date = StringField('Data da Compra', validators=[Optional()])
-    exit_date = DateField('Data de Saída', format='%Y-%m-%d', validators=[Optional()])
+    exit_date = StringField('Data de Saída', validators=[Optional()])
     ref_ns = StringField('Referência NS', validators=[Optional(), Length(max=100)])
     base_defect = TextAreaField('Defeito de Base', validators=[Optional()])
     observations = TextAreaField('Observações', validators=[Optional()])

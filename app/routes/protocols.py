@@ -56,10 +56,12 @@ def parse_defects(request_form):
     types = request_form.getlist('defect_type[]')
     descs = request_form.getlist('defect_desc[]')
     serials = request_form.getlist('defect_serial[]')
+    models = request_form.getlist('defect_model[]')
     for i in range(len(types)):
         if types[i].strip():
             defects.append(Defect(
                 component_type=types[i].strip(),
+                specification=models[i].strip() if i < len(models) else '',
                 serial_number=serials[i].strip() if i < len(serials) else '',
                 description=descs[i].strip() if i < len(descs) else '',
                 sort_order=i
@@ -120,7 +122,12 @@ def create_protocol():
     if form.validate_on_submit():
         components = parse_components(request.form)
         if components is None:
-            return render_template('protocols/create.html', form=form, editing=False, comp_data={})
+            comp_data = build_comp_data_from_form(request.form)
+            form.entry_date.data = request.form.get('entry_date', '')
+            form.exit_date.data = request.form.get('exit_date', '')
+            defect_data = build_defect_data_from_form(request.form)
+            return render_template('protocols/create.html', form=form, editing=False, comp_data=comp_data,
+                defect_data=defect_data)
 
         last = Protocol.query.order_by(Protocol.id.desc()).first()
         next_id = (last.id + 1) if last else 1
@@ -192,6 +199,46 @@ def build_component_data(protocol):
         })
     return json.dumps(data)
 
+def build_comp_data_from_form(request_form):
+    """Build {unit: {name, components}} JSON from submitted form data (for preserving input on validation error)."""
+    data = {}
+    for key in request_form.keys():
+        if key.startswith('comp_type_') and key.endswith('[]'):
+            unit = key[len('comp_type_'):-2]
+            if unit in data:
+                continue
+            types = request_form.getlist(f'comp_type_{unit}[]')
+            models = request_form.getlist(f'comp_model_{unit}[]')
+            serials = request_form.getlist(f'comp_serial_{unit}[]')
+            machine_name = request_form.get(f'machine_name_{unit}', '').strip() or f'Máquina {unit}'
+            comps = []
+            for i in range(len(types)):
+                if types[i].strip():
+                    comps.append({
+                        'type': types[i].strip(),
+                        'model': models[i].strip() if i < len(models) else '',
+                        'serial': serials[i].strip() if i < len(serials) else ''
+                    })
+            data[unit] = {'name': machine_name, 'components': comps}
+    return json.dumps(data)
+
+def build_defect_data_from_form(request_form):
+    """Build list of {type, serial, model, desc} from submitted form data for preserving on validation error."""
+    types = request_form.getlist('defect_type[]')
+    serials = request_form.getlist('defect_serial[]')
+    descs = request_form.getlist('defect_desc[]')
+    models = request_form.getlist('defect_model[]')
+    defects = []
+    for i in range(len(types)):
+        if types[i].strip():
+            defects.append({
+                'type': types[i].strip(),
+                'serial': serials[i].strip() if i < len(serials) else '',
+                'model': models[i].strip() if i < len(models) else '',
+                'desc': descs[i].strip() if i < len(descs) else ''
+            })
+    return defects
+
 @protocols_bp.route('/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
 def edit_protocol(id):
@@ -204,11 +251,12 @@ def edit_protocol(id):
     if form.validate_on_submit():
         components = parse_components(request.form)
         if components is None:
-            comp_data = build_component_data(protocol)
-            form.entry_date.data = protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else ''
-            form.exit_date.data = protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else ''
+            comp_data = build_comp_data_from_form(request.form)
+            form.entry_date.data = request.form.get('entry_date', '')
+            form.exit_date.data = request.form.get('exit_date', '')
+            defect_data = build_defect_data_from_form(request.form)
             return render_template('protocols/create.html', form=form, editing=True, protocol=protocol,
-                comp_data=comp_data)
+                comp_data=comp_data, defect_data=defect_data)
 
         form.populate_obj(protocol)
         protocol.entry_date = parse_date_br(form.entry_date.data) if form.entry_date.data else datetime.utcnow()
@@ -230,11 +278,17 @@ def edit_protocol(id):
 
     if request.method == 'POST':
         flash(f'Não foi possível salvar. Verifique os campos obrigatórios.', 'warning')
-    comp_data = build_component_data(protocol)
-    form.entry_date.data = protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else ''
-    form.exit_date.data = protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else ''
+        comp_data = build_comp_data_from_form(request.form)
+        defect_data = build_defect_data_from_form(request.form)
+        form.entry_date.data = request.form.get('entry_date', '')
+        form.exit_date.data = request.form.get('exit_date', '')
+    else:
+        comp_data = build_component_data(protocol)
+        defect_data = None
+        form.entry_date.data = protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else ''
+        form.exit_date.data = protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else ''
     return render_template('protocols/create.html', form=form, editing=True, protocol=protocol,
-        comp_data=comp_data)
+        comp_data=comp_data, defect_data=defect_data)
 
 @protocols_bp.route('/<int:id>/excluir', methods=['POST'])
 @login_required

@@ -131,6 +131,7 @@ class Defect(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     protocol_id = db.Column(db.Integer, db.ForeignKey('protocol.id'), nullable=False)
     component_type = db.Column(db.String(50), nullable=False)
+    specification = db.Column(db.String(200))
     serial_number = db.Column(db.String(100))
     description = db.Column(db.Text)
     sort_order = db.Column(db.Integer, default=0)

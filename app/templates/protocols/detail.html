@@ -159,6 +159,7 @@
                             <thead>
                                 <tr>
                                     <th>Componente</th>
+                                    <th>Modelo</th>
                                     <th>Nº Série</th>
                                     <th>Defeito</th>
                                 </tr>
@@ -167,6 +168,7 @@
                                 {% for defect in protocol.defects %}
                                 <tr>
                                     <td>{{ defect.type_label() }}</td>
+                                    <td><code>{{ defect.specification or '-' }}</code></td>
                                     <td><code>{{ defect.serial_number or '-' }}</code></td>
                                     <td class="text-danger">{{ defect.description or '-' }}</td>
                                 </tr>
