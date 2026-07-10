@@ -65,6 +65,16 @@ class Protocol(db.Model):
     power_cables = db.Column(db.Text)
     ref_ns = db.Column(db.String(100))
     base_defect = db.Column(db.Text)
+    original_order = db.Column(db.String(100))
+    rma_extra_equip = db.Column(db.String(200))
+    rma_equip_itens = db.Column(db.Text)
+    rma_test_result = db.Column(db.Text)
+    rma_test_component = db.Column(db.String(50))
+    rma_test_serial = db.Column(db.String(100))
+    rma_in_warranty = db.Column(db.Boolean, default=True)
+    rma_passagens = db.Column(db.Text)
+    rma_trocados = db.Column(db.Text)
+    rma_entry_date = db.Column(db.String(10))
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -79,8 +89,7 @@ class Protocol(db.Model):
         'venda': 'Venda',
         'ponta_entrega': 'Ponta Entrega',
         'venda_ponta_entrega': 'Venda Ponta Entrega',
-        'rma': 'RMA (Garantia)',
-        'servico': 'Serviço Fora de Garantia',
+        'rma': 'RMA',
         'nao_comprado': 'Não comprado na TechBuy'
     }
 

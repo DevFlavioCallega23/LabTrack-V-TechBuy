@@ -51,6 +51,119 @@ def parse_components(request_form):
                 ))
     return components
 
+def parse_rma_equip(request_form):
+    """Parse RMA equipment JSON from form."""
+    raw = request_form.get('rma_equip_json', '').strip()
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        # Remove empty entries (no components)
+        cleaned = {k: v for k, v in data.items() if v.get('components')}
+        return json.dumps(cleaned) if cleaned else None
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+def build_rma_equip_data(protocol):
+    """Build RMA equipment JSON from protocol for editing."""
+    if not protocol.rma_equip_itens:
+        return '{}'
+    try:
+        data = json.loads(protocol.rma_equip_itens)
+        return json.dumps(data)
+    except (json.JSONDecodeError, TypeError):
+        return '{}'
+
+def build_rma_equip_data_from_form(request_form):
+    """Build RMA equipment JSON from submitted form data for preserving on validation error."""
+    data = {}
+    for key in request_form.keys():
+        if key.startswith('rma_comp_type_') and key.endswith('[]'):
+            unit = key[len('rma_comp_type_'):-2]
+            if unit in data:
+                continue
+            types = request_form.getlist(f'rma_comp_type_{unit}[]')
+            models = request_form.getlist(f'rma_comp_model_{unit}[]')
+            serials = request_form.getlist(f'rma_comp_serial_{unit}[]')
+            machine_name = request_form.get(f'rma_machine_name_{unit}', '').strip() or f'Computador {unit}'
+            comps = []
+            for i in range(len(types)):
+                if types[i].strip():
+                    comps.append({
+                        'type': types[i].strip(),
+                        'model': models[i].strip() if i < len(models) else '',
+                        'serial': serials[i].strip() if i < len(serials) else ''
+                    })
+            data[unit] = {'name': machine_name, 'components': comps}
+    return json.dumps(data)
+
+def parse_rma_test_items(request_form):
+    """Parse RMA test items from JSON hidden field."""
+    raw = request_form.get('rma_test_json', '').strip()
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        return json.dumps(data)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+def build_rma_test_data_from_form(request_form):
+    """Build RMA test items from submitted form data for preserving on validation error."""
+    comps = request_form.getlist('rma_test_comp[]')
+    models = request_form.getlist('rma_test_model[]')
+    serials = request_form.getlist('rma_test_serial[]')
+    pedidos = request_form.getlist('rma_test_pedido[]')
+    garantias = request_form.getlist('rma_test_garantia[]')
+    defeitos = request_form.getlist('rma_test_defeito[]')
+    items = []
+    for i in range(len(comps)):
+        if comps[i].strip():
+            items.append({
+                'component': comps[i].strip(),
+                'model': models[i].strip() if i < len(models) else '',
+                'serial': serials[i].strip() if i < len(serials) else '',
+                'pedido': pedidos[i].strip() if i < len(pedidos) else '',
+                'garantia': garantias[i] == '1' if i < len(garantias) else False,
+                'defeito': defeitos[i].strip() if i < len(defeitos) else ''
+            })
+    return json.dumps(items) if items else None
+
+def parse_rma_trocados(request_form):
+    """Parse Equipamentos Mudados from JSON hidden field (card-based structure)."""
+    raw = request_form.get('rma_trocados_json', '').strip()
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        cleaned = {k: v for k, v in data.items() if v.get('components')}
+        return json.dumps(cleaned) if cleaned else None
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+def build_rma_trocados_data_from_form(request_form):
+    """Build Equipamentos Mudados from submitted form data for preserving on validation error."""
+    data = {}
+    for key in request_form.keys():
+        if key.startswith('trocado_comp_type_') and key.endswith('[]'):
+            unit = key[len('trocado_comp_type_'):-2]
+            if unit in data:
+                continue
+            types = request_form.getlist(f'trocado_comp_type_{unit}[]')
+            models = request_form.getlist(f'trocado_comp_model_{unit}[]')
+            serials = request_form.getlist(f'trocado_comp_serial_{unit}[]')
+            machine_name = request_form.get(f'trocado_machine_name_{unit}', '').strip() or f'Computador {unit}'
+            comps = []
+            for i in range(len(types)):
+                if types[i].strip():
+                    comps.append({
+                        'type': types[i].strip(),
+                        'model': models[i].strip() if i < len(models) else '',
+                        'serial': serials[i].strip() if i < len(serials) else ''
+                    })
+            data[unit] = {'name': machine_name, 'components': comps}
+    return json.dumps(data)
+
 def parse_defects(request_form):
     defects = []
     types = request_form.getlist('defect_type[]')
@@ -95,7 +208,10 @@ def list_protocols():
         )
     elif search:
         query = query.filter(
-            Protocol.order_number.ilike(f'%{search}%')
+            db.or_(
+                Protocol.order_number.ilike(f'%{search}%'),
+                Protocol.original_order.ilike(f'%{search}%')
+            )
         )
     if type_filter:
         query = query.filter_by(type=type_filter)
@@ -123,11 +239,14 @@ def create_protocol():
         components = parse_components(request.form)
         if components is None:
             comp_data = build_comp_data_from_form(request.form)
+            rma_comp_data = build_rma_equip_data_from_form(request.form)
+            rma_test_data = build_rma_test_data_from_form(request.form)
+            rma_trocados_data = build_rma_trocados_data_from_form(request.form)
             form.entry_date.data = request.form.get('entry_date', '')
             form.exit_date.data = request.form.get('exit_date', '')
             defect_data = build_defect_data_from_form(request.form)
             return render_template('protocols/create.html', form=form, editing=False, comp_data=comp_data,
-                defect_data=defect_data)
+                rma_comp_data=rma_comp_data, rma_test_data=rma_test_data, rma_trocados_data=rma_trocados_data, defect_data=defect_data)
 
         last = Protocol.query.order_by(Protocol.id.desc()).first()
         next_id = (last.id + 1) if last else 1
@@ -138,7 +257,7 @@ def create_protocol():
         exit = form.exit_date.data
 
         os_number = None
-        if form.type.data in ('rma', 'servico'):
+        if form.type.data in ('rma',):
             last_os = Protocol.query.filter(
                 Protocol.os_number.isnot(None),
                 Protocol.os_number.like('OS-%')
@@ -148,6 +267,9 @@ def create_protocol():
 
         power_cable = request.form.get('power_cable', '').strip() or None
         power_cable_fonte = request.form.get('power_cable_fonte_serial', '').strip() or None
+        rma_passagens = request.form.get('rma_passagens_json', '').strip() or None
+        rma_equip_itens = parse_rma_equip(request.form)
+        rma_test_result = parse_rma_test_items(request.form)
 
         protocol = Protocol(
             protocol_number=protocol_number,
@@ -165,6 +287,14 @@ def create_protocol():
             power_cable_fonte_serial=power_cable_fonte,
             ref_ns=form.ref_ns.data or None,
             base_defect=form.base_defect.data or None,
+            original_order=form.original_order.data or None,
+            rma_extra_equip=form.rma_extra_equip.data or None,
+            rma_equip_itens=rma_equip_itens,
+            rma_test_result=rma_test_result,
+            rma_trocados=parse_rma_trocados(request.form),
+            rma_entry_date=form.rma_entry_date.data or None,
+            rma_in_warranty=request.form.get('rma_in_warranty') == '1',
+            rma_passagens=rma_passagens,
             created_by=current_user.id
         )
 
@@ -177,7 +307,7 @@ def create_protocol():
         flash(f'Protocolo {protocol_number} criado com sucesso!', 'success')
         return redirect(url_for('protocols.detail_protocol', id=protocol.id))
 
-    return render_template('protocols/create.html', form=form, editing=False, comp_data={})
+    return render_template('protocols/create.html', form=form, editing=False, comp_data='{}', rma_comp_data='{}', rma_test_data='[]', rma_trocados_data='[]')
 
 @protocols_bp.route('/<int:id>')
 @login_required
@@ -252,11 +382,15 @@ def edit_protocol(id):
         components = parse_components(request.form)
         if components is None:
             comp_data = build_comp_data_from_form(request.form)
+            rma_comp_data = build_rma_equip_data_from_form(request.form)
+            rma_test_data = build_rma_test_data_from_form(request.form)
+            rma_trocados_data = build_rma_trocados_data_from_form(request.form)
             form.entry_date.data = request.form.get('entry_date', '')
             form.exit_date.data = request.form.get('exit_date', '')
             defect_data = build_defect_data_from_form(request.form)
             return render_template('protocols/create.html', form=form, editing=True, protocol=protocol,
-                comp_data=comp_data, defect_data=defect_data)
+                comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
+                rma_trocados_data=rma_trocados_data, defect_data=defect_data)
 
         form.populate_obj(protocol)
         protocol.entry_date = parse_date_br(form.entry_date.data) if form.entry_date.data else datetime.utcnow()
@@ -265,6 +399,14 @@ def edit_protocol(id):
 
         protocol.power_cable = request.form.get('power_cable', '').strip() or None
         protocol.power_cable_fonte_serial = request.form.get('power_cable_fonte_serial', '').strip() or None
+        protocol.rma_in_warranty = request.form.get('rma_in_warranty') == '1'
+        protocol.rma_passagens = request.form.get('rma_passagens_json', '').strip() or None
+        protocol.original_order = form.original_order.data or None
+        protocol.rma_extra_equip = form.rma_extra_equip.data or None
+        protocol.rma_equip_itens = parse_rma_equip(request.form)
+        protocol.rma_test_result = parse_rma_test_items(request.form)
+        protocol.rma_trocados = parse_rma_trocados(request.form)
+        protocol.rma_entry_date = form.rma_entry_date.data or None
 
         Component.query.filter_by(protocol_id=protocol.id).delete()
         protocol.components = components
@@ -279,16 +421,25 @@ def edit_protocol(id):
     if request.method == 'POST':
         flash(f'Não foi possível salvar. Verifique os campos obrigatórios.', 'warning')
         comp_data = build_comp_data_from_form(request.form)
+        rma_comp_data = build_rma_equip_data_from_form(request.form)
+        rma_test_data = build_rma_test_data_from_form(request.form)
+        rma_trocados_data = build_rma_trocados_data_from_form(request.form)
         defect_data = build_defect_data_from_form(request.form)
         form.entry_date.data = request.form.get('entry_date', '')
         form.exit_date.data = request.form.get('exit_date', '')
+        form.rma_entry_date.data = request.form.get('rma_entry_date', '')
     else:
         comp_data = build_component_data(protocol)
+        rma_comp_data = build_rma_equip_data(protocol)
+        rma_test_data = protocol.rma_test_result or '[]'
+        rma_trocados_data = protocol.rma_trocados or '[]'
         defect_data = None
         form.entry_date.data = protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else ''
         form.exit_date.data = protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else ''
+        form.rma_entry_date.data = protocol.rma_entry_date or ''
     return render_template('protocols/create.html', form=form, editing=True, protocol=protocol,
-        comp_data=comp_data, defect_data=defect_data)
+        comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
+        rma_trocados_data=rma_trocados_data, defect_data=defect_data)
 
 @protocols_bp.route('/<int:id>/excluir', methods=['POST'])
 @login_required
@@ -308,33 +459,19 @@ def delete_protocol(id):
 @protocols_bp.route('/relatorio')
 @login_required
 def report():
-    start = request.args.get('start')
-    end = request.args.get('end')
-
-    query = Protocol.query
-    if start:
-        query = query.filter(Protocol.entry_date >= datetime.strptime(start, '%Y-%m-%d'))
-    if end:
-        query = query.filter(Protocol.entry_date <= datetime.strptime(end + ' 23:59:59', '%Y-%m-%d %H:%M:%S'))
-
-    protocols = query.order_by(Protocol.created_at.desc()).all()
+    protocols = Protocol.query.order_by(Protocol.created_at.desc()).all()
     total = len(protocols)
     by_type = {}
     for p in protocols:
         by_type[p.type] = by_type.get(p.type, 0) + 1
 
-    defect_q = db.session.query(
+    defect_stats = db.session.query(
         Defect.component_type,
         Defect.serial_number,
         Defect.description,
         Protocol.client_name,
         Protocol.entry_date
-    ).join(Protocol)
-    if start:
-        defect_q = defect_q.filter(Protocol.entry_date >= datetime.strptime(start, '%Y-%m-%d'))
-    if end:
-        defect_q = defect_q.filter(Protocol.entry_date <= datetime.strptime(end + ' 23:59:59', '%Y-%m-%d %H:%M:%S'))
-    defect_stats = defect_q.order_by(Protocol.entry_date.desc()).all()
+    ).join(Protocol).order_by(Protocol.entry_date.desc()).all()
 
     defect_totals = {}
     for d in defect_stats:
@@ -342,8 +479,7 @@ def report():
 
     return render_template('protocols/report.html',
         protocols=protocols, total=total, by_type=by_type,
-        defect_stats=defect_stats, defect_totals=defect_totals,
-        filter_start=start or '', filter_end=end or '')
+        defect_stats=defect_stats, defect_totals=defect_totals)
 
 @protocols_bp.route('/usuarios')
 @login_required

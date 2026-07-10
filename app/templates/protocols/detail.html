@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+{% set COMP_LABELS = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor', 'outro': 'Outro'} %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3><i class="bi bi-file-text"></i> Protocolo {{ protocol.protocol_number }}</h3>
     <div>
@@ -19,7 +20,14 @@
         {% if protocol.os_number %}
         <span class="badge bg-info fs-6 me-2 align-middle">OS: {{ protocol.os_number }}</span>
         {% endif %}
-        <a href="https://wa.me/?text={{ protocol.protocol_number }}%0A{{ protocol.type_label() }}%0ACliente: {{ protocol.client_name or '' }}%0AStatus: {{ protocol.status_label() }}%0A{{ url_for('protocols.detail_protocol', id=protocol.id, _external=True) }}" target="_blank" class="btn btn-success">
+        {% set wa_parts = [protocol.protocol_number, protocol.type_label(), 'Cliente: ' + (protocol.client_name or ''), 'Status: ' + (protocol.status_label() or '')] %}
+        {% if protocol.seller %}{% set _ = wa_parts.append('Vendedor: ' + protocol.seller) %}{% endif %}
+        {% if protocol.type == 'rma' %}
+            {% if protocol.rma_entry_date %}{% set _ = wa_parts.append('Data de Entrada: ' + protocol.rma_entry_date) %}{% endif %}
+            {% if protocol.original_order %}{% set _ = wa_parts.append('Pedido Original: ' + protocol.original_order) %}{% endif %}
+        {% endif %}
+        {% set _ = wa_parts.append(url_for('protocols.detail_protocol', id=protocol.id, _external=True)) %}
+        <a href="https://wa.me/?text={{ wa_parts|join('%0A') }}" target="_blank" class="btn btn-success">
             <i class="bi bi-whatsapp"></i> Compartilhar
         </a>
     </div>
@@ -51,16 +59,24 @@
                         <strong>{{ protocol.seller }}</strong>
                     </div>
                     {% endif %}
+                    {% if protocol.original_order %}
+                    <div class="col-md-2">
+                        <label class="text-secondary small d-block">Pedido Original</label>
+                        <strong>{{ protocol.original_order }}</strong>
+                    </div>
+                    {% endif %}
                     {% if protocol.lote %}
                     <div class="col-md-1">
                         <label class="text-secondary small d-block">Quantidade</label>
                         <strong>{{ protocol.lote }}</strong>
                     </div>
                     {% endif %}
+                    {% if protocol.type != 'rma' %}
                     <div class="col-md-2">
                         <label class="text-secondary small d-block">Nº do Pedido</label>
                         <strong>{{ protocol.order_number if protocol.order_number else 'Não Informado ao Laboratório' }}</strong>
                     </div>
+                    {% endif %}
                     <div class="col-md-2">
                         <label class="text-secondary small d-block">{% if protocol.type in ('venda', 'venda_ponta_entrega') %}Data da Compra{% else %}Data da Entrada{% endif %}</label>
                         <strong>{{ protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else '-' }}</strong>
@@ -105,7 +121,175 @@
                 </div>
                 {% endif %}
 
-                {% if protocol.components %}
+                {% if protocol.type == 'rma' %}
+                <hr>
+                <div class="row g-2 mb-2">
+                    {% if protocol.entry_date %}
+                    <div class="col-md-3">
+                        <label class="text-secondary small d-block">Data da Compra</label>
+                        <strong>{{ protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else '-' }}</strong>
+                    </div>
+                    {% endif %}
+                    {% if protocol.rma_entry_date %}
+                    <div class="col-md-3">
+                        <label class="text-secondary small d-block">Data de Entrada (RMA)</label>
+                        <strong>{{ protocol.rma_entry_date }}</strong>
+                    </div>
+                    {% endif %}
+                    {% if protocol.exit_date %}
+                    <div class="col-md-3">
+                        <label class="text-secondary small d-block">Data de Saída</label>
+                        <strong>{{ protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else '-' }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+                {% if protocol.rma_in_warranty is not none %}
+                <div class="mb-2">
+                    <label class="text-secondary small d-block">Na Garantia?</label>
+                    <strong>{{ 'Sim' if protocol.rma_in_warranty else 'Não' }}</strong>
+                </div>
+                {% endif %}
+                {% if protocol.rma_equip_itens %}
+                {% set equip_itens = protocol.rma_equip_itens|from_json %}
+                {% if equip_itens %}
+                <div class="mb-2">
+                    <label class="text-secondary small d-block mb-2"><i class="bi bi-pc-display"></i> Equipamento que chegou</label>
+                    {% for unit, entry in equip_itens.items()|sort %}
+                    <div class="mb-2">
+                        <strong class="text-info">{{ entry.name or 'Computador ' + unit }}</strong>
+                        <div class="table-responsive mt-1">
+                            <table class="table table-dark table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Componente</th>
+                                        <th>Modelo</th>
+                                        <th>Nº de Série</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for comp in entry.components %}
+                                    <tr>
+                                        <td>{{ COMP_LABELS.get(comp.type, comp.type) }}</td>
+                                        <td><code>{{ comp.model or '-' }}</code></td>
+                                        <td><code>{{ comp.serial or '-' }}</code></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% elif protocol.rma_extra_equip %}
+                <div class="mb-2">
+                    <label class="text-secondary small d-block">Equipamento que chegou</label>
+                    <strong>{{ protocol.rma_extra_equip }}</strong>
+                </div>
+                {% endif %}
+                {% if protocol.rma_test_result %}
+                {% set test_itens = protocol.rma_test_result|from_json %}
+                {% if test_itens %}
+                <div>
+                    <label class="text-secondary small d-block mb-2"><i class="bi bi-tools"></i> Resultado do Teste de Mesa / Defeitos encontrados</label>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Componente</th>
+                                    <th>Modelo</th>
+                                    <th>Nº Série</th>
+                                    <th>Pedido</th>
+                                    <th>Garantia</th>
+                                    <th>Defeito</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in test_itens %}
+                                <tr>
+                                    <td>{{ COMP_LABELS.get(item.component, item.component) }}</td>
+                                    <td><code>{{ item.model or '-' }}</code></td>
+                                    <td><code>{{ item.serial or '-' }}</code></td>
+                                    <td>{{ item.pedido or '-' }}</td>
+                                    <td>{{ 'Sim' if item.garantia else 'Não' }}</td>
+                                    <td class="text-danger">{{ item.defeito or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+                {% endif %}
+                {% if protocol.rma_trocados %}
+                {% set trocados_raw = protocol.rma_trocados|from_json %}
+                {% if trocados_raw %}
+                {% if trocados_raw is mapping %}
+                {% set trocados = trocados_raw %}
+                {% else %}
+                {% set trocados = {'01': {'name': 'Computador 01', 'components': trocados_raw}} %}
+                {% endif %}
+                <div class="mt-2">
+                    <label class="text-secondary small d-block mb-2"><i class="bi bi-arrow-repeat"></i> Equipamentos Mudados</label>
+                    {% for unit, entry in trocados.items()|sort %}
+                    <div class="mb-2">
+                        <strong class="text-info">{{ entry.name or 'Computador ' + unit }}</strong>
+                        <div class="table-responsive mt-1">
+                            <table class="table table-dark table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Componente</th>
+                                        <th>Modelo</th>
+                                        <th>Nº de Série</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for comp in entry.components %}
+                                    <tr>
+                                        <td>{{ COMP_LABELS.get(comp.type, comp.type) }}</td>
+                                        <td><code>{{ comp.model or '-' }}</code></td>
+                                        <td><code>{{ comp.serial or '-' }}</code></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endif %}
+                {% if protocol.rma_passagens %}
+                {% set passagens = protocol.rma_passagens|from_json %}
+                {% if passagens %}
+                <div class="mt-2">
+                    <label class="text-secondary small d-block mb-1"><i class="bi bi-arrow-repeat"></i> Outras Passagens</label>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Protocolo</th>
+                                    <th>Pedido</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in passagens %}
+                                <tr>
+                                    <td>{{ p.data or '-' }}</td>
+                                    <td>{{ p.protocolo or '-' }}</td>
+                                    <td>{{ p.pedido or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+                {% endif %}
+                {% endif %}
+
+                {% if protocol.components and protocol.type != 'rma' %}
                 <hr>
                 <div>
                     <label class="text-secondary small d-block mb-2"><i class="bi bi-motherboard"></i> Componentes</label>
@@ -207,11 +391,11 @@
                 </div>
                 <div class="mb-3">
                     <label class="text-secondary small d-block">Criado em</label>
-                    <strong>{{ protocol.created_at.strftime('%d/%m/%Y às %H:%M') }}</strong>
+                    <strong>{{ protocol.created_at.strftime('%d/%m/%Y') }}</strong>
                 </div>
                 <div class="mb-3">
                     <label class="text-secondary small d-block">Última atualização</label>
-                    <strong>{{ protocol.updated_at.strftime('%d/%m/%Y às %H:%M') }}</strong>
+                    <strong>{{ protocol.updated_at.strftime('%d/%m/%Y') }}</strong>
                 </div>
             </div>
         </div>

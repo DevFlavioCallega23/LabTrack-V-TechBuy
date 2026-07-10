@@ -76,7 +76,7 @@
                         <td><span class="badge bg-secondary">{{ p.type_label() }}</span></td>
                         <td>{{ p.client_name or '-' }}</td>
                         <td>{{ p.lote or '-' }}</td>
-                        <td>{{ p.order_number or '-' }}</td>
+                        <td>{{ p.original_order if p.type == 'rma' else p.order_number or '-' }}</td>
                         <td>
                             {% if p.status == 'pendente' %}
                             <span class="badge bg-warning text-dark">Pendente</span>

@@ -2,21 +2,6 @@
 {% block content %}
 <h3 class="mb-4"><i class="bi bi-bar-chart"></i> Relatório Geral</h3>
 
-<form class="row g-2 mb-4" method="GET">
-    <div class="col-auto">
-        <input type="date" name="start" class="form-control form-control-sm" value="{{ filter_start }}" title="Data inicial">
-    </div>
-    <div class="col-auto">
-        <input type="date" name="end" class="form-control form-control-sm" value="{{ filter_end }}" title="Data final">
-    </div>
-    <div class="col-auto">
-        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i> Filtrar</button>
-        {% if filter_start or filter_end %}
-        <a href="{{ url_for('protocols.report') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x"></i> Limpar</a>
-        {% endif %}
-    </div>
-</form>
-
 <div class="row g-3 mb-4">
     <div class="col-md-6">
         <div class="card h-100">
@@ -31,7 +16,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% set labels = {'venda': 'Venda', 'ponta_entrega': 'Ponta Entrega', 'venda_ponta_entrega': 'Venda Ponta Entrega', 'rma': 'RMA (Garantia)', 'servico': 'Serviço', 'nao_comprado': 'Não comprado na TechBuy'} %}
+                            {% set labels = {'venda': 'Venda', 'ponta_entrega': 'Ponta Entrega', 'venda_ponta_entrega': 'Venda Ponta Entrega', 'rma': 'RMA (Garantia)', 'nao_comprado': 'Não comprado na TechBuy'} %}
                             {% for type_key, count in by_type.items() %}
                             <tr>
                                 <td>{{ labels.get(type_key, type_key) }}</td>

@@ -47,8 +47,7 @@ class ProtocolForm(FlaskForm):
         ('venda', 'Venda'),
         ('ponta_entrega', 'Ponta Entrega'),
         ('venda_ponta_entrega', 'Venda Ponta Entrega'),
-        ('rma', 'RMA (Garantia)'),
-        ('servico', 'Serviço Fora de Garantia'),
+        ('rma', 'RMA'),
         ('nao_comprado', 'Não comprado na TechBuy')
     ], validators=[DataRequired()])
     client_name = StringField('Cliente / Nome', validators=[Optional(), Length(max=200)])
@@ -73,10 +72,14 @@ class ProtocolForm(FlaskForm):
     exit_date = StringField('Data de Saída', validators=[Optional()])
     ref_ns = StringField('Referência NS', validators=[Optional(), Length(max=100)])
     base_defect = TextAreaField('Defeito de Base', validators=[Optional()])
+    original_order = StringField('Pedido Original', validators=[Optional(), Length(max=100)])
+    rma_extra_equip = StringField('Equipamento que chegou', validators=[Optional(), Length(max=200)])
+    rma_test_result = TextAreaField('Resultado do Teste de Mesa', validators=[Optional()])
+    rma_entry_date = StringField('Data de Entrada (RMA)', validators=[Optional()])
     observations = TextAreaField('Observações', validators=[Optional()])
     submit = SubmitField('Salvar')
 
-    REQUIRED_CLIENT_SELLER = {'venda', 'servico', 'rma', 'venda_ponta_entrega', 'nao_comprado'}
+    REQUIRED_CLIENT_SELLER = {'venda', 'rma', 'venda_ponta_entrega', 'nao_comprado'}
 
     def validate(self, extra_validators=None):
         if not super().validate(extra_validators):
