@@ -81,10 +81,12 @@
                         <label class="text-secondary small d-block">{% if protocol.type in ('venda', 'venda_ponta_entrega') %}Data da Compra{% else %}Data da Entrada{% endif %}</label>
                         <strong>{{ protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else '-' }}</strong>
                     </div>
+                    {% if protocol.type != 'venda' %}
                     <div class="col-md-2">
                         <label class="text-secondary small d-block">Data de Saída</label>
                         <strong>{{ protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else '-' }}</strong>
                     </div>
+                    {% endif %}
                     {% if protocol.os_number %}
                     <div class="col-md-1">
                         <label class="text-secondary small d-block">OS</label>
