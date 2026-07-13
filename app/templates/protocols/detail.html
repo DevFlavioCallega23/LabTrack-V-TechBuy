@@ -105,6 +105,22 @@
                             {% endif %}
                         </strong>
                     </div>
+                    {% if protocol.type != 'rma' and protocol.windows_keys %}
+                    <div class="col-12 mt-2">
+                        <label class="text-secondary small d-block mb-1"><i class="bi bi-windows"></i> Ativação Windows</label>
+                        {% for wk in protocol.windows_keys|sort(attribute='sort_order') %}
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <code class="small">{{ wk.chave }}</code>
+                            {% if wk.fonte %}<span class="text-secondary small">— NS: <code class="small">{{ wk.fonte }}</code></span>{% endif %}
+                            {% if wk.ativo %}
+                            <span class="badge bg-success" style="font-size:9px">Ativo</span>
+                            {% else %}
+                            <span class="badge bg-secondary" style="font-size:9px">Pendente</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
 
                 {% if protocol.ref_ns %}
@@ -334,25 +350,28 @@
                     {% if protocol.windows_keys %}
                     <div class="mt-3">
                         <strong><i class="bi bi-windows"></i> Chave do Windows</strong>
-                        <div class="table-responsive mt-1">
-                            <table class="table table-dark table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Chave</th>
-                                        <th>Fonte (NS da Fonte)</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for wk in protocol.windows_keys|sort(attribute='sort_order') %}
-                                    <tr>
-                                        <td><code>{{ wk.chave }}</code></td>
-                                        <td><code>{{ wk.fonte or '-' }}</code></td>
-                                        <td>{% if wk.ativo %}<span class="text-success"><i class="bi bi-check-circle"></i> Ativo</span>{% else %}<span class="text-muted">Pendente</span>{% endif %}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                        <div class="row g-2 mt-2">
+                            {% for wk in protocol.windows_keys|sort(attribute='sort_order') %}
+                            <div class="col-md-6">
+                                <div class="card border-{{ 'success' if wk.ativo else 'secondary' }} h-100">
+                                    <div class="card-body py-2 px-3">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <div class="small text-secondary">Chave de Ativação</div>
+                                                <code class="fs-6">{{ wk.chave }}</code>
+                                            </div>
+                                            <span class="badge bg-{{ 'success' if wk.ativo else 'secondary' }}">{{ 'Ativo' if wk.ativo else 'Pendente' }}</span>
+                                        </div>
+                                        {% if wk.fonte %}
+                                        <div class="mt-1">
+                                            <span class="small text-secondary">Fonte (NS):</span>
+                                            <code class="small">{{ wk.fonte }}</code>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
                         </div>
                     </div>
                     {% endif %}
