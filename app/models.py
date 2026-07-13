@@ -84,6 +84,9 @@ class Protocol(db.Model):
     defects = db.relationship('Defect', backref='protocol', lazy=True,
                              order_by='Defect.sort_order',
                              cascade='all, delete-orphan')
+    windows_keys = db.relationship('WindowsKey', backref='protocol', lazy=True,
+                                   order_by='WindowsKey.sort_order',
+                                   cascade='all, delete-orphan')
 
     TYPE_LABELS = {
         'venda': 'Venda',
@@ -160,3 +163,11 @@ class Defect(db.Model):
 
     def __repr__(self):
         return f'<Defect {self.component_type}>'
+
+class WindowsKey(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    protocol_id = db.Column(db.Integer, db.ForeignKey('protocol.id'), nullable=False)
+    chave = db.Column(db.String(50))
+    fonte = db.Column(db.String(100))
+    ativo = db.Column(db.Boolean, default=True)
+    sort_order = db.Column(db.Integer, default=0)

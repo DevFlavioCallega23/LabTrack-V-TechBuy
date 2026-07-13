@@ -4,7 +4,7 @@ from datetime import datetime, date
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app import db
-from app.models import Protocol, Component, Defect, User
+from app.models import Protocol, Component, Defect, User, WindowsKey
 from app.forms import ProtocolForm, UserForm, CreateUserForm, MasterUserForm, MasterCreateUserForm, ChangePasswordForm
 from sqlalchemy import func
 
@@ -164,6 +164,36 @@ def build_rma_trocados_data_from_form(request_form):
             data[unit] = {'name': machine_name, 'components': comps}
     return json.dumps(data)
 
+def parse_windows_keys(request_form):
+    raw = request_form.get('windows_keys_json', '').strip()
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        return [WindowsKey(
+            chave=item.get('chave', ''),
+            fonte=item.get('fonte', ''),
+            ativo=item.get('ativo', False),
+            sort_order=i
+        ) for i, item in enumerate(data)]
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+def build_windows_key_data_from_form(request_form):
+    raw = request_form.get('windows_keys_json', '').strip()
+    if raw:
+        return raw
+    return '[]'
+
+def build_windows_key_data(protocol):
+    if protocol.windows_keys:
+        return json.dumps([{
+            'chave': k.chave or '',
+            'fonte': k.fonte or '',
+            'ativo': k.ativo
+        } for k in protocol.windows_keys])
+    return '[]'
+
 def parse_defects(request_form):
     defects = []
     types = request_form.getlist('defect_type[]')
@@ -245,8 +275,10 @@ def create_protocol():
             form.entry_date.data = request.form.get('entry_date', '')
             form.exit_date.data = request.form.get('exit_date', '')
             defect_data = build_defect_data_from_form(request.form)
+            win_keys_data = build_windows_key_data_from_form(request.form)
             return render_template('protocols/create.html', form=form, editing=False, comp_data=comp_data,
-                rma_comp_data=rma_comp_data, rma_test_data=rma_test_data, rma_trocados_data=rma_trocados_data, defect_data=defect_data)
+                rma_comp_data=rma_comp_data, rma_test_data=rma_test_data, rma_trocados_data=rma_trocados_data,
+                defect_data=defect_data, win_keys_data=win_keys_data)
 
         last = Protocol.query.order_by(Protocol.id.desc()).first()
         next_id = (last.id + 1) if last else 1
@@ -301,13 +333,16 @@ def create_protocol():
         protocol.components = components
         defects = parse_defects(request.form)
         protocol.defects = defects
+        windows_keys = parse_windows_keys(request.form)
+        if windows_keys:
+            protocol.windows_keys = windows_keys
 
         db.session.add(protocol)
         db.session.commit()
         flash(f'Protocolo {protocol_number} criado com sucesso!', 'success')
         return redirect(url_for('protocols.detail_protocol', id=protocol.id))
 
-    return render_template('protocols/create.html', form=form, editing=False, comp_data='{}', rma_comp_data='{}', rma_test_data='[]', rma_trocados_data='[]')
+    return render_template('protocols/create.html', form=form, editing=False, comp_data='{}', rma_comp_data='{}', rma_test_data='[]', rma_trocados_data='[]', win_keys_data='[]')
 
 @protocols_bp.route('/<int:id>')
 @login_required
@@ -388,9 +423,10 @@ def edit_protocol(id):
             form.entry_date.data = request.form.get('entry_date', '')
             form.exit_date.data = request.form.get('exit_date', '')
             defect_data = build_defect_data_from_form(request.form)
+            win_keys_data = build_windows_key_data_from_form(request.form)
             return render_template('protocols/create.html', form=form, editing=True, protocol=protocol,
                 comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
-                rma_trocados_data=rma_trocados_data, defect_data=defect_data)
+                rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data)
 
         form.populate_obj(protocol)
         protocol.entry_date = parse_date_br(form.entry_date.data) if form.entry_date.data else datetime.utcnow()
@@ -413,6 +449,10 @@ def edit_protocol(id):
         Defect.query.filter_by(protocol_id=protocol.id).delete()
         defects = parse_defects(request.form)
         protocol.defects = defects
+        WindowsKey.query.filter_by(protocol_id=protocol.id).delete()
+        windows_keys = parse_windows_keys(request.form)
+        if windows_keys:
+            protocol.windows_keys = windows_keys
 
         db.session.commit()
         flash(f'Protocolo {protocol.protocol_number} atualizado!', 'success')
@@ -425,6 +465,7 @@ def edit_protocol(id):
         rma_test_data = build_rma_test_data_from_form(request.form)
         rma_trocados_data = build_rma_trocados_data_from_form(request.form)
         defect_data = build_defect_data_from_form(request.form)
+        win_keys_data = build_windows_key_data_from_form(request.form)
         form.entry_date.data = request.form.get('entry_date', '')
         form.exit_date.data = request.form.get('exit_date', '')
         form.rma_entry_date.data = request.form.get('rma_entry_date', '')
@@ -434,12 +475,13 @@ def edit_protocol(id):
         rma_test_data = protocol.rma_test_result or '[]'
         rma_trocados_data = protocol.rma_trocados or '[]'
         defect_data = None
+        win_keys_data = build_windows_key_data(protocol)
         form.entry_date.data = protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else ''
         form.exit_date.data = protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else ''
         form.rma_entry_date.data = protocol.rma_entry_date or ''
     return render_template('protocols/create.html', form=form, editing=True, protocol=protocol,
         comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
-        rma_trocados_data=rma_trocados_data, defect_data=defect_data)
+        rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data)
 
 @protocols_bp.route('/<int:id>/excluir', methods=['POST'])
 @login_required

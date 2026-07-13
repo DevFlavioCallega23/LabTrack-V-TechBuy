@@ -208,6 +208,7 @@
 
             <div class="row g-3 mt-2 hide-for-rma" data-show-for="rma" style="display:none">
                 <div class="col-md-3">
+                    <label class="form-label">Cabo de Força</label>
                     <select name="power_cable" class="form-select" id="powerCable" onchange="togglePowerCableFonte()">
                         <option value="">---</option>
                         <option value="OK" {{ 'selected' if editing and protocol.power_cable == 'OK' }}>OK</option>
@@ -217,6 +218,37 @@
                 <div class="col-md-3" id="powerCableFonteGroup" style="{{ 'display:block' if editing and protocol.power_cable == 'IE' else 'display:none' }}">
                     <label class="form-label">NS da Fonte sem Cabo</label>
                     <input type="text" name="power_cable_fonte_serial" class="form-control" placeholder="Nº de série da fonte" value="{{ protocol.power_cable_fonte_serial or '' if editing else '' }}">
+                </div>
+            </div>
+
+            <!-- Chave do Windows -->
+            <div class="row g-3 mt-2 hide-for-rma">
+                <div class="col-12">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" id="toggleWindowsKeys">
+                            <label class="form-check-label fw-bold" for="toggleWindowsKeys"><i class="bi bi-windows"></i> Chave do Windows</label>
+                        </div>
+                    </div>
+                    <div id="windowsKeysSection" style="display:none;">
+                        <div class="table-responsive">
+                            <table class="table table-dark table-sm" id="windowsKeysTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 35%">Chave (25 dígitos)</th>
+                                        <th style="width: 30%">Fonte (NS da Fonte)</th>
+                                        <th style="width: 25%">Status</th>
+                                        <th style="width: 10%"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                            </table>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addWindowsKey()">
+                            <i class="bi bi-plus-lg"></i> Adicionar Chave
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -921,6 +953,41 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     window.togglePowerCableFonte = togglePowerCableFonte;
 
+    function toggleWindowsKeys() {
+        const checked = document.getElementById('toggleWindowsKeys').checked;
+        document.getElementById('windowsKeysSection').style.display = checked ? 'block' : 'none';
+    }
+    document.getElementById('toggleWindowsKeys').addEventListener('change', toggleWindowsKeys);
+    window.toggleWindowsKeys = toggleWindowsKeys;
+
+    function addWindowsKey(chave, fonte, ativo) {
+        const tbody = document.querySelector('#windowsKeysTable tbody');
+        const tr = document.createElement('tr');
+        tr.className = 'win-key-row';
+        tr.innerHTML = `
+            <td><input type="text" class="form-control form-control-sm win-key-chave" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" value="${chave || ''}"></td>
+            <td><input type="text" class="form-control form-control-sm win-key-fonte" placeholder="NS da Fonte" value="${fonte || ''}"></td>
+            <td>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input win-key-ativo" ${ativo ? 'checked' : ''}>
+                    <label class="form-check-label small">Ativo</label>
+                </div>
+            </td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>`;
+        tbody.appendChild(tr);
+    }
+    window.addWindowsKey = addWindowsKey;
+
+    function loadWindowsKeys(data) {
+        if (!data || data.length === 0) return;
+        document.getElementById('toggleWindowsKeys').checked = true;
+        toggleWindowsKeys();
+        data.forEach(function(item) {
+            addWindowsKey(item.chave || '', item.fonte || '', item.ativo || false);
+        });
+    }
+    window.loadWindowsKeys = loadWindowsKeys;
+
     function updateFields() {
         const type = typeSelect.value;
         fieldGroups.forEach(function(g) {
@@ -948,6 +1015,14 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         const passagens = JSON.parse({{ protocol.rma_passagens|tojson|safe }});
         loadPassagens(passagens);
+    } catch(e) {}
+    {% endif %}
+
+    // Load existing windows keys
+    {% if win_keys_data and win_keys_data != '[]' %}
+    try {
+        const winKeys = {{ win_keys_data|safe }};
+        if (winKeys && winKeys.length > 0) loadWindowsKeys(winKeys);
     } catch(e) {}
     {% endif %}
 
@@ -1069,6 +1144,27 @@ document.addEventListener('DOMContentLoaded', function() {
             this.appendChild(hidden);
         }
         hidden.value = JSON.stringify(data);
+    });
+
+    // Serialize Windows Keys on submit
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const rows = document.querySelectorAll('#windowsKeysTable tbody .win-key-row');
+        const items = [];
+        rows.forEach(function(row) {
+            items.push({
+                chave: row.querySelector('.win-key-chave').value,
+                fonte: row.querySelector('.win-key-fonte').value,
+                ativo: row.querySelector('.win-key-ativo').checked
+            });
+        });
+        let hidden = document.querySelector('input[name="windows_keys_json"]');
+        if (!hidden) {
+            hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'windows_keys_json';
+            this.appendChild(hidden);
+        }
+        hidden.value = JSON.stringify(items);
     });
 
     // Enter key navigates to next field instead of submitting
