@@ -115,6 +115,10 @@
                     </h6>
                     <div id="rmaMachinesContainer"></div>
                 </div>
+                <div class="col-12 mt-2">
+                    <label class="form-label text-secondary"><i class="bi bi-box-seam"></i> Equipamento extra do cliente <span class="small text-muted">(Ex: saco plástico, cabo de força, etc.)</span></label>
+                    <textarea name="rma_extra_equip" class="form-control" rows="2" placeholder="Descreva aqui itens extras que vieram junto com o equipamento...">{{ protocol.rma_extra_equip or '' if editing else '' }}</textarea>
+                </div>
             </div>
 
             <!-- RMA: Resultado do Teste de Mesa -->
