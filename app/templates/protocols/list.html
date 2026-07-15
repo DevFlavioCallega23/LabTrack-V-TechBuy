@@ -61,6 +61,7 @@
                         <th>Protocolo</th>
                         <th>Tipo</th>
                         <th>Cliente</th>
+                        <th>Vendedor</th>
                         <th>Quantidade</th>
                         <th>Pedido</th>
                         <th>Status</th>
@@ -73,8 +74,9 @@
                     {% for p in protocols.items %}
                     <tr class="clickable-row" data-href="{{ url_for('protocols.detail_protocol', id=p.id) }}">
                         <td><strong>{{ p.protocol_number }}</strong></td>
-                        <td><span class="badge bg-secondary">{{ p.type_label() }}</span></td>
+                        <td><span class="badge {{ p.type_badge() }}">{{ p.type_label() }}</span></td>
                         <td>{{ p.client_name or '-' }}</td>
+                        <td>{{ p.seller or '-' }}</td>
                         <td>{{ p.lote or '-' }}</td>
                         <td>{{ p.original_order if p.type == 'rma' else p.order_number or '-' }}</td>
                         <td>
@@ -105,7 +107,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="9" class="text-center text-secondary py-4">
+                        <td colspan="10" class="text-center text-secondary py-4">
                             <i class="bi bi-inbox fs-3 d-block mb-2"></i>
                             Nenhum protocolo encontrado.
                         </td>

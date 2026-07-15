@@ -96,6 +96,14 @@ class Protocol(db.Model):
         'nao_comprado': 'Não comprado na TechBuy'
     }
 
+    TYPE_BADGES = {
+        'venda': 'bg-success',
+        'ponta_entrega': 'bg-warning text-dark',
+        'venda_ponta_entrega': 'bg-info',
+        'rma': 'bg-primary',
+        'nao_comprado': 'bg-secondary'
+    }
+
     STATUS_LABELS = {
         'pendente': 'Pendente',
         'andamento': 'Em Andamento',
@@ -105,6 +113,9 @@ class Protocol(db.Model):
 
     def type_label(self):
         return self.TYPE_LABELS.get(self.type, self.type)
+
+    def type_badge(self):
+        return self.TYPE_BADGES.get(self.type, 'bg-secondary')
 
     def status_label(self):
         return self.STATUS_LABELS.get(self.status, self.status)

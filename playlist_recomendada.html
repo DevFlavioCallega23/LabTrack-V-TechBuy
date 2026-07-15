@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Playlist Recomendada</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #0a0a0f; color: #e0e0e0; font-family: system-ui, -apple-system, sans-serif; padding: 16px; }
+        h1 { color: #0d6efd; font-size: 22px; margin-bottom: 6px; }
+        .sub { color: #888; font-size: 13px; margin-bottom: 20px; }
+        h2 { font-size: 17px; margin: 24px 0 10px; padding: 8px 0 8px 12px; border-bottom: 1px solid #333; font-weight: 600; }
+        .song { display: block; padding: 10px 12px; margin: 4px 0; background: #141419; border-radius: 8px; color: #0d6efd; text-decoration: none; font-size: 14px; border: 1px solid #222; }
+        .song:active { background: #1a1a25; }
+        .song::before { content: "▶ "; color: #dc3545; }
+        .footer { margin-top: 20px; font-size: 12px; color: #666; text-align: center; }
+        @media (min-width: 600px) { .grid { display: flex; flex-wrap: wrap; gap: 6px; } .song { flex: 1 1 calc(50% - 6px); } }
+        @media (min-width: 900px) { .song { flex: 1 1 calc(33% - 6px); } }
+    </style>
+</head>
+<body>
+    <h1>Playlist Recomendada</h1>
+    <p class="sub">96 musicas — clique para ouvir no YouTube</p>
+    <div id="playlist"></div>
+    <p class="footer">Abra no Chrome. Cada link busca a musica no YouTube.</p>
+
+    <script>
+        const sections = [
+            { title: 'ROCK / METAL', color: '#dc3545', songs: [
+                'Sleep Token - The Summoning','Bring Me The Horizon - Teardrops','I Prevail - Hurricane',
+                'Wage War - High Horse','Nothing More - Tired of Winning','Shinedown - Planet Zero',
+                'Theory of a Deadman - Drown','Breaking Benjamin - Red Cold River','Chevelle - Self Destructor',
+                'Motionless In White - Werewolf','Bad Omens - The Death of Peace of Mind','The Plot In You - Forgotten',
+                'Dayseeker - Neon Grave','Architects - Black Lungs','Beartooth - The Past Is Dead',
+                'Killswitch Engage - In Due Time','While She Sleeps - Eye to Eye','Spiritbox - Holy Roller',
+                'Black Veil Brides - The Last One','Linkin Park - Heavy Is the Crown'
+            ]},
+            { title: 'RAP AMERICANO', color: '#0d6efd', songs: [
+                'Kendrick Lamar - King Kunta','JID - Surround Sound','Baby Keem - Orange Soda',
+                'Don Toliver - After Party','Metro Boomin - Creepin','Lil Baby - Woah',
+                '21 Savage - A Lot','Roddy Ricch - High Fashion','Lil Durk - Broadway Girls',
+                'Moneybagg Yo - Wockesha','Toosii - Favorite Song','Sleepy Hallow - 2055',
+                'Fivio Foreign - City of Gods','Pop Smoke - Dior','Conway The Machine - Tear Gas',
+                'Benny The Butcher - Burden of Proof','Westside Gunn - 327','Nipsey Hussle - Racks in the Middle',
+                'YG - Toxic','Tyga - Ice Cream Man','Lil Wayne - A Milli',
+                'Rick Ross - Hustlin','Meek Mill - Dreams and Nightmares','2 Chainz - I\'m Different',
+                'BIA - I\'m That Bitch'
+            ]},
+            { title: 'TRAP / NEW RAP', color: '#20c997', songs: [
+                'Yeat - Mysëlf','Ken Carson - Yale','Destroy Lonely - NOSTYLIST',
+                'Playboi Carti - Magnolia','Trippie Redd - Love Scars','$NOT - Mean',
+                'Smokepurpp - Audi','Lucki - Coincidence','454 - 4 WHEELS',
+                'Yung Lean - Agony','Bladee - Wallet Won\'t Fold'
+            ]},
+            { title: 'RAP BRASIL', color: '#198754', songs: [
+                'Veigh - Novo Balanço','KayBlack - Contando Luar','Chefin - 212',
+                'Tz da Coronel - Malvadão 3','Oruam - Faltou Coragem','Borges - Akatsuki',
+                'Leviano - Barco de Papel','MC GP - Vida de Luxo','Ryu The Runner - Sem Dó',
+                'Caio Luccas - Ainda É Tempo','WCnoBEAT - Karma','Prodígio - Matemática',
+                'Lil Kid - Maturidade','UBaby - Só por Essa Noite','Bvga Beatz - Tipo Sergin'
+            ]},
+            { title: 'POP MUNDIAL', color: '#fd7e14', songs: [
+                'Chappell Roan - Good Luck Babe','Sabrina Carpenter - Taste','Ariana Grande - We Can\'t Be Friends',
+                'Dua Lipa - Houdini','Billie Eilish - What Was I Made For','Olivia Rodrigo - Vampire',
+                'Taylor Swift - Cruel Summer','Lady Gaga - Abracadabra','The Weeknd - Blinding Lights',
+                'Bruno Mars - Die With a Smile','Glass Animals - Heat Waves','D4vd - Romantic Homicide',
+                'Steve Lacy - Bad Habit','SZA - Kill Bill','Tyla - Water'
+            ]},
+            { title: 'REGGAE / POP BR', color: '#6f42c1', songs: [
+                'Natiruts - Andei Só','Planta & Raiz - Com Certeza','Cidade Negra - A Estrada',
+                'Mato Seco - Tudo Me Lembra Você','Chimarruts - Do Lado da Cambota',
+                'Maneva - Sol da Liberdade','Projetaê - Praia do Rosa','Onze:20 - Cúmplice',
+                'Lagum - Detesto Despedidas','Nando Reis - Os Cegos do Castelo'
+            ]}
+        ];
+
+        const container = document.getElementById('playlist');
+        sections.forEach(section => {
+            let html = `<h2 style="border-left: 4px solid ${section.color};">${section.title}</h2><div class="grid">`;
+            section.songs.forEach(song => {
+                const q = encodeURIComponent(song + ' official');
+                html += `<a href="https://www.youtube.com/results?search_query=${q}" target="_blank" class="song">${song}</a>`;
+            });
+            html += '</div>';
+            container.insertAdjacentHTML('beforeend', html);
+        });
+    </script>
+</body>
+</html>
