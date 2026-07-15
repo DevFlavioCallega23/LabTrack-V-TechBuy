@@ -21,6 +21,14 @@ def parse_date_br(text):
             continue
     return None
 
+def parse_int_or_none(val):
+    if not val or not str(val).strip():
+        return None
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return None
+
 def parse_components(request_form):
     components = []
     seen_units = set()
@@ -321,6 +329,7 @@ def create_protocol():
             base_defect=form.base_defect.data or None,
             original_order=form.original_order.data or None,
             rma_extra_equip=form.rma_extra_equip.data or None,
+            rma_extra_qtd=parse_int_or_none(request.form.get('rma_extra_qtd')),
             rma_equip_itens=rma_equip_itens,
             rma_test_result=rma_test_result,
             rma_trocados=parse_rma_trocados(request.form),
@@ -439,6 +448,7 @@ def edit_protocol(id):
         protocol.rma_passagens = request.form.get('rma_passagens_json', '').strip() or None
         protocol.original_order = form.original_order.data or None
         protocol.rma_extra_equip = form.rma_extra_equip.data or None
+        protocol.rma_extra_qtd = parse_int_or_none(request.form.get('rma_extra_qtd'))
         protocol.rma_equip_itens = parse_rma_equip(request.form)
         protocol.rma_test_result = parse_rma_test_items(request.form)
         protocol.rma_trocados = parse_rma_trocados(request.form)

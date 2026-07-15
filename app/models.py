@@ -67,6 +67,7 @@ class Protocol(db.Model):
     base_defect = db.Column(db.Text)
     original_order = db.Column(db.String(100))
     rma_extra_equip = db.Column(db.String(200))
+    rma_extra_qtd = db.Column(db.Integer, default=0)
     rma_equip_itens = db.Column(db.Text)
     rma_test_result = db.Column(db.Text)
     rma_test_component = db.Column(db.String(50))

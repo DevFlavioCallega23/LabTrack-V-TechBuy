@@ -116,8 +116,15 @@
                     <div id="rmaMachinesContainer"></div>
                 </div>
                 <div class="col-12 mt-2">
-                    <label class="form-label text-secondary"><i class="bi bi-box-seam"></i> Equipamento extra do cliente <span class="small text-muted">(Ex: saco plástico, cabo de força, etc.)</span></label>
-                    <textarea name="rma_extra_equip" class="form-control" rows="2" placeholder="Descreva aqui itens extras que vieram junto com o equipamento...">{{ protocol.rma_extra_equip or '' if editing else '' }}</textarea>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-2">
+                            <label class="form-label text-secondary"><i class="bi bi-box-seam"></i> Equipamento extra do cliente</label>
+                            <input type="number" name="rma_extra_qtd" class="form-control" min="0" placeholder="Qtd" value="{{ protocol.rma_extra_qtd or '' if editing else '' }}">
+                        </div>
+                        <div class="col-md-10">
+                            <textarea name="rma_extra_equip" class="form-control" rows="2" placeholder="Ex: saco plástico, cabo de força, etc...">{{ protocol.rma_extra_equip or '' if editing else '' }}</textarea>
+                        </div>
+                    </div>
                 </div>
             </div>
 
