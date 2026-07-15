@@ -54,7 +54,6 @@ class Protocol(db.Model):
     contact = db.Column(db.String(100))
     lote = db.Column(db.String(50))
     order_number = db.Column(db.String(100))
-    os_number = db.Column(db.String(20))
     seller = db.Column(db.String(50))
     status = db.Column(db.String(20), default='pendente')
     entry_date = db.Column(db.DateTime, default=datetime.utcnow)

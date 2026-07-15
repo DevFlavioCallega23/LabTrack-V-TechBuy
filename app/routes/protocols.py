@@ -296,15 +296,6 @@ def create_protocol():
         entry = form.entry_date.data
         exit = form.exit_date.data
 
-        os_number = None
-        if form.type.data in ('rma',):
-            last_os = Protocol.query.filter(
-                Protocol.os_number.isnot(None),
-                Protocol.os_number.like('OS-%')
-            ).order_by(Protocol.id.desc()).first()
-            next_os = int(last_os.os_number.split('-')[-1]) + 1 if last_os and last_os.os_number else 1
-            os_number = f'OS-{year}-{next_os:04d}'
-
         power_cable = request.form.get('power_cable', '').strip() or None
         power_cable_fonte = request.form.get('power_cable_fonte_serial', '').strip() or None
         rma_passagens = request.form.get('rma_passagens_json', '').strip() or None
@@ -317,7 +308,6 @@ def create_protocol():
             client_name=form.client_name.data,
             lote=form.lote.data,
             order_number=form.order_number.data,
-            os_number=os_number,
             seller=form.seller.data or None,
             status=form.status.data,
             entry_date=parse_date_br(form.entry_date.data) if form.entry_date.data else datetime.utcnow(),

@@ -17,9 +17,6 @@
             <i class="bi bi-trash"></i> Excluir
         </button>
         {% endif %}
-        {% if protocol.os_number %}
-        <span class="badge bg-info fs-6 me-2 align-middle">OS: {{ protocol.os_number }}</span>
-        {% endif %}
         {% set wa_parts = [protocol.protocol_number, protocol.type_label(), 'Cliente: ' + (protocol.client_name or ''), 'Status: ' + (protocol.status_label() or '')] %}
         {% if protocol.seller %}{% set _ = wa_parts.append('Vendedor: ' + protocol.seller) %}{% endif %}
         {% if protocol.type == 'rma' %}
@@ -91,12 +88,6 @@
                     <div class="col-md-2">
                         <label class="text-secondary small d-block">Data de Entrada (RMA)</label>
                         <strong>{{ protocol.rma_entry_date }}</strong>
-                    </div>
-                    {% endif %}
-                    {% if protocol.os_number %}
-                    <div class="col-md-1">
-                        <label class="text-secondary small d-block">OS</label>
-                        <strong class="text-info">OS: {{ protocol.os_number }}</strong>
                     </div>
                     {% endif %}
                     <div class="col-md-2">
