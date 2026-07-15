@@ -77,12 +77,6 @@
                         <strong>{{ protocol.order_number if protocol.order_number else 'Não Informado ao Laboratório' }}</strong>
                     </div>
                     {% endif %}
-                    {% if protocol.type != 'rma' %}
-                    <div class="col-md-2">
-                        <label class="text-secondary small d-block">{% if protocol.type in ('venda', 'venda_ponta_entrega') %}Data da Compra{% else %}Data da Entrada{% endif %}</label>
-                        <strong>{{ protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else '-' }}</strong>
-                    </div>
-                    {% endif %}
                     {% if protocol.type != 'venda' %}
                     <div class="col-md-2">
                         <label class="text-secondary small d-block">Data de Saída</label>
@@ -150,12 +144,6 @@
                 {% if protocol.type == 'rma' %}
                 <hr>
                 <div class="row g-2 mb-2">
-                    {% if protocol.entry_date %}
-                    <div class="col-md-3">
-                        <label class="text-secondary small d-block">Data da Compra</label>
-                        <strong>{{ protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else '-' }}</strong>
-                    </div>
-                    {% endif %}
                     {% if protocol.exit_date %}
                     <div class="col-md-3">
                         <label class="text-secondary small d-block">Data de Saída</label>
