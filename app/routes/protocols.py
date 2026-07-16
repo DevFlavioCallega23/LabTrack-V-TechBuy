@@ -517,9 +517,30 @@ def report():
     for d in defect_stats:
         defect_totals[d.component_type] = defect_totals.get(d.component_type, 0) + 1
 
+    rma_defects = []
+    for p in protocols:
+        if p.type == 'rma' and p.rma_test_result:
+            try:
+                items = json.loads(p.rma_test_result)
+                for item in items:
+                    comp = item.get('component', '').strip()
+                    if comp:
+                        rma_defects.append({
+                            'component': comp,
+                            'defeito': item.get('defeito', ''),
+                            'serial': item.get('serial', ''),
+                            'cliente': p.client_name or '-',
+                            'data': p.entry_date,
+                            'protocolo': p.protocol_number
+                        })
+                        defect_totals[comp] = defect_totals.get(comp, 0) + 1
+            except (json.JSONDecodeError, TypeError):
+                pass
+
     return render_template('protocols/report.html',
         protocols=protocols, total=total, by_type=by_type,
-        defect_stats=defect_stats, defect_totals=defect_totals)
+        defect_stats=defect_stats, defect_totals=defect_totals,
+        rma_defects=rma_defects)
 
 @protocols_bp.route('/usuarios')
 @login_required
