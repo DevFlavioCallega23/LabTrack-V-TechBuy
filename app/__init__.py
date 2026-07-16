@@ -49,8 +49,6 @@ def add_missing_columns():
             conn.execute(db.text('ALTER TABLE protocol ADD COLUMN rma_trocados TEXT'))
         if 'rma_entry_date' not in protocol_cols:
             conn.execute(db.text('ALTER TABLE protocol ADD COLUMN rma_entry_date VARCHAR(10)'))
-        if 'rma_extra_qtd' not in protocol_cols:
-            conn.execute(db.text('ALTER TABLE protocol ADD COLUMN rma_extra_qtd INTEGER DEFAULT 0'))
         conn.commit()
 
 def create_app():
