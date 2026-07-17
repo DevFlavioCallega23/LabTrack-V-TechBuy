@@ -22,6 +22,23 @@
         {% if protocol.type == 'rma' %}
             {% if protocol.rma_entry_date %}{% set _ = wa_parts.append('Data de Entrada: ' + protocol.rma_entry_date) %}{% endif %}
             {% if protocol.original_order %}{% set _ = wa_parts.append('Pedido Original: ' + protocol.original_order) %}{% endif %}
+            {% if protocol.rma_test_result %}
+                {% set rma_test = protocol.rma_test_result|from_json %}
+                {% if rma_test %}
+                    {% set _ = wa_parts.append('--- Defeitos RMA ---') %}
+                    {% for item in rma_test[:5] %}
+                        {% set line = (item.component or '') + ' | NS: ' + (item.serial or '-') + ' | Pedido: ' + (item.pedido or '-') %}
+                        {% set _ = wa_parts.append(line) %}
+                    {% endfor %}
+                {% endif %}
+            {% endif %}
+        {% endif %}
+        {% if protocol.type != 'rma' and protocol.defects %}
+            {% set _ = wa_parts.append('--- Defeitos ---') %}
+            {% for defect in protocol.defects[:5] %}
+                {% set line = (defect.type_label() or '') + ' | NS: ' + (defect.serial_number or '-') %}
+                {% set _ = wa_parts.append(line) %}
+            {% endfor %}
         {% endif %}
         {% set _ = wa_parts.append(url_for('protocols.detail_protocol', id=protocol.id, _external=True)) %}
         <a href="https://wa.me/?text={{ wa_parts|join('%0A') }}" target="_blank" class="btn btn-success">
