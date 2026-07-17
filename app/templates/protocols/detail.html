@@ -20,6 +20,8 @@
         {% set wa_parts = [protocol.protocol_number, protocol.type_label(), 'Cliente: ' + (protocol.client_name or ''), 'Status: ' + (protocol.status_label() or '')] %}
         {% if protocol.seller %}{% set _ = wa_parts.append('Vendedor: ' + protocol.seller) %}{% endif %}
         {% if protocol.type == 'rma' %}
+            {% if protocol.entry_date %}{% set _ = wa_parts.append('Data da Compra: ' + protocol.entry_date.strftime('%d/%m/%Y')) %}{% endif %}
+            {% if protocol.rma_in_warranty is not none %}{% set _ = wa_parts.append('Na Garantia: ' + ('Sim' if protocol.rma_in_warranty else 'Não')) %}{% endif %}
             {% if protocol.rma_entry_date %}{% set _ = wa_parts.append('Data de Entrada: ' + protocol.rma_entry_date) %}{% endif %}
             {% if protocol.original_order %}{% set _ = wa_parts.append('Pedido Original: ' + protocol.original_order) %}{% endif %}
             {% if protocol.rma_test_result %}
