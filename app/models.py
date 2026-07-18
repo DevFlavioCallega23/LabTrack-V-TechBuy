@@ -89,8 +89,8 @@ class Protocol(db.Model):
 
     TYPE_LABELS = {
         'venda': 'Venda',
-        'ponta_entrega': 'Ponta Entrega',
-        'venda_ponta_entrega': 'Venda Ponta Entrega',
+        'ponta_entrega': 'Pronta-Entrega',
+        'venda_ponta_entrega': 'Venda Pronta-Entrega',
         'rma': 'RMA',
         'nao_comprado': 'Não comprado na TechBuy'
     }

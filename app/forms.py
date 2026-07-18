@@ -45,8 +45,8 @@ class ChangePasswordForm(FlaskForm):
 class ProtocolForm(FlaskForm):
     type = SelectField('Tipo de Protocolo', choices=[
         ('venda', 'Venda'),
-        ('ponta_entrega', 'Ponta Entrega'),
-        ('venda_ponta_entrega', 'Venda Ponta Entrega'),
+        ('ponta_entrega', 'Pronta-Entrega'),
+        ('venda_ponta_entrega', 'Venda Pronta-Entrega'),
         ('rma', 'RMA'),
         ('nao_comprado', 'Não comprado na TechBuy')
     ], validators=[DataRequired()])

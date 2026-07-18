@@ -600,6 +600,20 @@ def change_password():
         return redirect(url_for('protocols.minha_conta'))
     return render_template('change_password.html', form=form)
 
+@protocols_bp.route('/<int:id>/status', methods=['POST'])
+@login_required
+def update_status(id):
+    if not current_user.is_manager():
+        return {'error': 'Sem permissão'}, 403
+    protocol = Protocol.query.get_or_404(id)
+    data = request.get_json()
+    new_status = data.get('status')
+    if new_status not in ('pendente', 'andamento', 'concluido', 'cancelado'):
+        return {'error': 'Status inválido'}, 400
+    protocol.status = new_status
+    db.session.commit()
+    return {'ok': True, 'status': new_status}
+
 @protocols_bp.route('/usuarios/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
 def edit_user(id):

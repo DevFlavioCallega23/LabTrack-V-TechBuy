@@ -3,7 +3,20 @@
 {% set COMP_LABELS = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor', 'outro': 'Outro'} %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3><i class="bi bi-file-text"></i> Protocolo {{ protocol.protocol_number }}</h3>
-    <div>
+    <div class="d-flex align-items-center gap-2">
+        {% if current_user.is_manager() %}
+        <div class="d-flex align-items-center gap-1">
+            <label class="form-label mb-0 text-nowrap small">Status:</label>
+            <select class="form-select form-select-sm status-select" data-id="{{ protocol.id }}" data-original="{{ protocol.status }}" style="width:auto">
+                <option value="pendente" {{ 'selected' if protocol.status == 'pendente' }}>Pendente</option>
+                <option value="andamento" {{ 'selected' if protocol.status == 'andamento' }}>Em Andamento</option>
+                <option value="concluido" {{ 'selected' if protocol.status == 'concluido' }}>Concluído</option>
+                <option value="cancelado" {{ 'selected' if protocol.status == 'cancelado' }}>Cancelado</option>
+            </select>
+        </div>
+        {% else %}
+        <span class="badge {{ 'bg-warning text-dark' if protocol.status == 'pendente' else 'bg-info' if protocol.status == 'andamento' else 'bg-success' if protocol.status == 'concluido' else 'bg-danger' }} fs-6">{{ protocol.status_label() }}</span>
+        {% endif %}
         <a href="{{ url_for('protocols.list_protocols') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Voltar
         </a>
@@ -19,26 +32,56 @@
         {% endif %}
         {% set wa_parts = [protocol.protocol_number, protocol.type_label(), 'Cliente: ' + (protocol.client_name or ''), 'Status: ' + (protocol.status_label() or '')] %}
         {% if protocol.seller %}{% set _ = wa_parts.append('Vendedor: ' + protocol.seller) %}{% endif %}
-        {% if protocol.type == 'rma' %}
-            {% if protocol.entry_date %}{% set _ = wa_parts.append('Data da Compra: ' + protocol.entry_date.strftime('%d/%m/%Y')) %}{% endif %}
-            {% if protocol.rma_in_warranty is not none %}{% set _ = wa_parts.append('Na Garantia: ' + ('Sim' if protocol.rma_in_warranty else 'Não')) %}{% endif %}
-            {% if protocol.rma_entry_date %}{% set _ = wa_parts.append('Data de Entrada: ' + protocol.rma_entry_date) %}{% endif %}
-            {% if protocol.original_order %}{% set _ = wa_parts.append('Pedido Original: ' + protocol.original_order) %}{% endif %}
-            {% if protocol.rma_test_result %}
+        {% if protocol.type in ('rma', 'nao_comprado') %}
+            {% if protocol.type == 'rma' and protocol.entry_date %}{% set _ = wa_parts.append('Data da Compra: ' + protocol.entry_date.strftime('%d/%m/%Y')) %}{% endif %}
+            {% if protocol.type == 'nao_comprado' and protocol.entry_date %}{% set _ = wa_parts.append('Data de Entrada: ' + protocol.entry_date.strftime('%d/%m/%Y')) %}{% endif %}
+            {% if protocol.rma_in_warranty is not none and protocol.type == 'rma' %}{% set _ = wa_parts.append('Na Garantia: ' + ('Sim' if protocol.rma_in_warranty else 'Não')) %}{% endif %}
+            {% if protocol.rma_entry_date and protocol.type == 'rma' %}{% set _ = wa_parts.append('Data de Entrada: ' + protocol.rma_entry_date) %}{% endif %}
+            {% if protocol.exit_date %}{% set _ = wa_parts.append('Data de Saida: ' + protocol.exit_date) %}{% endif %}
+            {% if protocol.original_order and protocol.type == 'rma' %}{% set _ = wa_parts.append('Pedido Original: ' + protocol.original_order) %}{% endif %}
+            {% if protocol.rma_test_result and protocol.type == 'rma' %}
                 {% set rma_test = protocol.rma_test_result|from_json %}
                 {% if rma_test %}
                     {% set _ = wa_parts.append('--- Defeitos RMA ---') %}
                     {% for item in rma_test[:5] %}
-                        {% set line = (item.component or '') + ' | NS: ' + (item.serial or '-') + ' | Pedido: ' + (item.pedido or '-') %}
+                        {% set line = (item.component or '') + ' ' + (item.model or '') + ' | NS: ' + (item.serial or '-') + ' | Pedido: ' + (item.pedido or '-') %}
                         {% set _ = wa_parts.append(line) %}
                     {% endfor %}
                 {% endif %}
             {% endif %}
+            {% if protocol.defects and protocol.type == 'nao_comprado' %}
+                {% set _ = wa_parts.append('--- Defeitos ---') %}
+                {% for defect in protocol.defects[:5] %}
+                    {% set line = (defect.type_label() or '') + ' ' + (defect.specification or '') + ' | NS: ' + (defect.serial_number or '-') %}
+                    {% set _ = wa_parts.append(line) %}
+                {% endfor %}
+            {% endif %}
+            {% if protocol.rma_trocados %}
+                {% set trocados_raw = protocol.rma_trocados|from_json %}
+                {% if trocados_raw %}
+                    {% if trocados_raw is mapping %}
+                        {% set trocados = trocados_raw %}
+                    {% else %}
+                        {% set trocados = {'01': {'name': 'Computador 01', 'components': trocados_raw}} %}
+                    {% endif %}
+                    {% set _ = wa_parts.append('--- Produtos Trocados ---') %}
+                    {% for unit, entry in trocados.items()|sort %}
+                        {% set machine_label = entry.name if entry.name else 'Computador ' + unit %}
+                        {% if entry.components %}
+                            {% for comp in entry.components[:3] %}
+                                {% set comp_label = COMP_LABELS.get(comp.type, comp.type or '') %}
+                                {% set line = (comp_label or '') + ' ' + (comp.model or '') + ' | NS: ' + (comp.serial or '-') %}
+                                {% set _ = wa_parts.append(line) %}
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            {% endif %}
         {% endif %}
-        {% if protocol.type != 'rma' and protocol.defects %}
+        {% if protocol.type not in ('rma', 'nao_comprado') and protocol.defects %}
             {% set _ = wa_parts.append('--- Defeitos ---') %}
             {% for defect in protocol.defects[:5] %}
-                {% set line = (defect.type_label() or '') + ' | NS: ' + (defect.serial_number or '-') %}
+                {% set line = (defect.type_label() or '') + ' ' + (defect.specification or '') + ' | NS: ' + (defect.serial_number or '-') %}
                 {% set _ = wa_parts.append(line) %}
             {% endfor %}
         {% endif %}
@@ -155,12 +198,12 @@
                 </div>
                 {% endif %}
 
-                {% if protocol.type == 'rma' %}
+                {% if protocol.type in ('rma', 'nao_comprado') %}
                 <hr>
                 <div class="row g-2 mb-2">
                     {% if protocol.entry_date %}
                     <div class="col-md-3">
-                        <label class="text-secondary small d-block">Data da Compra</label>
+                        <label class="text-secondary small d-block">{% if protocol.type == 'rma' %}Data da Compra{% else %}Data de Entrada{% endif %}</label>
                         <strong>{{ protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else '-' }}</strong>
                     </div>
                     {% endif %}
@@ -446,5 +489,26 @@ function confirmDelete(id, protocolNumber) {
         form.submit();
     }
 }
+document.querySelectorAll('.status-select').forEach(function(sel) {
+    sel.addEventListener('change', function() {
+        var id = this.dataset.id;
+        var status = this.value;
+        fetch('/protocolos/' + id + '/status', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({status: status})
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.ok) {
+                this.dataset.original = status;
+            } else {
+                alert('Erro ao atualizar status: ' + (data.error || 'desconhecido'));
+                this.value = this.dataset.original;
+            }
+        }.bind(this)).catch(function() {
+            alert('Erro de conexão ao atualizar status.');
+            this.value = this.dataset.original;
+        }.bind(this));
+    });
+});
 </script>
 {% endblock %}
