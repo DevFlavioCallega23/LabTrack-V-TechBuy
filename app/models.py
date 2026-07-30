@@ -92,7 +92,7 @@ class Protocol(db.Model):
         'ponta_entrega': 'Pronta-Entrega',
         'venda_ponta_entrega': 'Venda Pronta-Entrega',
         'rma': 'RMA',
-        'nao_comprado': 'Não comprado na TechBuy'
+        'nao_comprado': 'NTB'
     }
 
     TYPE_BADGES = {
@@ -110,6 +110,13 @@ class Protocol(db.Model):
         'cancelado': 'Cancelado'
     }
 
+    STATUS_BADGES = {
+        'pendente': 'bg-warning text-dark',
+        'andamento': 'bg-dark',
+        'concluido': 'bg-info text-dark',
+        'cancelado': 'bg-danger'
+    }
+
     def type_label(self):
         return self.TYPE_LABELS.get(self.type, self.type)
 
@@ -118,6 +125,9 @@ class Protocol(db.Model):
 
     def status_label(self):
         return self.STATUS_LABELS.get(self.status, self.status)
+
+    def status_badge(self):
+        return self.STATUS_BADGES.get(self.status, 'bg-secondary')
 
     def __repr__(self):
         return f'<Protocol {self.protocol_number}>'
@@ -131,6 +141,8 @@ class Component(db.Model):
     unit = db.Column(db.String(10))
     machine_name = db.Column(db.String(100))
     sort_order = db.Column(db.Integer, default=0)
+    is_prebuilt = db.Column(db.Boolean, default=False)
+    machine_ref_ns = db.Column(db.String(100))
 
     FIXED_TYPES = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'monitor']
 

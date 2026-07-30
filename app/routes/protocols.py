@@ -41,21 +41,26 @@ def parse_components(request_form):
         models = request_form.getlist(f'comp_model_{unit}[]')
         serials = request_form.getlist(f'comp_serial_{unit}[]')
         machine_name = request_form.get(f'machine_name_{unit}', '').strip() or f'Máquina {unit}'
+        is_prebuilt = request_form.get(f'pe_switch_{unit}') == 'on'
         for i in range(len(types)):
             ct = types[i].strip()
             serial = serials[i].strip() if i < len(serials) else ''
-            if ct and serial:
-                if len(serial) < 6:
-                    flash(f'Nº de série deve ter no mínimo 6 caracteres.', 'danger')
-                    return None
+            if ct:
+                if not is_prebuilt:
+                    if not serial:
+                        continue
+                    if len(serial) < 6:
+                        flash(f'Nº de série deve ter no mínimo 6 caracteres.', 'danger')
+                        return None
                 model = models[i].strip() if i < len(models) else ''
                 components.append(Component(
                     component_type=ct,
                     specification=model,
-                    serial_number=serial,
+                    serial_number=serial or None,
                     unit=unit,
                     machine_name=machine_name,
-                    sort_order=int(unit) * 100 + i
+                    sort_order=int(unit) * 100 + i,
+                    is_prebuilt=is_prebuilt
                 ))
     return components
 
@@ -120,9 +125,6 @@ def build_rma_test_data_from_form(request_form):
     """Build RMA test items from submitted form data for preserving on validation error."""
     comps = request_form.getlist('rma_test_comp[]')
     models = request_form.getlist('rma_test_model[]')
-    serials = request_form.getlist('rma_test_serial[]')
-    pedidos = request_form.getlist('rma_test_pedido[]')
-    garantias = request_form.getlist('rma_test_garantia[]')
     defeitos = request_form.getlist('rma_test_defeito[]')
     items = []
     for i in range(len(comps)):
@@ -130,9 +132,6 @@ def build_rma_test_data_from_form(request_form):
             items.append({
                 'component': comps[i].strip(),
                 'model': models[i].strip() if i < len(models) else '',
-                'serial': serials[i].strip() if i < len(serials) else '',
-                'pedido': pedidos[i].strip() if i < len(pedidos) else '',
-                'garantia': garantias[i] == '1' if i < len(garantias) else False,
                 'defeito': defeitos[i].strip() if i < len(defeitos) else ''
             })
     return json.dumps(items) if items else None
@@ -340,7 +339,28 @@ def create_protocol():
         flash(f'Protocolo {protocol_number} criado com sucesso!', 'success')
         return redirect(url_for('protocols.detail_protocol', id=protocol.id))
 
-    return render_template('protocols/create.html', form=form, editing=False, comp_data='{}', rma_comp_data='{}', rma_test_data='[]', rma_trocados_data='[]', win_keys_data='[]')
+    if request.method == 'POST':
+        flash(f'Não foi possível salvar. Verifique os campos obrigatórios.', 'warning')
+        comp_data = build_comp_data_from_form(request.form)
+        rma_comp_data = build_rma_equip_data_from_form(request.form)
+        rma_test_data = build_rma_test_data_from_form(request.form)
+        rma_trocados_data = build_rma_trocados_data_from_form(request.form)
+        defect_data = build_defect_data_from_form(request.form)
+        win_keys_data = build_windows_key_data_from_form(request.form)
+        form.entry_date.data = request.form.get('entry_date', '')
+        form.exit_date.data = request.form.get('exit_date', '')
+        form.rma_entry_date.data = request.form.get('rma_entry_date', '')
+    else:
+        comp_data = '{}'
+        rma_comp_data = '{}'
+        rma_test_data = '[]'
+        rma_trocados_data = '[]'
+        defect_data = None
+        win_keys_data = '[]'
+
+    return render_template('protocols/create.html', form=form, editing=False,
+        comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
+        rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data)
 
 @protocols_bp.route('/<int:id>')
 @login_required
@@ -349,12 +369,16 @@ def detail_protocol(id):
     return render_template('protocols/detail.html', protocol=protocol)
 
 def build_component_data(protocol):
-    """Build {unit: {name: str, components: [{type, serial, model}]}} dict for editing."""
+    """Build {unit: {name: str, components: [{type, serial, model}], is_prebuilt}} dict for editing."""
     data = {}
     for c in protocol.components:
         u = c.unit or '01'
         if u not in data:
-            data[u] = {'name': c.machine_name or f'Máquina {u}', 'components': []}
+            data[u] = {
+                'name': c.machine_name or f'Máquina {u}',
+                'components': [],
+                'is_prebuilt': c.is_prebuilt or False
+            }
         data[u]['components'].append({
             'type': c.component_type,
             'serial': c.serial_number or '',
@@ -363,7 +387,7 @@ def build_component_data(protocol):
     return json.dumps(data)
 
 def build_comp_data_from_form(request_form):
-    """Build {unit: {name, components}} JSON from submitted form data (for preserving input on validation error)."""
+    """Build {unit: {name, components, is_prebuilt}} JSON from submitted form data (for preserving input on validation error)."""
     data = {}
     for key in request_form.keys():
         if key.startswith('comp_type_') and key.endswith('[]'):
@@ -374,6 +398,7 @@ def build_comp_data_from_form(request_form):
             models = request_form.getlist(f'comp_model_{unit}[]')
             serials = request_form.getlist(f'comp_serial_{unit}[]')
             machine_name = request_form.get(f'machine_name_{unit}', '').strip() or f'Máquina {unit}'
+            is_prebuilt = request_form.get(f'pe_switch_{unit}') == 'on'
             comps = []
             for i in range(len(types)):
                 if types[i].strip():
@@ -382,7 +407,7 @@ def build_comp_data_from_form(request_form):
                         'model': models[i].strip() if i < len(models) else '',
                         'serial': serials[i].strip() if i < len(serials) else ''
                     })
-            data[unit] = {'name': machine_name, 'components': comps}
+            data[unit] = {'name': machine_name, 'components': comps, 'is_prebuilt': is_prebuilt}
     return json.dumps(data)
 
 def build_defect_data_from_form(request_form):
