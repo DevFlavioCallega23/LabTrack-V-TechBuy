@@ -84,7 +84,7 @@
             </div>
 
             <!-- RMA: campos específicos -->
-            <div class="row g-3 mt-2 rma-field rma-only" data-show-for="rma" style="display:none">
+            <div class="row g-3 mt-2" data-show-for="rma" style="display:none">
                 <div class="col-12">
                     <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-info-circle"></i> Dados do RMA</h6>
                 </div>
@@ -99,10 +99,6 @@
                     <label class="form-label">{{ form.ref_ns.label }}</label>
                     {{ form.ref_ns(class='form-control', placeholder='NS de referência do equipamento') }}
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label">{{ form.base_defect.label }}</label>
-                    {{ form.base_defect(class='form-control', rows=2, placeholder='Defeito informado pelo cliente') }}
-                </div>
                 <div class="col-12 mt-2">
                     <label class="form-label"><i class="bi bi-arrow-repeat"></i> Outras Passagens</label>
                     <div id="passagensContainer">
@@ -111,7 +107,14 @@
                         <i class="bi bi-plus"></i> Adicionar passagem
                     </button>
                 </div>
-                <div class="col-12 mt-3">
+            </div>
+
+            <!-- RMA / NTB: Dados do Equipamento do Cliente -->
+            <div class="row g-3 mt-2 rma-field" data-show-for="rma,nao_comprado" style="display:none">
+                <div class="col-12">
+                    <h6 class="text-secondary border-bottom pb-2" id="equipClientHeading"><i class="bi bi-box-seam"></i> Dados do Equipamento do Cliente</h6>
+                </div>
+                <div class="col-12 mt-0">
                     <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-pc-display"></i> Equipamento que chegou
                         <button type="button" class="btn btn-sm btn-outline-success ms-2" onclick="addRmaMachine()">
                             <i class="bi bi-plus-lg"></i> Adicionar
@@ -123,10 +126,14 @@
                     <label class="form-label text-secondary"><i class="bi bi-box-seam"></i> Equipamento extra do cliente</label>
                     <textarea name="rma_extra_equip" class="form-control" rows="2" placeholder="Ex: saco plástico, cabo de força, etc...">{{ protocol.rma_extra_equip or '' if editing else '' }}</textarea>
                 </div>
+                <div class="col-12 mt-2">
+                    <label class="form-label text-secondary"><i class="bi bi-exclamation-triangle"></i> Defeito de Base</label>
+                    {{ form.base_defect(class='form-control', rows=2, placeholder='Defeito informado pelo cliente') }}
+                </div>
             </div>
 
-            <!-- RMA: Resultado do Teste de Mesa -->
-            <div class="row g-3 mt-2 rma-field rma-only" data-show-for="rma" style="display:none">
+            <!-- RMA / NTB: Resultado do Teste de Mesa -->
+            <div class="row g-3 mt-2 rma-field" data-show-for="rma,nao_comprado" style="display:none">
                 <div class="col-12">
                     <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-tools"></i> Resultado do Teste de Mesa / Defeitos encontrados
                         <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="addRmaTestRow()">
@@ -139,13 +146,10 @@
                         <table class="table table-dark table-sm" id="rmaTestTable">
                             <thead>
                                 <tr>
-                                    <th style="width:13%">Componente</th>
-                                    <th style="width:13%">Modelo</th>
-                                    <th style="width:16%">Nº de Série</th>
-                                    <th style="width:13%">Pedido</th>
-                                    <th style="width:10%">Garantia</th>
-                                    <th style="width:30%">Defeito</th>
-                                    <th style="width:5%"></th>
+                                    <th style="width:25%">Componente</th>
+                                    <th style="width:25%">Modelo</th>
+                                    <th style="width:44%">Defeito</th>
+                                    <th style="width:6%"></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -155,9 +159,19 @@
                 </div>
             </div>
 
+            <!-- RMA / NTB: Equipamentos Mudados -->
+            <div class="row g-3 mt-2 rma-field" data-show-for="rma,nao_comprado" style="display:none">
+                <div class="col-12">
+                    <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-arrow-repeat"></i> Equipamentos Mudados
+                        <button type="button" class="btn btn-sm btn-outline-info ms-2" onclick="addTrocadoMachine()">
+                            <i class="bi bi-plus-lg"></i> Adicionar
+                        </button>
+                    </h6>
+                    <div id="rmaTrocadosContainer"></div>
+                </div>
+            </div>
 
-
-            <div class="row g-3 mt-2 hide-for-rma">
+            <div class="row g-3 mt-2 hide-for-rma hide-for-nao-comprado">
                 <div class="col-12">
                     <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-box-seam"></i> Identificação</h6>
                 </div>
@@ -187,7 +201,7 @@
                 </div>
             </div>
 
-            <div class="row g-3 mt-2 hide-for-rma">
+            <div class="row g-3 mt-2 hide-for-rma hide-for-nao-comprado">
                 <div class="col-12">
                     <h6 class="text-secondary border-bottom pb-2">
                         <i class="bi bi-upc-scan"></i> Números de Série
@@ -200,7 +214,7 @@
                 </div>
             </div>
 
-            <div class="row g-3 mt-2 hide-for-rma" data-show-for="rma" style="display:none">
+            <div class="row g-3 mt-2 hide-for-rma hide-for-nao-comprado" data-show-for="rma" style="display:none">
                 <div class="col-md-3">
                     <label class="form-label">Cabo de Força</label>
                     <select name="power_cable" class="form-select" id="powerCable" onchange="togglePowerCableFonte()">
@@ -246,8 +260,10 @@
                 </div>
             </div>
 
+
+
             {% set labels = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor'} %}
-            <div class="row g-3 mt-2 hide-for-rma">
+            <div class="row g-3 mt-2">
                 <div class="col-12">
                     <h6 class="text-secondary border-bottom pb-2">
                         <i class="bi bi-exclamation-triangle"></i> Defeitos Encontrados
@@ -329,18 +345,6 @@
                 </div>
             </div>
 
-            <!-- RMA / Não TechBuy: Equipamentos Mudados -->
-            <div class="row g-3 mt-2 rma-field" data-show-for="rma,nao_comprado" style="display:none">
-                <div class="col-12">
-                    <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-arrow-repeat"></i> Equipamentos Mudados
-                        <button type="button" class="btn btn-sm btn-outline-info ms-2" onclick="addTrocadoMachine()">
-                            <i class="bi bi-plus-lg"></i> Adicionar
-                        </button>
-                    </h6>
-                    <div id="rmaTrocadosContainer"></div>
-                </div>
-            </div>
-
             <div class="row g-3 mt-2">
                 <div class="col-12">
                     <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-chat-dots"></i> Observações</h6>
@@ -378,13 +382,20 @@ const EXTRA_OPTS = '<option value="">-- Selecione --</option>' +
 let machineCount = 0;
 let rmaMachineCount = 0;
 
-function machineHTML(num, name) {
+function machineHTML(num, name, isPrebuilt) {
     const n = String(num).padStart(2, '0');
     const label = name || `Máquina ${n}`;
+    const checked = isPrebuilt ? 'checked' : '';
     return `
     <div class="card bg-dark border-secondary mb-3 machine-block" data-machine="${n}">
         <div class="card-header d-flex justify-content-between align-items-center py-2">
-            <input type="text" name="machine_name_${n}" class="form-control form-control-sm bg-dark text-light border-secondary fw-bold" style="width:auto;min-width:200px;display:inline-block" value="${label}">
+            <div class="d-flex align-items-center gap-3">
+                <input type="text" name="machine_name_${n}" class="form-control form-control-sm bg-dark text-light border-secondary fw-bold" style="width:auto;min-width:200px;display:inline-block" value="${label}">
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="peSwitch_${n}" name="pe_switch_${n}" ${checked} onchange="togglePE(this)">
+                    <label class="form-check-label small text-secondary" for="peSwitch_${n}">Pronta-Entrega</label>
+                </div>
+            </div>
             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeMachine(this)">
                 <i class="bi bi-x-lg"></i>
             </button>
@@ -467,9 +478,13 @@ function replicateMachine(btn) {
     let next = 1;
     while (used.has(next)) next++;
     if (next > machineCount) machineCount = next;
-    container.insertAdjacentHTML('beforeend', machineHTML(next));
+    const srcPE = srcBlock.querySelector('.form-check-input');
+    const isPE = srcPE ? srcPE.checked : false;
+    container.insertAdjacentHTML('beforeend', machineHTML(next, null, isPE));
     const dstBlock = container.lastElementChild;
     const dstMachine = dstBlock.dataset.machine;
+    const dstCb = dstBlock.querySelector('.form-check-input');
+    if (isPE && dstCb) dstCb.checked = true;
     const dstTbody = dstBlock.querySelector('.machine-body');
     const srcRows = srcBlock.querySelectorAll('.machine-body .comp-row');
     srcRows.forEach(function(row) {
@@ -486,16 +501,26 @@ function replicateMachine(btn) {
             const num = parseInt(serialMatch[2], 10) + 1;
             serial = prefix + String(num).padStart(serialMatch[2].length, '0');
         }
+        const hasSerial = serial ? true : false;
+        const showBtn = (isPE && !hasSerial) ? '' : 'style="display:none"';
+        const showInput = (!isPE || hasSerial) ? '' : 'style="display:none"';
         tr.innerHTML = `
             <td><select name="comp_type_${dstMachine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
             <td><input type="text" name="comp_model_${dstMachine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${srcModel ? srcModel.value : ''}"></td>
-            <td><input type="text" name="comp_serial_${dstMachine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="3" value="${serial}"></td>
+            <td>
+                <div class="d-flex align-items-center gap-1">
+                    <button type="button" class="btn btn-sm btn-outline-warning pe-ref-btn py-0 px-1" ${showBtn} onclick="addRefSerial(this)" title="Adicionar NS de referência"><i class="bi bi-plus-lg"></i></button>
+                    <input type="text" name="comp_serial_${dstMachine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" ${showInput} value="${serial}">
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-ref-btn py-0 px-1" onclick="removeRefSerial(this)" title="Remover NS" style="display:none"><i class="bi bi-x"></i></button>
+                </div>
+            </td>
             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
         `;
         const select = tr.querySelector('select');
         select.value = srcSelect ? srcSelect.value : '';
         dstTbody.appendChild(tr);
     });
+    if (isPE && dstCb) togglePE(dstCb);
 }
 
 function removeMachine(btn) {
@@ -526,10 +551,32 @@ function addRmaCompRow(btn) {
     tr.innerHTML = `
         <td><select name="rma_comp_type_${machine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
         <td><input type="text" name="rma_comp_model_${machine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..."></td>
-        <td><input type="text" name="rma_comp_serial_${machine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="3"></td>
+        <td>
+            <div class="d-flex align-items-center gap-1">
+                <button type="button" class="btn btn-sm btn-outline-warning rma-ref-btn py-0 px-1" onclick="addRmaRefSerial(this)" title="Adicionar NS"><i class="bi bi-plus-lg"></i></button>
+                <input type="text" name="rma_comp_serial_${machine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" style="display:none">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-ref-btn py-0 px-1" onclick="removeRmaRefSerial(this)" title="Remover NS" style="display:none"><i class="bi bi-x"></i></button>
+            </div>
+        </td>
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
     `;
     tbody.appendChild(tr);
+}
+
+function addRmaRefSerial(btn) {
+    btn.style.display = 'none';
+    const div = btn.parentElement;
+    div.querySelector('.serial-input').style.display = '';
+    div.querySelector('.remove-ref-btn').style.display = '';
+    div.querySelector('.serial-input').focus();
+}
+
+function removeRmaRefSerial(btn) {
+    const div = btn.parentElement;
+    div.querySelector('.serial-input').value = '';
+    div.querySelector('.serial-input').style.display = 'none';
+    div.querySelector('.remove-ref-btn').style.display = 'none';
+    div.querySelector('.rma-ref-btn').style.display = '';
 }
 
 function replicateRmaMachine(btn) {
@@ -547,29 +594,38 @@ function replicateRmaMachine(btn) {
     const dstMachine = dstBlock.dataset.rmaMachine;
     const dstTbody = dstBlock.querySelector('.rma-machine-body');
     const srcRows = srcBlock.querySelectorAll('.rma-machine-body .comp-row');
-    srcRows.forEach(function(row) {
-        const tr = document.createElement('tr');
-        tr.className = 'comp-row';
-        const srcSelect = row.querySelector('select');
-        const srcModel = row.querySelector('input[name^="rma_comp_model_"]');
-        const srcSerial = row.querySelector('input[name^="rma_comp_serial_"]');
-        let serial = srcSerial ? srcSerial.value : '';
-        const serialMatch = serial.match(/^(.*?)(\d+)$/);
-        if (serialMatch) {
-            const prefix = serialMatch[1];
-            const num = parseInt(serialMatch[2], 10) + 1;
-            serial = prefix + String(num).padStart(serialMatch[2].length, '0');
-        }
-        tr.innerHTML = `
-            <td><select name="rma_comp_type_${dstMachine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
-            <td><input type="text" name="rma_comp_model_${dstMachine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${srcModel ? srcModel.value : ''}"></td>
-            <td><input type="text" name="rma_comp_serial_${dstMachine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="3" value="${serial}"></td>
-            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
-        `;
-        const select = tr.querySelector('select');
-        select.value = srcSelect ? srcSelect.value : '';
-        dstTbody.appendChild(tr);
-    });
+        srcRows.forEach(function(row) {
+            const tr = document.createElement('tr');
+            tr.className = 'comp-row';
+            const srcSelect = row.querySelector('select');
+            const srcModel = row.querySelector('input[name^="rma_comp_model_"]');
+            const srcSerial = row.querySelector('input[name^="rma_comp_serial_"]');
+            let serial = srcSerial ? srcSerial.value : '';
+            const serialMatch = serial.match(/^(.*?)(\d+)$/);
+            if (serialMatch) {
+                const prefix = serialMatch[1];
+                const num = parseInt(serialMatch[2], 10) + 1;
+                serial = prefix + String(num).padStart(serialMatch[2].length, '0');
+            }
+            const hasSerial = serial ? true : false;
+            const showBtn = hasSerial ? 'style="display:none"' : '';
+            const showInput = hasSerial ? '' : 'style="display:none"';
+            tr.innerHTML = `
+                <td><select name="rma_comp_type_${dstMachine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
+                <td><input type="text" name="rma_comp_model_${dstMachine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${srcModel ? srcModel.value : ''}"></td>
+                <td>
+                    <div class="d-flex align-items-center gap-1">
+                        <button type="button" class="btn btn-sm btn-outline-warning rma-ref-btn py-0 px-1" ${showBtn} onclick="addRmaRefSerial(this)" title="Adicionar NS"><i class="bi bi-plus-lg"></i></button>
+                        <input type="text" name="rma_comp_serial_${dstMachine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" ${showInput} value="${serial}">
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-ref-btn py-0 px-1" onclick="removeRmaRefSerial(this)" title="Remover NS" style="display:none"><i class="bi bi-x"></i></button>
+                    </div>
+                </td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+            `;
+            const select = tr.querySelector('select');
+            select.value = srcSelect ? srcSelect.value : '';
+            dstTbody.appendChild(tr);
+        });
 }
 
 function addRmaTestRow() {
@@ -581,9 +637,6 @@ function addRmaTestRow() {
     tr.innerHTML = `
         <td><select name="rma_test_comp[]" class="form-select form-select-sm">${opts}</select></td>
         <td><input type="text" name="rma_test_model[]" class="form-control form-control-sm" placeholder="Ex: I5-2400"></td>
-        <td><input type="text" name="rma_test_serial[]" class="form-control form-control-sm" placeholder="Nº de Série"></td>
-        <td><input type="text" name="rma_test_pedido[]" class="form-control form-control-sm" placeholder="Pedido"></td>
-        <td class="text-center"><input type="checkbox" name="rma_test_garantia[]" class="form-check-input" value="1"></td>
         <td><input type="text" name="rma_test_defeito[]" class="form-control form-control-sm" placeholder="Descrição do defeito"></td>
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
     `;
@@ -732,16 +785,63 @@ function loadTrocadoMachines(data) {
     if (trocadoMachineCount === 0) addTrocadoMachine();
 }
 
+function togglePE(cb) {
+    const block = cb.closest('.machine-block');
+    const isPE = cb.checked;
+    block.querySelectorAll('.comp-row').forEach(function(row) {
+        const btn = row.querySelector('.pe-ref-btn');
+        const input = row.querySelector('.serial-input');
+        if (!input) return;
+        if (isPE) {
+            if (input.value) {
+                btn.style.display = 'none';
+                input.style.display = '';
+            } else {
+                btn.style.display = '';
+                input.style.display = 'none';
+            }
+        } else {
+            btn.style.display = 'none';
+            input.style.display = '';
+        }
+    });
+}
+
+function addRefSerial(btn) {
+    btn.style.display = 'none';
+    const div = btn.parentElement;
+    div.querySelector('.serial-input').style.display = '';
+    div.querySelector('.remove-ref-btn').style.display = '';
+    div.querySelector('.serial-input').focus();
+}
+
+function removeRefSerial(btn) {
+    const div = btn.parentElement;
+    div.querySelector('.serial-input').value = '';
+    div.querySelector('.serial-input').style.display = 'none';
+    div.querySelector('.remove-ref-btn').style.display = 'none';
+    div.querySelector('.pe-ref-btn').style.display = '';
+}
+
 function addCompRow(btn) {
     const machineBlock = btn.closest('.machine-block');
     const machine = machineBlock.dataset.machine;
     const tbody = machineBlock.querySelector('.machine-body');
+    const isPE = machineBlock.querySelector('.form-check-input').checked;
     const tr = document.createElement('tr');
     tr.className = 'comp-row';
+    const showBtn = isPE ? '' : 'style="display:none"';
+    const showInput = isPE ? 'style="display:none"' : '';
     tr.innerHTML = `
         <td><select name="comp_type_${machine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
         <td><input type="text" name="comp_model_${machine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..."></td>
-        <td><input type="text" name="comp_serial_${machine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="3"></td>
+        <td>
+            <div class="d-flex align-items-center gap-1">
+                <button type="button" class="btn btn-sm btn-outline-warning pe-ref-btn py-0 px-1" ${showBtn} onclick="addRefSerial(this)" title="Adicionar NS de referência"><i class="bi bi-plus-lg"></i></button>
+                <input type="text" name="comp_serial_${machine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" ${showInput}>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-ref-btn py-0 px-1" onclick="removeRefSerial(this)" title="Remover NS" style="display:none"><i class="bi bi-x"></i></button>
+            </div>
+        </td>
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
     `;
     tbody.appendChild(tr);
@@ -763,16 +863,28 @@ function loadMachines(data) {
         // entry can be {name, components} (new) or [components] (old)
         const machineName = entry.name || null;
         const comps = entry.components || entry || [];
-        container.insertAdjacentHTML('beforeend', machineHTML(num, machineName));
+        const isPE = entry.is_prebuilt || false;
+        container.insertAdjacentHTML('beforeend', machineHTML(num, machineName, isPE));
         const block = container.lastElementChild;
         const tbody = block.querySelector('.machine-body');
+        const cb = block.querySelector('.form-check-input');
+        if (isPE) cb.checked = true;
         comps.forEach(function(item) {
             const tr = document.createElement('tr');
             tr.className = 'comp-row';
+            const hasSerial = item.serial ? true : false;
+            const showBtn = (isPE && !hasSerial) ? '' : 'style="display:none"';
+            const showInput = (!isPE || hasSerial) ? '' : 'style="display:none"';
             tr.innerHTML = `
                 <td><select name="comp_type_${m}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
                 <td><input type="text" name="comp_model_${m}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${item.model || ''}"></td>
-                <td><input type="text" name="comp_serial_${m}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="3" value="${item.serial || ''}"></td>
+                <td>
+                    <div class="d-flex align-items-center gap-1">
+                        <button type="button" class="btn btn-sm btn-outline-warning pe-ref-btn py-0 px-1" ${showBtn} onclick="addRefSerial(this)" title="Adicionar NS de referência"><i class="bi bi-plus-lg"></i></button>
+                        <input type="text" name="comp_serial_${m}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" ${showInput} value="${item.serial || ''}">
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-ref-btn py-0 px-1" onclick="removeRefSerial(this)" title="Remover NS" style="display:none"><i class="bi bi-x"></i></button>
+                    </div>
+                </td>
                 <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
             `;
             const select = tr.querySelector('select');
@@ -851,10 +963,19 @@ function loadRmaMachines(data) {
         comps.forEach(function(item) {
             const tr = document.createElement('tr');
             tr.className = 'comp-row';
+            const hasSerial = item.serial ? true : false;
+            const showBtn = hasSerial ? 'style="display:none"' : '';
+            const showInput = hasSerial ? '' : 'style="display:none"';
             tr.innerHTML = `
                 <td><select name="rma_comp_type_${m}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
                 <td><input type="text" name="rma_comp_model_${m}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${item.model || ''}"></td>
-                <td><input type="text" name="rma_comp_serial_${m}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="3" value="${item.serial || ''}"></td>
+                <td>
+                    <div class="d-flex align-items-center gap-1">
+                        <button type="button" class="btn btn-sm btn-outline-warning rma-ref-btn py-0 px-1" ${showBtn} onclick="addRmaRefSerial(this)" title="Adicionar NS"><i class="bi bi-plus-lg"></i></button>
+                        <input type="text" name="rma_comp_serial_${m}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" ${showInput} value="${item.serial || ''}">
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-ref-btn py-0 px-1" onclick="removeRmaRefSerial(this)" title="Remover NS" style="display:none"><i class="bi bi-x"></i></button>
+                    </div>
+                </td>
                 <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
             `;
             const select = tr.querySelector('select');
@@ -877,13 +998,11 @@ function loadRmaTestItems(items) {
         tr.innerHTML = `
             <td><select name="rma_test_comp[]" class="form-select form-select-sm">${opts}</select></td>
             <td><input type="text" name="rma_test_model[]" class="form-control form-control-sm" value="${item.model || ''}"></td>
-            <td><input type="text" name="rma_test_serial[]" class="form-control form-control-sm" value="${item.serial || ''}"></td>
-            <td><input type="text" name="rma_test_pedido[]" class="form-control form-control-sm" value="${item.pedido || ''}"></td>
-            <td class="text-center"><input type="checkbox" name="rma_test_garantia[]" class="form-check-input" value="1" ${item.garantia ? 'checked' : ''}></td>
             <td><input type="text" name="rma_test_defeito[]" class="form-control form-control-sm" value="${item.defeito || ''}"></td>
             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
         `;
         tbody.appendChild(tr);
+        if (item.component) tr.querySelector('select').value = item.component;
     });
 }
 
@@ -1007,21 +1126,27 @@ document.addEventListener('DOMContentLoaded', function() {
         var isRma = type === 'rma';
         var isNaoComprado = type === 'nao_comprado';
         document.querySelectorAll('.rma-only').forEach(function(g) {
-            g.style.display = isRma ? 'block' : 'none';
-            g.querySelectorAll('select, input, textarea').forEach(function(f) { f.disabled = !isRma; });
+            var showRmaOrNtb = isRma || isNaoComprado;
+            g.style.display = showRmaOrNtb ? 'block' : 'none';
+            g.querySelectorAll('select, input, textarea').forEach(function(f) { f.disabled = !showRmaOrNtb; });
         });
         document.querySelectorAll('.rma-field:not(.rma-only)').forEach(function(g) {
             g.style.display = (isRma || isNaoComprado) ? 'block' : 'none';
             g.querySelectorAll('select, input, textarea').forEach(function(f) { f.disabled = !(isRma || isNaoComprado); });
         });
         document.querySelectorAll('.hide-for-rma').forEach(function(g) {
+            if (g.classList.contains('hide-for-nao-comprado') && isNaoComprado) return;
             g.style.display = isRma ? 'none' : 'block';
             g.querySelectorAll('select, input, textarea').forEach(function(f) { f.disabled = isRma; });
         });
         document.querySelectorAll('.hide-for-nao-comprado').forEach(function(g) {
+            if (g.classList.contains('hide-for-rma') && isRma) return;
             g.style.display = isNaoComprado ? 'none' : 'block';
             g.querySelectorAll('select, input, textarea').forEach(function(f) { f.disabled = isNaoComprado; });
         });
+        // Dynamic heading: "Dados do Equipamento do Cliente" only for NTB
+        var equipHeading = document.getElementById('equipClientHeading');
+        if (equipHeading) equipHeading.style.display = isNaoComprado ? '' : 'none';
         var entryLabel = document.getElementById('entryDateLabel');
         if (entryLabel) entryLabel.textContent = type === 'nao_comprado' ? 'Data de Entrada' : 'Data da Compra';
         if (sectionClient) sectionClient.style.display = type === 'ponta_entrega' ? 'none' : 'block';
@@ -1073,16 +1198,10 @@ document.addEventListener('DOMContentLoaded', function() {
         rows.forEach(function(row) {
             const comp = row.querySelector('select[name^="rma_test_comp"]');
             const model = row.querySelector('input[name^="rma_test_model"]');
-            const serial = row.querySelector('input[name^="rma_test_serial"]');
-            const pedido = row.querySelector('input[name^="rma_test_pedido"]');
-            const garantia = row.querySelector('input[name^="rma_test_garantia"]');
             const defeito = row.querySelector('input[name^="rma_test_defeito"]');
             items.push({
                 component: comp ? comp.value : '',
                 model: model ? model.value : '',
-                serial: serial ? serial.value : '',
-                pedido: pedido ? pedido.value : '',
-                garantia: garantia ? garantia.checked : false,
                 defeito: defeito ? defeito.value : ''
             });
         });
