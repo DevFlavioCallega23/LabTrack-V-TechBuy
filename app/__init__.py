@@ -54,6 +54,10 @@ def add_missing_columns():
             conn.execute(db.text('ALTER TABLE component ADD COLUMN is_prebuilt BOOLEAN DEFAULT 0'))
         if 'machine_ref_ns' not in component_cols:
             conn.execute(db.text('ALTER TABLE component ADD COLUMN machine_ref_ns VARCHAR(100)'))
+        if 'responsavel' not in defect_cols:
+            conn.execute(db.text('ALTER TABLE defect ADD COLUMN responsavel VARCHAR(20)'))
+        if 'defeito_status' not in defect_cols:
+            conn.execute(db.text('ALTER TABLE defect ADD COLUMN defeito_status VARCHAR(30)'))
         conn.commit()
 
 def create_app():

@@ -168,6 +168,8 @@ class Defect(db.Model):
     specification = db.Column(db.String(200))
     serial_number = db.Column(db.String(100))
     description = db.Column(db.Text)
+    responsavel = db.Column(db.String(20))
+    defeito_status = db.Column(db.String(30))
     sort_order = db.Column(db.Integer, default=0)
 
     TYPE_LABELS = {

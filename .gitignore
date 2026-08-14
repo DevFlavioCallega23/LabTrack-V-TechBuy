@@ -9,3 +9,6 @@ __pycache__/
 
 app.log
 check_db.py
+
+.tmp.driveupload/
+

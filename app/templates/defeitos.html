@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block content %}
+{% set COMP_LABELS = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor', 'outro': 'Outro'} %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-exclamation-triangle text-danger"></i> Controle de Defeitos</h3>
+</div>
+
+{% macro resp_badge(r) %}
+{% if r == 'loja' %}<span class="badge bg-success">Loja</span>
+{% elif r == 'cliente' %}<span class="badge bg-warning text-dark">Cliente</span>
+{% elif r == 'terceiro' %}<span class="badge bg-info text-dark">Terceiro</span>
+{% else %}<span class="text-secondary">-</span>{% endif %}
+{% endmacro %}
+
+{% macro defeitos_table(itens) %}
+<div class="table-responsive" style="max-height: 420px;">
+    <table class="table table-dark table-hover mb-0 table-sm">
+        <thead>
+            <tr>
+                <th>Componente</th>
+                <th>Modelo</th>
+                <th>NS</th>
+                <th>Defeito</th>
+                <th>Responsável</th>
+                <th>Status</th>
+                <th>Cliente</th>
+                <th>Protocolo</th>
+                <th>Data</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in itens %}
+            <tr>
+                <td>{{ COMP_LABELS.get(d.component, d.component) }}</td>
+                <td><code>{{ d.model or '-' }}</code></td>
+                <td><code>{{ d.serial or '-' }}</code></td>
+                <td class="text-danger">{{ d.desc or '-' }}</td>
+                <td>{{ resp_badge(d.responsavel) }}</td>
+                <td>
+                    {% if d.protocolo_status == 'pendente' %}<span class="badge bg-warning text-dark">Pendente</span>
+                    {% elif d.protocolo_status == 'andamento' %}<span class="badge bg-dark">Em Andamento</span>
+                    {% elif d.protocolo_status == 'concluido' %}<span class="badge bg-info text-dark">Concluído</span>
+                    {% elif d.protocolo_status == 'cancelado' %}<span class="badge bg-danger">Cancelado</span>
+                    {% else %}<span class="text-secondary">-</span>{% endif %}
+                </td>
+                <td>{{ d.cliente or '-' }}</td>
+                <td><a href="{{ url_for('protocols.detail_protocol', id=d.protocolo_id) }}">{{ d.protocolo }}</a></td>
+                <td>{{ d.data.strftime('%d/%m/%Y') if d.data else '-' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="9" class="text-center text-secondary">Nenhum defeito nesta situação.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endmacro %}
+
+<div class="row g-3">
+    <div class="col-12">
+        <div class="card h-100 border-primary">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-shield-check text-primary"></i> RMA em Garantia — <span class="text-primary">responsabilidade da Loja</span></span>
+                <span class="badge bg-primary">{{ grupos['rma_garantia']|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                {{ defeitos_table(grupos['rma_garantia']) }}
+            </div>
+        </div>
+    </div>
+    <div class="col-12">
+        <div class="card h-100 border-warning">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-shield-exclamation text-warning"></i> RMA Fora de Garantia — <span class="text-warning">responsabilidade do Cliente</span></span>
+                <span class="badge bg-warning text-dark">{{ grupos['rma_fora']|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                {{ defeitos_table(grupos['rma_fora']) }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mt-1">
+    <div class="col-12">
+        <div class="card h-100 border-secondary">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-pc-display text-secondary"></i> NTB — Não comprado na TechBuy</span>
+                <span class="badge bg-secondary">{{ grupos['ntb']|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                {{ defeitos_table(grupos['ntb']) }}
+            </div>
+        </div>
+    </div>
+    <div class="col-12">
+        <div class="card h-100 border-success">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-bag-check text-success"></i> Venda / Pronta-Entrega</span>
+                <span class="badge bg-success">{{ grupos['venda']|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                {{ defeitos_table(grupos['venda']) }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
