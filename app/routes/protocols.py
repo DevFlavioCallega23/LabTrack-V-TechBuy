@@ -125,14 +125,18 @@ def build_rma_test_data_from_form(request_form):
     """Build RMA test items from submitted form data for preserving on validation error."""
     comps = request_form.getlist('rma_test_comp[]')
     models = request_form.getlist('rma_test_model[]')
+    serials = request_form.getlist('rma_test_serial[]')
     defeitos = request_form.getlist('rma_test_defeito[]')
+    statuses = request_form.getlist('rma_test_status[]')
     items = []
     for i in range(len(comps)):
         if comps[i].strip():
             items.append({
                 'component': comps[i].strip(),
                 'model': models[i].strip() if i < len(models) else '',
-                'defeito': defeitos[i].strip() if i < len(defeitos) else ''
+                'serial': serials[i].strip() if i < len(serials) else '',
+                'defeito': defeitos[i].strip() if i < len(defeitos) else '',
+                'status': statuses[i].strip() if i < len(statuses) else ''
             })
     return json.dumps(items) if items else None
 
@@ -207,6 +211,8 @@ def parse_defects(request_form):
     descs = request_form.getlist('defect_desc[]')
     serials = request_form.getlist('defect_serial[]')
     models = request_form.getlist('defect_model[]')
+    responsaveis = request_form.getlist('defect_resp[]')
+    statuses = request_form.getlist('defect_status[]')
     for i in range(len(types)):
         if types[i].strip():
             defects.append(Defect(
@@ -214,6 +220,8 @@ def parse_defects(request_form):
                 specification=models[i].strip() if i < len(models) else '',
                 serial_number=serials[i].strip() if i < len(serials) else '',
                 description=descs[i].strip() if i < len(descs) else '',
+                responsavel=responsaveis[i].strip() if i < len(responsaveis) else '',
+                defeito_status=statuses[i].strip() if i < len(statuses) else '',
                 sort_order=i
             ))
     return defects
@@ -231,13 +239,25 @@ def list_protocols():
     query = Protocol.query
 
     if search_mode == 'ns' and comp_type_filter and search:
-        query = query.join(Protocol.components).filter(
-            Component.component_type == comp_type_filter,
-            Component.serial_number.ilike(f'%{search}%')
+        query = query.filter(
+            Protocol.components.any(
+                Component.component_type == comp_type_filter,
+                Component.serial_number.ilike(f'%{search}%')
+            )
         )
     elif search_mode == 'ns' and search:
-        query = query.join(Protocol.components).filter(
-            Component.serial_number.ilike(f'%{search}%')
+        query = query.filter(
+            db.or_(
+                Protocol.components.any(Component.serial_number.ilike(f'%{search}%')),
+                Protocol.components.any(Component.machine_ref_ns.ilike(f'%{search}%')),
+                Protocol.defects.any(Defect.serial_number.ilike(f'%{search}%')),
+                Protocol.rma_test_result.ilike(f'%{search}%'),
+                Protocol.rma_equip_itens.ilike(f'%{search}%'),
+                Protocol.rma_trocados.ilike(f'%{search}%'),
+                Protocol.rma_passagens.ilike(f'%{search}%'),
+                Protocol.power_cable_fonte_serial.ilike(f'%{search}%'),
+                Protocol.ref_ns.ilike(f'%{search}%')
+            )
         )
     elif search_mode == 'cliente' and search:
         query = query.filter(
@@ -411,11 +431,13 @@ def build_comp_data_from_form(request_form):
     return json.dumps(data)
 
 def build_defect_data_from_form(request_form):
-    """Build list of {type, serial, model, desc} from submitted form data for preserving on validation error."""
+    """Build list of {type, serial, model, desc, resp, status} from submitted form data for preserving on validation error."""
     types = request_form.getlist('defect_type[]')
     serials = request_form.getlist('defect_serial[]')
     descs = request_form.getlist('defect_desc[]')
     models = request_form.getlist('defect_model[]')
+    responsaveis = request_form.getlist('defect_resp[]')
+    statuses = request_form.getlist('defect_status[]')
     defects = []
     for i in range(len(types)):
         if types[i].strip():
@@ -423,7 +445,9 @@ def build_defect_data_from_form(request_form):
                 'type': types[i].strip(),
                 'serial': serials[i].strip() if i < len(serials) else '',
                 'model': models[i].strip() if i < len(models) else '',
-                'desc': descs[i].strip() if i < len(descs) else ''
+                'desc': descs[i].strip() if i < len(descs) else '',
+                'resp': responsaveis[i].strip() if i < len(responsaveis) else '',
+                'status': statuses[i].strip() if i < len(statuses) else ''
             })
     return defects
 
@@ -655,3 +679,121 @@ def edit_user(id):
         flash(f'Usuário {user.username} atualizado com sucesso!', 'success')
         return redirect(url_for('protocols.list_users'))
     return render_template('user_form.html', form=form, editing=True, user=user)
+
+RESP_LABELS = {
+    'loja': 'Loja',
+    'cliente': 'Cliente',
+    'terceiro': 'Terceiro'
+}
+
+DEFEITO_STATUS_LABELS = {
+    'aguardando_peca': 'Aguardando peça',
+    'em_teste': 'Em teste',
+    'trocado': 'Trocado',
+    'devolvido': 'Devolvido ao cliente',
+    'concluido': 'Concluído'
+}
+
+def situacao_protocolo(p):
+    """Classify a protocol into one of the defect situations."""
+    if p.type == 'rma':
+        return 'rma_garantia' if p.rma_in_warranty else 'rma_fora'
+    if p.type == 'nao_comprado':
+        return 'ntb'
+    return 'venda'
+
+def build_defeitos_agrupados():
+    """Aggregate all defects grouped by situation."""
+    grupos = {'rma_garantia': [], 'rma_fora': [], 'ntb': [], 'venda': []}
+    protocols = Protocol.query.order_by(Protocol.created_at.desc()).all()
+    for p in protocols:
+        situacao = situacao_protocolo(p)
+        # Defects from Defect table (Venda/PE/NTB and RMA if registered there)
+        for d in p.defects:
+            grupos[situacao].append({
+                'fonte': 'defect',
+                'defect_id': d.id,
+                'component': d.component_type,
+                'model': d.specification or '',
+                'serial': d.serial_number or '',
+                'desc': d.description or '',
+                'responsavel': d.responsavel or '',
+                'status': d.defeito_status or '',
+                'protocolo': p.protocol_number,
+                'protocolo_id': p.id,
+                'protocolo_status': p.status,
+                'cliente': p.client_name or '',
+                'data': p.entry_date,
+                'tipo': p.type,
+                'garantia': p.rma_in_warranty if p.type == 'rma' else None
+            })
+        # Teste de Mesa items (RMA/NTB)
+        if p.rma_test_result and p.type in ('rma', 'nao_comprado'):
+            try:
+                itens = json.loads(p.rma_test_result)
+                for idx, item in enumerate(itens):
+                    if not item.get('component'):
+                        continue
+                    grupos[situacao].append({
+                        'fonte': 'teste',
+                        'defect_id': None,
+                        'teste_idx': idx,
+                        'protocolo_id': p.id,
+                        'protocolo_status': p.status,
+                        'component': item.get('component', ''),
+                        'model': item.get('model', ''),
+                        'serial': item.get('serial', ''),
+                        'desc': item.get('defeito', ''),
+                        'responsavel': 'loja' if situacao == 'rma_garantia' else ('cliente' if situacao == 'rma_fora' else ''),
+                        'status': item.get('status', ''),
+                        'protocolo': p.protocol_number,
+                        'cliente': p.client_name or '',
+                        'data': p.entry_date,
+                        'tipo': p.type,
+                        'garantia': p.rma_in_warranty if p.type == 'rma' else None
+                    })
+            except (json.JSONDecodeError, TypeError):
+                pass
+    return grupos
+
+@protocols_bp.route('/defeitos')
+@login_required
+def defeitos():
+    grupos = build_defeitos_agrupados()
+    return render_template('defeitos.html', grupos=grupos,
+        resp_labels=RESP_LABELS, status_labels=DEFEITO_STATUS_LABELS)
+
+@protocols_bp.route('/defeitos/<int:id>/status', methods=['POST'])
+@login_required
+def update_defeito_status(id):
+    if not current_user.is_manager():
+        return {'error': 'Sem permissão'}, 403
+    defect = Defect.query.get_or_404(id)
+    data = request.get_json()
+    novo_status = data.get('status', '')
+    if novo_status not in DEFEITO_STATUS_LABELS and novo_status not in ('', None):
+        return {'error': 'Status inválido'}, 400
+    defect.defeito_status = novo_status or None
+    db.session.commit()
+    return {'ok': True, 'status': defect.defeito_status}
+
+@protocols_bp.route('/defeitos/teste/<int:id>/<int:idx>/status', methods=['POST'])
+@login_required
+def update_teste_status(id, idx):
+    if not current_user.is_manager():
+        return {'error': 'Sem permissão'}, 403
+    protocol = Protocol.query.get_or_404(id)
+    data = request.get_json()
+    novo_status = data.get('status', '')
+    if novo_status not in DEFEITO_STATUS_LABELS and novo_status not in ('', None):
+        return {'error': 'Status inválido'}, 400
+    try:
+        itens = json.loads(protocol.rma_test_result) if protocol.rma_test_result else []
+        if idx >= len(itens):
+            return {'error': 'Item não encontrado'}, 404
+        itens[idx]['status'] = novo_status or ''
+        protocol.rma_test_result = json.dumps(itens)
+        db.session.commit()
+        return {'ok': True, 'status': novo_status}
+    except (json.JSONDecodeError, TypeError):
+        return {'error': 'Dados inválidos'}, 400

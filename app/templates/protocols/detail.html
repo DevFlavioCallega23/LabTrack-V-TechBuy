@@ -44,7 +44,7 @@
                 {% if rma_test %}
                     {% set _ = wa_parts.append('--- Defeitos RMA ---') %}
                     {% for item in rma_test[:5] %}
-                        {% set line = (item.component or '') + ' ' + (item.model or '') + ' | NS: ' + (item.serial or '-') + ' | Pedido: ' + (item.pedido or '-') %}
+                        {% set line = (item.component or '') + ' ' + (item.model or '') + ' | NS: ' + (item.serial or '-') + ' | Defeito: ' + (item.defeito or '-') %}
                         {% set _ = wa_parts.append(line) %}
                     {% endfor %}
                 {% endif %}
@@ -229,6 +229,7 @@
                                 <tr>
                                     <th>Componente</th>
                                     <th>Modelo</th>
+                                    {% if protocol.type == 'rma' %}<th>NS</th>{% endif %}
                                     <th>Defeito</th>
                                 </tr>
                             </thead>
@@ -237,6 +238,7 @@
                                 <tr>
                                     <td>{{ COMP_LABELS.get(item.component, item.component) if item.component else '-' }}</td>
                                     <td><code>{{ item.model or '-' }}</code></td>
+                                    {% if protocol.type == 'rma' %}<td><code>{{ item.serial or '-' }}</code></td>{% endif %}
                                     <td class="text-danger">{{ item.defeito or '-' }}</td>
                                 </tr>
                                 {% endfor %}
@@ -308,6 +310,8 @@
                                     <th>Modelo</th>
                                     <th>Nº Série</th>
                                     <th>Defeito</th>
+                                    <th>Responsável</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -317,6 +321,20 @@
                                     <td><code>{{ defect.specification or '-' }}</code></td>
                                     <td><code>{{ defect.serial_number or '-' }}</code></td>
                                     <td class="text-danger">{{ defect.description or '-' }}</td>
+                                    <td>
+                                        {% if defect.responsavel == 'loja' %}<span class="badge bg-success">Loja</span>
+                                        {% elif defect.responsavel == 'cliente' %}<span class="badge bg-warning text-dark">Cliente</span>
+                                        {% elif defect.responsavel == 'terceiro' %}<span class="badge bg-info text-dark">Terceiro</span>
+                                        {% else %}<span class="text-secondary">-</span>{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if defect.defeito_status == 'aguardando_peca' %}<span class="badge bg-danger">Aguardando peça</span>
+                                        {% elif defect.defeito_status == 'em_teste' %}<span class="badge bg-dark">Em teste</span>
+                                        {% elif defect.defeito_status == 'trocado' %}<span class="badge bg-primary">Trocado</span>
+                                        {% elif defect.defeito_status == 'devolvido' %}<span class="badge bg-warning text-dark">Devolvido ao cliente</span>
+                                        {% elif defect.defeito_status == 'concluido' %}<span class="badge bg-success">Concluído</span>
+                                        {% else %}<span class="text-secondary">-</span>{% endif %}
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -373,17 +391,21 @@
                         <table class="table table-dark table-sm">
                             <thead>
                                 <tr>
-                                    <th>Data</th>
                                     <th>Protocolo</th>
+                                    <th>Data Entrada</th>
+                                    <th>Data Saída</th>
                                     <th>Pedido</th>
+                                    <th>NS Produto Trocado</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for p in passagens %}
                                 <tr>
-                                    <td>{{ p.data or '-' }}</td>
                                     <td>{{ p.protocolo or '-' }}</td>
+                                    <td>{{ p.data_entrada or p.data or '-' }}</td>
+                                    <td>{{ p.data_saida or '-' }}</td>
                                     <td>{{ p.pedido or '-' }}</td>
+                                    <td><code>{{ p.ns or '-' }}</code></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

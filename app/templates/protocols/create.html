@@ -81,6 +81,14 @@
                     <label class="form-label">{{ form.original_order.label }}</label>
                     {{ form.original_order(class='form-control', placeholder='Pedido original da compra') }}
                 </div>
+                <div class="col-12 mt-2 field-group" data-show-for="rma">
+                    <label class="form-label"><i class="bi bi-arrow-repeat"></i> Outras Passagens</label>
+                    <div id="passagensContainer">
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-info mt-1" onclick="addPassagem()">
+                        <i class="bi bi-plus"></i> Adicionar passagem
+                    </button>
+                </div>
             </div>
 
             <!-- RMA: campos específicos -->
@@ -98,14 +106,6 @@
                 <div class="col-md-4">
                     <label class="form-label">{{ form.ref_ns.label }}</label>
                     {{ form.ref_ns(class='form-control', placeholder='NS de referência do equipamento') }}
-                </div>
-                <div class="col-12 mt-2">
-                    <label class="form-label"><i class="bi bi-arrow-repeat"></i> Outras Passagens</label>
-                    <div id="passagensContainer">
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-info mt-1" onclick="addPassagem()">
-                        <i class="bi bi-plus"></i> Adicionar passagem
-                    </button>
                 </div>
             </div>
 
@@ -146,9 +146,11 @@
                         <table class="table table-dark table-sm" id="rmaTestTable">
                             <thead>
                                 <tr>
-                                    <th style="width:25%">Componente</th>
-                                    <th style="width:25%">Modelo</th>
-                                    <th style="width:44%">Defeito</th>
+                                    <th style="width:17%">Componente</th>
+                                    <th style="width:18%">Modelo</th>
+                                    <th style="width:18%" id="rmaTestNsHeader">NS</th>
+                                    <th style="width:27%">Defeito</th>
+                                    <th style="width:14%">Status</th>
                                     <th style="width:6%"></th>
                                 </tr>
                             </thead>
@@ -278,10 +280,12 @@
                         <table class="table table-dark table-sm" id="defectsTable">
                             <thead>
                                 <tr>
-                                    <th style="width: 15%">Componente com Defeito</th>
-                                    <th style="width: 17%">Modelo</th>
-                                    <th style="width: 23%">Nº de Série</th>
-                                    <th style="width: 40%">Descrição do Defeito</th>
+                                    <th style="width: 11%">Componente com Defeito</th>
+                                    <th style="width: 13%">Modelo</th>
+                                    <th style="width: 17%">Nº de Série</th>
+                                    <th style="width: 29%">Descrição do Defeito</th>
+                                    <th style="width: 12%">Responsável</th>
+                                    <th style="width: 13%">Status</th>
                                     <th style="width: 5%"></th>
                                 </tr>
                             </thead>
@@ -301,6 +305,24 @@
                                         <td><input type="text" name="defect_model[]" class="form-control form-control-sm" value="{{ defect.model or '' }}" placeholder="Ex: I5-2400, 8GB..."></td>
                                         <td><input type="text" name="defect_serial[]" class="form-control form-control-sm" value="{{ defect.serial or '' }}" placeholder="NS do componente com defeito"></td>
                                         <td><input type="text" name="defect_desc[]" class="form-control form-control-sm" value="{{ defect.desc or '' }}" placeholder="Ex: Não liga, não dá vídeo..."></td>
+                                        <td>
+                                            <select name="defect_resp[]" class="form-select form-select-sm">
+                                                <option value="" {{ 'selected' if not defect.resp }}>--</option>
+                                                <option value="loja" {{ 'selected' if defect.resp == 'loja' }}>Loja</option>
+                                                <option value="cliente" {{ 'selected' if defect.resp == 'cliente' }}>Cliente</option>
+                                                <option value="terceiro" {{ 'selected' if defect.resp == 'terceiro' }}>Terceiro</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <select name="defect_status[]" class="form-select form-select-sm">
+                                                <option value="" {{ 'selected' if not defect.status }}>--</option>
+                                                <option value="aguardando_peca" {{ 'selected' if defect.status == 'aguardando_peca' }}>Aguardando peça</option>
+                                                <option value="em_teste" {{ 'selected' if defect.status == 'em_teste' }}>Em teste</option>
+                                                <option value="trocado" {{ 'selected' if defect.status == 'trocado' }}>Trocado</option>
+                                                <option value="devolvido" {{ 'selected' if defect.status == 'devolvido' }}>Devolvido ao cliente</option>
+                                                <option value="concluido" {{ 'selected' if defect.status == 'concluido' }}>Concluído</option>
+                                            </select>
+                                        </td>
                                         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
                                     </tr>
                                     {% endfor %}
@@ -319,6 +341,24 @@
                                         <td><input type="text" name="defect_model[]" class="form-control form-control-sm" value="{{ defect.specification or '' }}" placeholder="Ex: I5-2400, 8GB..."></td>
                                         <td><input type="text" name="defect_serial[]" class="form-control form-control-sm" value="{{ defect.serial_number or '' }}" placeholder="NS do componente com defeito"></td>
                                         <td><input type="text" name="defect_desc[]" class="form-control form-control-sm" value="{{ defect.description or '' }}" placeholder="Ex: Não liga, não dá vídeo..."></td>
+                                        <td>
+                                            <select name="defect_resp[]" class="form-select form-select-sm">
+                                                <option value="" {{ 'selected' if not defect.responsavel }}>--</option>
+                                                <option value="loja" {{ 'selected' if defect.responsavel == 'loja' }}>Loja</option>
+                                                <option value="cliente" {{ 'selected' if defect.responsavel == 'cliente' }}>Cliente</option>
+                                                <option value="terceiro" {{ 'selected' if defect.responsavel == 'terceiro' }}>Terceiro</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <select name="defect_status[]" class="form-select form-select-sm">
+                                                <option value="" {{ 'selected' if not defect.defeito_status }}>--</option>
+                                                <option value="aguardando_peca" {{ 'selected' if defect.defeito_status == 'aguardando_peca' }}>Aguardando peça</option>
+                                                <option value="em_teste" {{ 'selected' if defect.defeito_status == 'em_teste' }}>Em teste</option>
+                                                <option value="trocado" {{ 'selected' if defect.defeito_status == 'trocado' }}>Trocado</option>
+                                                <option value="devolvido" {{ 'selected' if defect.defeito_status == 'devolvido' }}>Devolvido ao cliente</option>
+                                                <option value="concluido" {{ 'selected' if defect.defeito_status == 'concluido' }}>Concluído</option>
+                                            </select>
+                                        </td>
                                         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
                                     </tr>
                                     {% endfor %}
@@ -336,6 +376,24 @@
                                         <td><input type="text" name="defect_model[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..."></td>
                                         <td><input type="text" name="defect_serial[]" class="form-control form-control-sm" placeholder="NS do componente com defeito"></td>
                                         <td><input type="text" name="defect_desc[]" class="form-control form-control-sm" placeholder="Ex: Não liga, não dá vídeo..."></td>
+                                        <td>
+                                            <select name="defect_resp[]" class="form-select form-select-sm">
+                                                <option value="">--</option>
+                                                <option value="loja">Loja</option>
+                                                <option value="cliente">Cliente</option>
+                                                <option value="terceiro">Terceiro</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <select name="defect_status[]" class="form-select form-select-sm">
+                                                <option value="">--</option>
+                                                <option value="aguardando_peca">Aguardando peça</option>
+                                                <option value="em_teste">Em teste</option>
+                                                <option value="trocado">Trocado</option>
+                                                <option value="devolvido">Devolvido ao cliente</option>
+                                                <option value="concluido">Concluído</option>
+                                            </select>
+                                        </td>
                                         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
                                     </tr>
                                 {% endif %}
@@ -492,18 +550,10 @@ function replicateMachine(btn) {
         tr.className = 'comp-row';
         const srcSelect = row.querySelector('select');
         const srcModel = row.querySelector('input[name^="comp_model_"]');
-        const srcSerial = row.querySelector('input[name^="comp_serial_"]');
-        let serial = srcSerial ? srcSerial.value : '';
-        // Auto-increment serial number if it ends with digits
-        const serialMatch = serial.match(/^(.*?)(\d+)$/);
-        if (serialMatch) {
-            const prefix = serialMatch[1];
-            const num = parseInt(serialMatch[2], 10) + 1;
-            serial = prefix + String(num).padStart(serialMatch[2].length, '0');
-        }
-        const hasSerial = serial ? true : false;
-        const showBtn = (isPE && !hasSerial) ? '' : 'style="display:none"';
-        const showInput = (!isPE || hasSerial) ? '' : 'style="display:none"';
+        const serial = '';
+        const isPE = srcBlock.querySelector('.form-check-input') ? srcBlock.querySelector('.form-check-input').checked : false;
+        const showBtn = (isPE && !serial) ? '' : 'style="display:none"';
+        const showInput = (!isPE || serial) ? '' : 'style="display:none"';
         tr.innerHTML = `
             <td><select name="comp_type_${dstMachine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
             <td><input type="text" name="comp_model_${dstMachine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${srcModel ? srcModel.value : ''}"></td>
@@ -599,14 +649,7 @@ function replicateRmaMachine(btn) {
             tr.className = 'comp-row';
             const srcSelect = row.querySelector('select');
             const srcModel = row.querySelector('input[name^="rma_comp_model_"]');
-            const srcSerial = row.querySelector('input[name^="rma_comp_serial_"]');
-            let serial = srcSerial ? srcSerial.value : '';
-            const serialMatch = serial.match(/^(.*?)(\d+)$/);
-            if (serialMatch) {
-                const prefix = serialMatch[1];
-                const num = parseInt(serialMatch[2], 10) + 1;
-                serial = prefix + String(num).padStart(serialMatch[2].length, '0');
-            }
+            const serial = '';
             const hasSerial = serial ? true : false;
             const showBtn = hasSerial ? 'style="display:none"' : '';
             const showInput = hasSerial ? '' : 'style="display:none"';
@@ -628,6 +671,20 @@ function replicateRmaMachine(btn) {
         });
 }
 
+function rmaTestHasNs() {
+    const sel = document.getElementById('protocolType');
+    return sel ? sel.value === 'rma' : false;
+}
+
+function updateRmaTestNsColumns() {
+    const show = rmaTestHasNs();
+    const header = document.getElementById('rmaTestNsHeader');
+    if (header) header.style.display = show ? '' : 'none';
+    document.querySelectorAll('#rmaTestTable .rma-test-ns-cell').forEach(function(c) {
+        c.style.display = show ? '' : 'none';
+    });
+}
+
 function addRmaTestRow() {
     const tbody = document.querySelector('#rmaTestTable tbody');
     const opts = '<option value="">-- Selecione --</option>' +
@@ -637,7 +694,18 @@ function addRmaTestRow() {
     tr.innerHTML = `
         <td><select name="rma_test_comp[]" class="form-select form-select-sm">${opts}</select></td>
         <td><input type="text" name="rma_test_model[]" class="form-control form-control-sm" placeholder="Ex: I5-2400"></td>
+        <td class="rma-test-ns-cell" style="display:${rmaTestHasNs() ? '' : 'none'}"><input type="text" name="rma_test_serial[]" class="form-control form-control-sm" placeholder="Nº de Série"></td>
         <td><input type="text" name="rma_test_defeito[]" class="form-control form-control-sm" placeholder="Descrição do defeito"></td>
+        <td>
+            <select name="rma_test_status[]" class="form-select form-select-sm">
+                <option value="">--</option>
+                <option value="aguardando_peca">Aguardando peça</option>
+                <option value="em_teste">Em teste</option>
+                <option value="trocado">Trocado</option>
+                <option value="devolvido">Devolvido ao cliente</option>
+                <option value="concluido">Concluído</option>
+            </select>
+        </td>
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
     `;
     tbody.appendChild(tr);
@@ -729,14 +797,7 @@ function replicateTrocadoMachine(btn) {
         tr.className = 'comp-row';
         const srcSelect = row.querySelector('select');
         const srcModel = row.querySelector('input[name^="trocado_comp_model_"]');
-        const srcSerial = row.querySelector('input[name^="trocado_comp_serial_"]');
-        let serial = srcSerial ? srcSerial.value : '';
-        const serialMatch = serial.match(/^(.*?)(\d+)$/);
-        if (serialMatch) {
-            const prefix = serialMatch[1];
-            const num = parseInt(serialMatch[2], 10) + 1;
-            serial = prefix + String(num).padStart(serialMatch[2].length, '0');
-        }
+        const serial = '';
         tr.innerHTML = `
             <td><select name="trocado_comp_type_${dstMachine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
             <td><input type="text" name="trocado_comp_model_${dstMachine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${srcModel ? srcModel.value : ''}"></td>
@@ -907,6 +968,24 @@ function addDefectRow() {
         <td><input type="text" name="defect_model[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..."></td>
         <td><input type="text" name="defect_serial[]" class="form-control form-control-sm" placeholder="NS do componente com defeito"></td>
         <td><input type="text" name="defect_desc[]" class="form-control form-control-sm" placeholder="Ex: Não liga, não dá vídeo..."></td>
+        <td>
+            <select name="defect_resp[]" class="form-select form-select-sm">
+                <option value="">--</option>
+                <option value="loja">Loja</option>
+                <option value="cliente">Cliente</option>
+                <option value="terceiro">Terceiro</option>
+            </select>
+        </td>
+        <td>
+            <select name="defect_status[]" class="form-select form-select-sm">
+                <option value="">--</option>
+                <option value="aguardando_peca">Aguardando peça</option>
+                <option value="em_teste">Em teste</option>
+                <option value="trocado">Trocado</option>
+                <option value="devolvido">Devolvido ao cliente</option>
+                <option value="concluido">Concluído</option>
+            </select>
+        </td>
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
     `;
     tbody.appendChild(tr);
@@ -917,9 +996,11 @@ function addPassagem() {
     const div = document.createElement('div');
     div.className = 'passagem-row row g-2 align-items-center mb-1';
     div.innerHTML = `
-        <div class="col-md-3"><input type="text" name="passagem_data[]" class="form-control form-control-sm" placeholder="Data (DD/MM/AAAA)"></div>
-        <div class="col-md-4"><input type="text" name="passagem_protocolo[]" class="form-control form-control-sm" placeholder="Protocolo"></div>
-        <div class="col-md-4"><input type="text" name="passagem_pedido[]" class="form-control form-control-sm" placeholder="Pedido"></div>
+        <div class="col-md-2"><input type="text" name="passagem_protocolo[]" class="form-control form-control-sm" placeholder="Protocolo (opcional)"></div>
+        <div class="col-md-2"><input type="text" name="passagem_data_entrada[]" class="form-control form-control-sm" placeholder="Data Entrada (DD/MM/AAAA)"></div>
+        <div class="col-md-2"><input type="text" name="passagem_data_saida[]" class="form-control form-control-sm" placeholder="Data Saída (DD/MM/AAAA)"></div>
+        <div class="col-md-2"><input type="text" name="passagem_pedido[]" class="form-control form-control-sm" placeholder="Pedido"></div>
+        <div class="col-md-3"><input type="text" name="passagem_ns[]" class="form-control form-control-sm" placeholder="NS do produto trocado"></div>
         <div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.passagem-row').remove()"><i class="bi bi-x"></i></button></div>
     `;
     container.appendChild(div);
@@ -933,9 +1014,11 @@ function loadPassagens(passagens) {
         const div = document.createElement('div');
         div.className = 'passagem-row row g-2 align-items-center mb-1';
         div.innerHTML = `
-            <div class="col-md-3"><input type="text" name="passagem_data[]" class="form-control form-control-sm" placeholder="Data (DD/MM/AAAA)" value="${p.data || ''}"></div>
-            <div class="col-md-4"><input type="text" name="passagem_protocolo[]" class="form-control form-control-sm" placeholder="Protocolo" value="${p.protocolo || ''}"></div>
-            <div class="col-md-4"><input type="text" name="passagem_pedido[]" class="form-control form-control-sm" placeholder="Pedido" value="${p.pedido || ''}"></div>
+            <div class="col-md-2"><input type="text" name="passagem_protocolo[]" class="form-control form-control-sm" placeholder="Protocolo (opcional)" value="${p.protocolo || ''}"></div>
+            <div class="col-md-2"><input type="text" name="passagem_data_entrada[]" class="form-control form-control-sm" placeholder="Data Entrada (DD/MM/AAAA)" value="${p.data_entrada || ''}"></div>
+            <div class="col-md-2"><input type="text" name="passagem_data_saida[]" class="form-control form-control-sm" placeholder="Data Saída (DD/MM/AAAA)" value="${p.data_saida || ''}"></div>
+            <div class="col-md-2"><input type="text" name="passagem_pedido[]" class="form-control form-control-sm" placeholder="Pedido" value="${p.pedido || ''}"></div>
+            <div class="col-md-3"><input type="text" name="passagem_ns[]" class="form-control form-control-sm" placeholder="NS do produto trocado" value="${p.ns || ''}"></div>
             <div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.passagem-row').remove()"><i class="bi bi-x"></i></button></div>
         `;
         container.appendChild(div);
@@ -998,7 +1081,18 @@ function loadRmaTestItems(items) {
         tr.innerHTML = `
             <td><select name="rma_test_comp[]" class="form-select form-select-sm">${opts}</select></td>
             <td><input type="text" name="rma_test_model[]" class="form-control form-control-sm" value="${item.model || ''}"></td>
+            <td class="rma-test-ns-cell" style="display:${rmaTestHasNs() ? '' : 'none'}"><input type="text" name="rma_test_serial[]" class="form-control form-control-sm" placeholder="Nº de Série" value="${item.serial || ''}"></td>
             <td><input type="text" name="rma_test_defeito[]" class="form-control form-control-sm" value="${item.defeito || ''}"></td>
+            <td>
+                <select name="rma_test_status[]" class="form-select form-select-sm">
+                    <option value="">--</option>
+                    <option value="aguardando_peca" ${item.status === 'aguardando_peca' ? 'selected' : ''}>Aguardando peça</option>
+                    <option value="em_teste" ${item.status === 'em_teste' ? 'selected' : ''}>Em teste</option>
+                    <option value="trocado" ${item.status === 'trocado' ? 'selected' : ''}>Trocado</option>
+                    <option value="devolvido" ${item.status === 'devolvido' ? 'selected' : ''}>Devolvido ao cliente</option>
+                    <option value="concluido" ${item.status === 'concluido' ? 'selected' : ''}>Concluído</option>
+                </select>
+            </td>
             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
         `;
         tbody.appendChild(tr);
@@ -1150,6 +1244,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var entryLabel = document.getElementById('entryDateLabel');
         if (entryLabel) entryLabel.textContent = type === 'nao_comprado' ? 'Data de Entrada' : 'Data da Compra';
         if (sectionClient) sectionClient.style.display = type === 'ponta_entrega' ? 'none' : 'block';
+        updateRmaTestNsColumns();
     }
     if (typeSelect) { typeSelect.addEventListener('change', updateFields); updateFields(); }
 
@@ -1174,11 +1269,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const rows = document.querySelectorAll('.passagem-row');
         const passagens = [];
         rows.forEach(function(row) {
-            const inputs = row.querySelectorAll('input');
+            const q = function(name) {
+                const el = row.querySelector('input[name="' + name + '"]');
+                return el ? el.value : '';
+            };
             passagens.push({
-                data: inputs[0].value,
-                protocolo: inputs[1].value,
-                pedido: inputs[2].value
+                protocolo: q('passagem_protocolo[]'),
+                data_entrada: q('passagem_data_entrada[]'),
+                data_saida: q('passagem_data_saida[]'),
+                pedido: q('passagem_pedido[]'),
+                ns: q('passagem_ns[]')
             });
         });
         let hidden = document.querySelector('input[name="rma_passagens_json"]');
@@ -1198,11 +1298,15 @@ document.addEventListener('DOMContentLoaded', function() {
         rows.forEach(function(row) {
             const comp = row.querySelector('select[name^="rma_test_comp"]');
             const model = row.querySelector('input[name^="rma_test_model"]');
+            const serial = row.querySelector('input[name^="rma_test_serial"]');
             const defeito = row.querySelector('input[name^="rma_test_defeito"]');
+            const status = row.querySelector('select[name^="rma_test_status"]');
             items.push({
                 component: comp ? comp.value : '',
                 model: model ? model.value : '',
-                defeito: defeito ? defeito.value : ''
+                serial: serial ? serial.value : '',
+                defeito: defeito ? defeito.value : '',
+                status: status ? status.value : ''
             });
         });
         let hidden = document.querySelector('input[name="rma_test_json"]');
