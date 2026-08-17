@@ -140,3 +140,12 @@ body {
     background: rgba(255,255,255,0.02);
     border-top-color: var(--tb-border);
 }
+
+.card-link-hover {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+a:hover .card-link-hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 0 1px var(--tb-primary), 0 6px 20px rgba(30, 203, 225, 0.15);
+}
