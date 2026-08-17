@@ -19,20 +19,26 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card border-info">
-            <div class="card-body text-center">
-                <h1 class="text-info mb-0">{{ andamento }}</h1>
-                <p class="text-secondary mb-0">Em Andamento</p>
+        <a href="{{ url_for('protocols.list_protocols', status='andamento') }}" class="text-decoration-none d-block h-100">
+            <div class="card border-info h-100 card-link-hover">
+                <div class="card-body text-center">
+                    <h1 class="text-info mb-0">{{ andamento }}</h1>
+                    <p class="text-secondary mb-0">Em Andamento</p>
+                    <small class="text-muted"><i class="bi bi-arrow-right"></i> ver todos</small>
+                </div>
             </div>
-        </div>
+        </a>
     </div>
     <div class="col-md-4">
-        <div class="card border-success">
-            <div class="card-body text-center">
-                <h1 class="text-success mb-0">{{ concluidos }}</h1>
-                <p class="text-secondary mb-0">Concluídos</p>
+        <a href="{{ url_for('protocols.list_protocols', status='concluido') }}" class="text-decoration-none d-block h-100">
+            <div class="card border-success h-100 card-link-hover">
+                <div class="card-body text-center">
+                    <h1 class="text-success mb-0">{{ concluidos }}</h1>
+                    <p class="text-secondary mb-0">Concluídos</p>
+                    <small class="text-muted"><i class="bi bi-arrow-right"></i> ver todos</small>
+                </div>
             </div>
-        </div>
+        </a>
     </div>
 </div>
 
