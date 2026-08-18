@@ -280,12 +280,13 @@
                         <table class="table table-dark table-sm" id="defectsTable">
                             <thead>
                                 <tr>
-                                    <th style="width: 11%">Componente com Defeito</th>
-                                    <th style="width: 13%">Modelo</th>
-                                    <th style="width: 17%">Nº de Série</th>
-                                    <th style="width: 29%">Descrição do Defeito</th>
-                                    <th style="width: 12%">Responsável</th>
-                                    <th style="width: 13%">Status</th>
+                                    <th style="width: 10%">Componente com Defeito</th>
+                                    <th style="width: 11%" class="maquina-col">Máquina</th>
+                                    <th style="width: 12%">Modelo</th>
+                                    <th style="width: 15%">Nº de Série</th>
+                                    <th style="width: 27%">Descrição do Defeito</th>
+                                    <th style="width: 11%">Responsável</th>
+                                    <th style="width: 14%">Status</th>
                                     <th style="width: 5%"></th>
                                 </tr>
                             </thead>
@@ -300,6 +301,14 @@
                                                 <option value="{{ key }}" {{ 'selected' if defect.type == key }}>{{ label }}</option>
                                                 {% endfor %}
                                                 <option value="outro" {{ 'selected' if defect.type not in labels and defect.type != '' }}>Outro</option>
+                                            </select>
+                                        </td>
+                                        <td class="maquina-col">
+                                            <select name="defect_maquina[]" class="form-select form-select-sm">
+                                                <option value="">--</option>
+                                                {% for m in machines %}
+                                                <option value="{{ m }}" {{ 'selected' if defect.maquina == m }}>{{ m }}</option>
+                                                {% endfor %}
                                             </select>
                                         </td>
                                         <td><input type="text" name="defect_model[]" class="form-control form-control-sm" value="{{ defect.model or '' }}" placeholder="Ex: I5-2400, 8GB..."></td>
@@ -338,6 +347,14 @@
                                                 <option value="outro" {{ 'selected' if defect.component_type not in labels and defect.component_type != '' }}>Outro</option>
                                             </select>
                                         </td>
+                                        <td class="maquina-col">
+                                            <select name="defect_maquina[]" class="form-select form-select-sm">
+                                                <option value="">--</option>
+                                                {% for m in machines %}
+                                                <option value="{{ m }}" {{ 'selected' if defect.maquina == m }}>{{ m }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </td>
                                         <td><input type="text" name="defect_model[]" class="form-control form-control-sm" value="{{ defect.specification or '' }}" placeholder="Ex: I5-2400, 8GB..."></td>
                                         <td><input type="text" name="defect_serial[]" class="form-control form-control-sm" value="{{ defect.serial_number or '' }}" placeholder="NS do componente com defeito"></td>
                                         <td><input type="text" name="defect_desc[]" class="form-control form-control-sm" value="{{ defect.description or '' }}" placeholder="Ex: Não liga, não dá vídeo..."></td>
@@ -371,6 +388,14 @@
                                                 <option value="{{ key }}">{{ label }}</option>
                                                 {% endfor %}
                                                 <option value="outro">Outro</option>
+                                            </select>
+                                        </td>
+                                        <td class="maquina-col">
+                                            <select name="defect_maquina[]" class="form-select form-select-sm">
+                                                <option value="">--</option>
+                                                {% for m in machines %}
+                                                <option value="{{ m }}">{{ m }}</option>
+                                                {% endfor %}
                                             </select>
                                         </td>
                                         <td><input type="text" name="defect_model[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..."></td>
@@ -436,6 +461,35 @@ const COMP_LABELS = {
 };
 const EXTRA_OPTS = '<option value="">-- Selecione --</option>' +
     Object.entries(COMP_LABELS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+const MACHINES = [{% for m in machines %}'{{ m }}',{% endfor %}];
+const MACHINE_OPTS = '<option value="">--</option>' +
+    MACHINES.map(m => `<option value="${m}">${m}</option>`).join('');
+
+function syncDefectMachines() {
+    const entries = [];
+    document.querySelectorAll('input[name^="machine_name_"]').forEach(function(inp) {
+        const m = inp.name.match(/^machine_name_(.+)/);
+        const unit = m ? m[1] : '';
+        const v = inp.value.trim();
+        if (v) entries.push({ unit: unit, name: v });
+    });
+    const counts = {};
+    entries.forEach(function(e) { counts[e.name] = (counts[e.name] || 0) + 1; });
+    const names = entries.map(function(e) {
+        return counts[e.name] > 1 ? e.name + ' (unid. ' + e.unit + ')' : e.name;
+    });
+    document.querySelectorAll('select[name="defect_maquina[]"]').forEach(function(sel) {
+        const cur = sel.value;
+        sel.innerHTML = '<option value="">--</option>' +
+            names.map(n => `<option value="${n}">${n}</option>`).join('');
+        if (cur) sel.value = cur;
+    });
+}
+document.addEventListener('input', function(e) {
+    if (e.target && e.target.name && e.target.name.indexOf('machine_name_') === 0) {
+        syncDefectMachines();
+    }
+});
 
 let machineCount = 0;
 let rmaMachineCount = 0;
@@ -524,6 +578,7 @@ function addMachine() {
     while (used.has(next)) next++;
     if (next > machineCount) machineCount = next;
     container.insertAdjacentHTML('beforeend', machineHTML(next));
+    syncDefectMachines();
 }
 
 function replicateMachine(btn) {
@@ -571,10 +626,12 @@ function replicateMachine(btn) {
         dstTbody.appendChild(tr);
     });
     if (isPE && dstCb) togglePE(dstCb);
+    syncDefectMachines();
 }
 
 function removeMachine(btn) {
     btn.closest('.machine-block').remove();
+    syncDefectMachines();
 }
 
 function addRmaMachine() {
@@ -955,6 +1012,7 @@ function loadMachines(data) {
     });
     machineCount = maxM || 0;
     if (machineCount === 0) addMachine();
+    syncDefectMachines();
 }
 
 function addDefectRow() {
@@ -965,6 +1023,7 @@ function addDefectRow() {
     tr.className = 'defect-row';
     tr.innerHTML = `
         <td><select name="defect_type[]" class="form-select form-select-sm">${opts}</select></td>
+        <td class="maquina-col"><select name="defect_maquina[]" class="form-select form-select-sm">${MACHINE_OPTS}</select></td>
         <td><input type="text" name="defect_model[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..."></td>
         <td><input type="text" name="defect_serial[]" class="form-control form-control-sm" placeholder="NS do componente com defeito"></td>
         <td><input type="text" name="defect_desc[]" class="form-control form-control-sm" placeholder="Ex: Não liga, não dá vídeo..."></td>
@@ -1237,6 +1296,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (g.classList.contains('hide-for-rma') && isRma) return;
             g.style.display = isNaoComprado ? 'none' : 'block';
             g.querySelectorAll('select, input, textarea').forEach(function(f) { f.disabled = isNaoComprado; });
+        });
+        var isPE = type === 'ponta_entrega';
+        document.querySelectorAll('.maquina-col').forEach(function(el) {
+            el.style.display = isPE ? '' : 'none';
+            el.querySelectorAll('select').forEach(function(f) { f.disabled = !isPE; });
         });
         // Dynamic heading: "Dados do Equipamento do Cliente" only for NTB
         var equipHeading = document.getElementById('equipClientHeading');

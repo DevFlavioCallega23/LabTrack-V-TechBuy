@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-plus-circle"></i> {{ 'Editar Máquina' if maquina else 'Nova Máquina' }} — {{ registro.nome }}</h3>
+    <a href="{{ url_for('maquinas.detail', id=registro.id) }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Voltar
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Identificação da máquina</label>
+                <input type="text" name="identificacao" class="form-control" placeholder="Ex: TechBuy, TB, Máquina 01..." value="{{ maquina.identificacao or '' if maquina else '' }}">
+            </div>
+
+            <div class="col-md-6">
+                <h6 class="text-secondary border-bottom pb-1"><i class="bi bi-sliders"></i> Configuração</h6>
+                {% for field, label in [
+                    ('cfg_processador', 'Processador'),
+                    ('cfg_placa_mae', 'Placa-Mãe'),
+                    ('cfg_memoria', 'Memória'),
+                    ('cfg_ssd', 'SSD'),
+                    ('cfg_fonte', 'Fonte')
+                ] %}
+                <div class="mb-2">
+                    <label class="form-label small text-secondary">{{ label }}</label>
+                    <input type="text" name="{{ field }}" class="form-control form-control-sm" placeholder="Ex: I3-2100..." value="{{ maquina[field] or '' if maquina else '' }}">
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="col-md-6">
+                <h6 class="text-secondary border-bottom pb-1"><i class="bi bi-upc-scan"></i> NS das peças</h6>
+                {% for field, label in [
+                    ('ns_processador', 'NS Processador'),
+                    ('ns_placa_mae', 'NS Placa-Mãe'),
+                    ('ns_memoria', 'NS Memória'),
+                    ('ns_ssd', 'NS SSD'),
+                    ('ns_fonte', 'NS Fonte')
+                ] %}
+                <div class="mb-2">
+                    <label class="form-label small text-secondary">{{ label }}</label>
+                    <input type="text" name="{{ field }}" class="form-control form-control-sm" value="{{ maquina[field] or '' if maquina else '' }}">
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

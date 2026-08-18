@@ -58,6 +58,8 @@ def add_missing_columns():
             conn.execute(db.text('ALTER TABLE defect ADD COLUMN responsavel VARCHAR(20)'))
         if 'defeito_status' not in defect_cols:
             conn.execute(db.text('ALTER TABLE defect ADD COLUMN defeito_status VARCHAR(30)'))
+        if 'maquina' not in defect_cols:
+            conn.execute(db.text('ALTER TABLE defect ADD COLUMN maquina VARCHAR(50)'))
         conn.commit()
 
 def create_app():
@@ -96,10 +98,12 @@ def create_app():
     from app.routes.auth import auth_bp
     from app.routes.main import main_bp
     from app.routes.protocols import protocols_bp
+    from app.routes.maquinas import maquinas_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(protocols_bp)
+    app.register_blueprint(maquinas_bp)
 
     with app.app_context():
         db.create_all()

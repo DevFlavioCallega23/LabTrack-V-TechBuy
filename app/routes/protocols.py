@@ -213,6 +213,7 @@ def parse_defects(request_form):
     models = request_form.getlist('defect_model[]')
     responsaveis = request_form.getlist('defect_resp[]')
     statuses = request_form.getlist('defect_status[]')
+    maquinas = request_form.getlist('defect_maquina[]')
     for i in range(len(types)):
         if types[i].strip():
             defects.append(Defect(
@@ -222,6 +223,7 @@ def parse_defects(request_form):
                 description=descs[i].strip() if i < len(descs) else '',
                 responsavel=responsaveis[i].strip() if i < len(responsaveis) else '',
                 defeito_status=statuses[i].strip() if i < len(statuses) else '',
+                maquina=maquinas[i].strip() if i < len(maquinas) else '',
                 sort_order=i
             ))
     return defects
@@ -235,6 +237,7 @@ def list_protocols():
     comp_type_filter = request.args.get('comp_type', '')
     type_filter = request.args.get('type', '')
     status_filter = request.args.get('status', '')
+    mes_filter = request.args.get('mes', '')
 
     query = Protocol.query
 
@@ -274,6 +277,17 @@ def list_protocols():
         query = query.filter_by(type=type_filter)
     if status_filter:
         query = query.filter_by(status=status_filter)
+    if mes_filter and re.fullmatch(r'\d{4}-\d{2}', mes_filter):
+        try:
+            ano = int(mes_filter[:4])
+            mes = int(mes_filter[5:7])
+            if 1 <= mes <= 12:
+                inicio = datetime(ano, mes, 1)
+                fim = datetime(ano + 1, 1, 1) if mes == 12 else datetime(ano, mes + 1, 1)
+                query = query.filter(Protocol.entry_date >= inicio,
+                                     Protocol.entry_date < fim)
+        except ValueError:
+            pass
 
     protocols = query.order_by(Protocol.created_at.desc()).paginate(
         page=page, per_page=20, error_out=False
@@ -282,7 +296,7 @@ def list_protocols():
     return render_template('protocols/list.html',
         protocols=protocols, search=search, search_mode=search_mode,
         comp_type_filter=comp_type_filter,
-        type_filter=type_filter, status_filter=status_filter)
+        type_filter=type_filter, status_filter=status_filter, mes_filter=mes_filter)
 
 @protocols_bp.route('/novo', methods=['GET', 'POST'])
 @login_required
@@ -305,7 +319,7 @@ def create_protocol():
             win_keys_data = build_windows_key_data_from_form(request.form)
             return render_template('protocols/create.html', form=form, editing=False, comp_data=comp_data,
                 rma_comp_data=rma_comp_data, rma_test_data=rma_test_data, rma_trocados_data=rma_trocados_data,
-                defect_data=defect_data, win_keys_data=win_keys_data)
+                defect_data=defect_data, win_keys_data=win_keys_data, machines=build_machine_names(comp_data))
 
         last = Protocol.query.order_by(Protocol.id.desc()).first()
         next_id = (last.id + 1) if last else 1
@@ -380,7 +394,8 @@ def create_protocol():
 
     return render_template('protocols/create.html', form=form, editing=False,
         comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
-        rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data)
+        rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data,
+        machines=build_machine_names(comp_data))
 
 @protocols_bp.route('/<int:id>')
 @login_required
@@ -431,13 +446,14 @@ def build_comp_data_from_form(request_form):
     return json.dumps(data)
 
 def build_defect_data_from_form(request_form):
-    """Build list of {type, serial, model, desc, resp, status} from submitted form data for preserving on validation error."""
+    """Build list of {type, serial, model, desc, resp, status, maquina} from submitted form data for preserving on validation error."""
     types = request_form.getlist('defect_type[]')
     serials = request_form.getlist('defect_serial[]')
     descs = request_form.getlist('defect_desc[]')
     models = request_form.getlist('defect_model[]')
     responsaveis = request_form.getlist('defect_resp[]')
     statuses = request_form.getlist('defect_status[]')
+    maquinas = request_form.getlist('defect_maquina[]')
     defects = []
     for i in range(len(types)):
         if types[i].strip():
@@ -447,9 +463,28 @@ def build_defect_data_from_form(request_form):
                 'model': models[i].strip() if i < len(models) else '',
                 'desc': descs[i].strip() if i < len(descs) else '',
                 'resp': responsaveis[i].strip() if i < len(responsaveis) else '',
-                'status': statuses[i].strip() if i < len(statuses) else ''
+                'status': statuses[i].strip() if i < len(statuses) else '',
+                'maquina': maquinas[i].strip() if i < len(maquinas) else ''
             })
     return defects
+
+def build_machine_names(comp_data):
+    """Return a label for each machine in the lot, disambiguating duplicated names by unit."""
+    if not comp_data:
+        return []
+    try:
+        data = json.loads(comp_data) if isinstance(comp_data, str) else comp_data
+    except (json.JSONDecodeError, TypeError):
+        return []
+    units = sorted(data.keys(), key=lambda x: (len(str(x)), str(x)))
+    base = [(unit, (data[unit].get('name') or f'Máquina {unit}').strip()) for unit in units]
+    counts = {}
+    for _, name in base:
+        counts[name] = counts.get(name, 0) + 1
+    labels = []
+    for unit, name in base:
+        labels.append(f'{name} (unid. {unit})' if counts[name] > 1 else name)
+    return labels
 
 @protocols_bp.route('/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
@@ -473,7 +508,8 @@ def edit_protocol(id):
             win_keys_data = build_windows_key_data_from_form(request.form)
             return render_template('protocols/create.html', form=form, editing=True, protocol=protocol,
                 comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
-                rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data)
+                rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data,
+                machines=build_machine_names(comp_data))
 
         form.populate_obj(protocol)
         protocol.entry_date = parse_date_br(form.entry_date.data) if form.entry_date.data else datetime.utcnow()
@@ -528,7 +564,8 @@ def edit_protocol(id):
         form.rma_entry_date.data = protocol.rma_entry_date or ''
     return render_template('protocols/create.html', form=form, editing=True, protocol=protocol,
         comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
-        rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data)
+        rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data,
+        machines=build_machine_names(comp_data))
 
 @protocols_bp.route('/<int:id>/excluir', methods=['POST'])
 @login_required
@@ -554,19 +591,9 @@ def report():
     for p in protocols:
         by_type[p.type] = by_type.get(p.type, 0) + 1
 
-    defect_stats = db.session.query(
-        Defect.component_type,
-        Defect.serial_number,
-        Defect.description,
-        Protocol.client_name,
-        Protocol.entry_date
-    ).join(Protocol).order_by(Protocol.entry_date.desc()).all()
-
     defect_totals = {}
-    for d in defect_stats:
+    for d in Defect.query.all():
         defect_totals[d.component_type] = defect_totals.get(d.component_type, 0) + 1
-
-    rma_defects = []
     for p in protocols:
         if p.type == 'rma' and p.rma_test_result:
             try:
@@ -574,22 +601,26 @@ def report():
                 for item in items:
                     comp = item.get('component', '').strip()
                     if comp:
-                        rma_defects.append({
-                            'component': comp,
-                            'defeito': item.get('defeito', ''),
-                            'serial': item.get('serial', ''),
-                            'cliente': p.client_name or '-',
-                            'data': p.entry_date,
-                            'protocolo': p.protocol_number
-                        })
                         defect_totals[comp] = defect_totals.get(comp, 0) + 1
             except (json.JSONDecodeError, TypeError):
                 pass
 
+    MESES_ABREV = {1:'Jan', 2:'Fev', 3:'Mar', 4:'Abr', 5:'Mai', 6:'Jun',
+                   7:'Jul', 8:'Ago', 9:'Set', 10:'Out', 11:'Nov', 12:'Dez'}
+    por_mes = {}
+    for p in protocols:
+        d = p.entry_date or p.created_at
+        if d:
+            por_mes[(d.year, d.month)] = por_mes.get((d.year, d.month), 0) + 1
+    entradas_por_mes = [{
+        'chave': f'{ano:04d}-{mes:02d}',
+        'rotulo': f'{MESES_ABREV[mes]}/{ano}',
+        'count': count
+    } for (ano, mes), count in sorted(por_mes.items())]
+
     return render_template('protocols/report.html',
         protocols=protocols, total=total, by_type=by_type,
-        defect_stats=defect_stats, defect_totals=defect_totals,
-        rma_defects=rma_defects)
+        defect_totals=defect_totals, entradas_por_mes=entradas_por_mes)
 
 @protocols_bp.route('/usuarios')
 @login_required
@@ -686,6 +717,16 @@ RESP_LABELS = {
     'terceiro': 'Terceiro'
 }
 
+COMP_LABELS = {
+    'processador': 'Processador',
+    'placa_mae': 'Placa-Mãe',
+    'ram': 'RAM',
+    'ssd': 'SSD',
+    'fonte': 'Fonte',
+    'monitor': 'Monitor',
+    'outro': 'Outro'
+}
+
 DEFEITO_STATUS_LABELS = {
     'aguardando_peca': 'Aguardando peça',
     'em_teste': 'Em teste',
@@ -719,6 +760,7 @@ def build_defeitos_agrupados():
                 'desc': d.description or '',
                 'responsavel': d.responsavel or '',
                 'status': d.defeito_status or '',
+                'maquina': d.maquina or '',
                 'protocolo': p.protocol_number,
                 'protocolo_id': p.id,
                 'protocolo_status': p.status,
@@ -746,6 +788,7 @@ def build_defeitos_agrupados():
                         'desc': item.get('defeito', ''),
                         'responsavel': 'loja' if situacao == 'rma_garantia' else ('cliente' if situacao == 'rma_fora' else ''),
                         'status': item.get('status', ''),
+                        'maquina': '',
                         'protocolo': p.protocol_number,
                         'cliente': p.client_name or '',
                         'data': p.entry_date,
@@ -759,9 +802,126 @@ def build_defeitos_agrupados():
 @protocols_bp.route('/defeitos')
 @login_required
 def defeitos():
+    q = request.args.get('q', '').strip().lower()
+    f_status = request.args.get('status', '')
+    f_resp = request.args.get('resp', '')
     grupos = build_defeitos_agrupados()
+    if q or f_status or f_resp:
+        def filtro(item):
+            if q:
+                alvo = ' '.join(str(item.get(k, '') or '') for k in (
+                    'component', 'model', 'serial', 'desc', 'protocolo', 'cliente', 'maquina')).lower()
+                if q not in alvo:
+                    return False
+            if f_status and item.get('status', '') != f_status:
+                return False
+            if f_resp and item.get('responsavel', '') != f_resp:
+                return False
+            return True
+        for chave in grupos:
+            grupos[chave] = [it for it in grupos[chave] if filtro(it)]
     return render_template('defeitos.html', grupos=grupos,
-        resp_labels=RESP_LABELS, status_labels=DEFEITO_STATUS_LABELS)
+        resp_labels=RESP_LABELS, status_labels=DEFEITO_STATUS_LABELS,
+        q_filter=q, status_filtro=f_status, resp_filtro=f_resp)
+
+@protocols_bp.route('/ns')
+@login_required
+def rastreio_ns():
+    busca = request.args.get('busca', '').strip()
+    resultados = []
+    if busca:
+        termo = busca.lower()
+        for p in Protocol.query.order_by(Protocol.created_at.desc()).all():
+            ocorrencias = []
+
+            for c in p.components:
+                if c.serial_number and termo in c.serial_number.lower():
+                    ocorrencias.append({
+                        'local': f'Componente {c.type_label()}' + (f' — {c.machine_name}' if c.machine_name else ''),
+                        'valor': c.serial_number,
+                        'detalhe': c.specification or ''
+                    })
+                if c.machine_ref_ns and termo in c.machine_ref_ns.lower():
+                    ocorrencias.append({
+                        'local': 'Referência da máquina' + (f' — {c.machine_name}' if c.machine_name else ''),
+                        'valor': c.machine_ref_ns,
+                        'detalhe': ''
+                    })
+
+            for d in p.defects:
+                if d.serial_number and termo in d.serial_number.lower():
+                    ocorrencias.append({
+                        'local': f'Defeito — {d.type_label()}',
+                        'valor': d.serial_number,
+                        'detalhe': d.description or ''
+                    })
+
+            if p.power_cable_fonte_serial and termo in p.power_cable_fonte_serial.lower():
+                ocorrencias.append({
+                    'local': 'Fonte (serial do cabo de força)',
+                    'valor': p.power_cable_fonte_serial,
+                    'detalhe': ''
+                })
+
+            if p.ref_ns and termo in p.ref_ns.lower():
+                ocorrencias.append({
+                    'local': 'Referência NS do protocolo',
+                    'valor': p.ref_ns,
+                    'detalhe': ''
+                })
+
+            for campo, label in [('rma_equip_itens', 'Equipamento RMA'),
+                                 ('rma_trocados', 'Equipamento mudado')]:
+                raw = getattr(p, campo)
+                if not raw:
+                    continue
+                try:
+                    data = json.loads(raw)
+                    for unit, info in data.items():
+                        for comp in info.get('components', []):
+                            if comp.get('serial') and termo in comp['serial'].lower():
+                                ocorrencias.append({
+                                    'local': f'{label} — {info.get("name", "Máquina")}',
+                                    'valor': comp['serial'],
+                                    'detalhe': comp.get('model') or ''
+                                })
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            if p.rma_test_result:
+                try:
+                    for item in json.loads(p.rma_test_result):
+                        if item.get('serial') and termo in item['serial'].lower():
+                            ocorrencias.append({
+                                'local': 'Teste de mesa',
+                                'valor': item['serial'],
+                                'detalhe': (COMP_LABELS.get(item.get('component', ''), item.get('component', '')))
+                                            + (' — ' + item.get('defeito', '') if item.get('defeito') else '')
+                            })
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            if p.rma_passagens:
+                try:
+                    for pas in json.loads(p.rma_passagens):
+                        if pas.get('ns') and termo in pas['ns'].lower():
+                            ocorrencias.append({
+                                'local': 'Passagem anterior'
+                                            + (f' — protocolo {pas.get("protocolo")}' if pas.get('protocolo') else ''),
+                                'valor': pas['ns'],
+                                'detalhe': pas.get('pedido') or ''
+                            })
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            if ocorrencias:
+                resultados.append({
+                    'protocolo': p,
+                    'ocorrencias': ocorrencias
+                })
+
+    return render_template('protocols/ns.html', busca=busca, resultados=resultados,
+        total_resultados=len(resultados))
 
 @protocols_bp.route('/defeitos/<int:id>/status', methods=['POST'])
 @login_required

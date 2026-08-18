@@ -5,6 +5,39 @@
     <h3><i class="bi bi-exclamation-triangle text-danger"></i> Controle de Defeitos</h3>
 </div>
 
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label"><i class="bi bi-search"></i> Buscar (NS, componente, defeito, protocolo, cliente)</label>
+                <input type="text" name="q" class="form-control" placeholder="Digite para buscar..." value="{{ q_filter }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Status do defeito</label>
+                <select name="status" class="form-select">
+                    <option value="">Todos</option>
+                    {% for k, v in status_labels.items() %}
+                    <option value="{{ k }}" {{ 'selected' if status_filtro == k }}>{{ v }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Responsável</label>
+                <select name="resp" class="form-select">
+                    <option value="">Todos</option>
+                    {% for k, v in resp_labels.items() %}
+                    <option value="{{ k }}" {{ 'selected' if resp_filtro == k }}>{{ v }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-outline-info flex-grow-1"><i class="bi bi-funnel"></i> Filtrar</button>
+                <a href="{{ url_for('protocols.defeitos') }}" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% macro resp_badge(r) %}
 {% if r == 'loja' %}<span class="badge bg-success">Loja</span>
 {% elif r == 'cliente' %}<span class="badge bg-warning text-dark">Cliente</span>
@@ -18,6 +51,7 @@
         <thead>
             <tr>
                 <th>Componente</th>
+                <th>Máquina</th>
                 <th>Modelo</th>
                 <th>NS</th>
                 <th>Defeito</th>
@@ -32,6 +66,7 @@
             {% for d in itens %}
             <tr>
                 <td>{{ COMP_LABELS.get(d.component, d.component) }}</td>
+                <td>{% if d.maquina %}<span class="badge bg-secondary">{{ d.maquina }}</span>{% else %}<span class="text-secondary">-</span>{% endif %}</td>
                 <td><code>{{ d.model or '-' }}</code></td>
                 <td><code>{{ d.serial or '-' }}</code></td>
                 <td class="text-danger">{{ d.desc or '-' }}</td>
@@ -49,7 +84,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="9" class="text-center text-secondary">Nenhum defeito nesta situação.</td>
+                <td colspan="10" class="text-center text-secondary">Nenhum defeito nesta situação.</td>
             </tr>
             {% endfor %}
         </tbody>

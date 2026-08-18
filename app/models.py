@@ -170,6 +170,7 @@ class Defect(db.Model):
     description = db.Column(db.Text)
     responsavel = db.Column(db.String(20))
     defeito_status = db.Column(db.String(30))
+    maquina = db.Column(db.String(50))
     sort_order = db.Column(db.Integer, default=0)
 
     TYPE_LABELS = {
@@ -195,3 +196,60 @@ class WindowsKey(db.Model):
     fonte = db.Column(db.String(100))
     ativo = db.Column(db.Boolean, default=True)
     sort_order = db.Column(db.Integer, default=0)
+
+class TBRegistro(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(120), nullable=False)
+    data = db.Column(db.String(10))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    maquinas = db.relationship('TBMaquina', backref='registro', lazy=True,
+                               order_by='TBMaquina.id',
+                               cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<TBRegistro {self.nome}>'
+
+class TBMaquina(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    registro_id = db.Column(db.Integer, db.ForeignKey('tb_registro.id'), nullable=False)
+    identificacao = db.Column(db.String(120))
+    cfg_processador = db.Column(db.String(100))
+    cfg_placa_mae = db.Column(db.String(100))
+    cfg_memoria = db.Column(db.String(100))
+    cfg_ssd = db.Column(db.String(100))
+    cfg_fonte = db.Column(db.String(100))
+    ns_processador = db.Column(db.String(100))
+    ns_placa_mae = db.Column(db.String(100))
+    ns_memoria = db.Column(db.String(100))
+    ns_ssd = db.Column(db.String(100))
+    ns_fonte = db.Column(db.String(100))
+    trocas = db.relationship('TBTroca', backref='maquina', lazy=True,
+                             order_by='TBTroca.id',
+                             cascade='all, delete-orphan')
+    defeitos = db.relationship('TBDefeito', backref='maquina', lazy=True,
+                               order_by='TBDefeito.id',
+                               cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<TBMaquina {self.identificacao}>'
+
+class TBTroca(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    maquina_id = db.Column(db.Integer, db.ForeignKey('tb_maquina.id'), nullable=False)
+    data = db.Column(db.String(10))
+    produto = db.Column(db.String(100))
+    ns = db.Column(db.String(100))
+
+    def __repr__(self):
+        return f'<TBTroca {self.produto} {self.ns}>'
+
+class TBDefeito(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    maquina_id = db.Column(db.Integer, db.ForeignKey('tb_maquina.id'), nullable=False)
+    data = db.Column(db.String(10))
+    produto = db.Column(db.String(100))
+    ns = db.Column(db.String(100))
+    defeito = db.Column(db.String(200))
+
+    def __repr__(self):
+        return f'<TBDefeito {self.produto}>'

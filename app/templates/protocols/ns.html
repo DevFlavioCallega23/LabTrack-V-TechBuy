@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-upc-scan"></i> Rastreio de NS</h3>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-6">
+                <label class="form-label"><i class="bi bi-search"></i> Número de série</label>
+                <input type="text" name="busca" class="form-control" placeholder="Digite o NS para rastrear..." value="{{ busca }}" autofocus>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-info w-100"><i class="bi bi-search"></i> Rastrear</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if busca %}
+<div class="mb-3">
+    <span class="badge bg-info text-dark">{{ total_resultados }} protocolo(s) encontrado(s)</span>
+    <span class="text-secondary ms-2">com o NS "<strong>{{ busca }}</strong>"</span>
+</div>
+
+{% if resultados %}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 table-sm">
+                <thead>
+                    <tr>
+                        <th>Protocolo</th>
+                        <th>Tipo</th>
+                        <th>Cliente</th>
+                        <th>Status</th>
+                        <th>Entrada</th>
+                        <th>Onde o NS aparece</th>
+                        <th>NS</th>
+                        <th>Detalhe</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in resultados %}
+                    {% set p = r.protocolo %}
+                    {% set qtd = r.ocorrencias|length %}
+                    {% for occ in r.ocorrencias %}
+                    <tr class="clickable-row" data-href="{{ url_for('protocols.detail_protocol', id=p.id) }}">
+                        {% if loop.first %}
+                        <td rowspan="{{ qtd }}"><a href="{{ url_for('protocols.detail_protocol', id=p.id) }}">{{ p.protocol_number }}</a></td>
+                        <td rowspan="{{ qtd }}"><span class="badge {{ p.type_badge() }}">{{ p.type_label() }}</span></td>
+                        <td rowspan="{{ qtd }}">{{ p.client_name or '-' }}</td>
+                        <td rowspan="{{ qtd }}"><span class="badge {{ p.status_badge() }}">{{ p.status_label() }}</span></td>
+                        <td rowspan="{{ qtd }}">{{ p.entry_date.strftime('%d/%m/%Y') if p.entry_date else p.created_at.strftime('%d/%m/%Y') }}</td>
+                        {% endif %}
+                        <td>{{ occ.local }}</td>
+                        <td><code>{{ occ.valor }}</code></td>
+                        <td class="text-secondary">{{ occ.detalhe or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center text-secondary py-4">
+        <i class="bi bi-search fs-3 d-block mb-2"></i>
+        Nenhum protocolo encontrado com o NS "<strong>{{ busca }}</strong>".
+    </div>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
