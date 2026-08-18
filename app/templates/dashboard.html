@@ -11,12 +11,15 @@
 
 <div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card border-primary">
-            <div class="card-body text-center">
-                <h1 class="text-primary mb-0">{{ total }}</h1>
-                <p class="text-secondary mb-0">Total de Protocolos</p>
+        <a href="{{ url_for('protocols.list_protocols') }}" class="text-decoration-none d-block h-100">
+            <div class="card border-primary h-100 card-link-hover">
+                <div class="card-body text-center">
+                    <h1 class="text-primary mb-0">{{ total }}</h1>
+                    <p class="text-secondary mb-0">Total de Protocolos</p>
+                    <small class="text-muted"><i class="bi bi-arrow-right"></i> ver todos</small>
+                </div>
             </div>
-        </div>
+        </a>
     </div>
     <div class="col-md-4">
         <a href="{{ url_for('protocols.list_protocols', status='andamento') }}" class="text-decoration-none d-block h-100">
