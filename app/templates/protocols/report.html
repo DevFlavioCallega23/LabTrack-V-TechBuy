@@ -35,7 +35,10 @@
     </div>
     <div class="col-md-6">
         <div class="card h-100">
-            <div class="card-header"><i class="bi bi-exclamation-triangle text-danger"></i> Defeitos por Componente</div>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-exclamation-triangle text-danger"></i> Defeitos por Componente</span>
+                <a href="{{ url_for('protocols.defeitos') }}" class="btn btn-sm btn-outline-secondary">Controle de Defeitos</a>
+            </div>
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-dark table-sm">
@@ -61,66 +64,25 @@
     </div>
 </div>
 
+{% if entradas_por_mes %}
 <div class="card mb-4">
-    <div class="card-header"><i class="bi bi-list-ul"></i> Registro de Defeitos em Pedido</div>
+    <div class="card-header"><i class="bi bi-calendar3"></i> Entradas por Mês</div>
     <div class="card-body p-0">
         <div class="table-responsive" style="max-height: 400px;">
             <table class="table table-dark table-hover mb-0 table-sm">
                 <thead>
                     <tr>
-                        <th>Componente</th>
-                        <th>Nº Série</th>
-                        <th>Defeito</th>
-                        <th>Cliente</th>
-                        <th>Data</th>
+                        <th>Mês</th>
+                        <th class="text-end">Protocolos</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for d in defect_stats %}
-                    <tr>
-                        <td>{{ comp_labels.get(d.component_type, d.component_type) }}</td>
-                        <td><code>{{ d.serial_number or '-' }}</code></td>
-                        <td class="text-danger">{{ d.description or '-' }}</td>
-                        <td>{{ d.client_name or '-' }}</td>
-                        <td>{{ d.entry_date.strftime('%d/%m/%Y') if d.entry_date else '-' }}</td>
-                    </tr>
-                    {% endfor %}
-                    {% if not defect_stats %}
-                    <tr>
-                        <td colspan="5" class="text-center text-secondary">Nenhum defeito registrado.</td>
-                    </tr>
-                    {% endif %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-{% if rma_defects %}
-<div class="card mb-4">
-    <div class="card-header"><i class="bi bi-list-ul"></i> Registro de Defeitos RMA</div>
-    <div class="card-body p-0">
-        <div class="table-responsive" style="max-height: 400px;">
-            <table class="table table-dark table-hover mb-0 table-sm">
-                <thead>
-                    <tr>
-                        <th>Componente</th>
-                        <th>Nº Série</th>
-                        <th>Defeito</th>
-                        <th>Cliente</th>
-                        <th>Protocolo</th>
-                        <th>Data</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for d in rma_defects %}
-                    <tr>
-                        <td>{{ comp_labels.get(d.component, d.component) }}</td>
-                        <td><code>{{ d.serial or '-' }}</code></td>
-                        <td class="text-danger">{{ d.defeito or '-' }}</td>
-                        <td>{{ d.cliente }}</td>
-                        <td>{{ d.protocolo }}</td>
-                        <td>{{ d.data.strftime('%d/%m/%Y') if d.data else '-' }}</td>
+                    {% for m in entradas_por_mes %}
+                    <tr class="clickable-row" data-href="{{ url_for('protocols.list_protocols', mes=m.chave) }}">
+                        <td><strong>{{ m.rotulo }}</strong></td>
+                        <td class="text-end"><span class="badge bg-info text-dark">{{ m.count }}</span></td>
+                        <td class="text-end text-muted"><i class="bi bi-arrow-right"></i></td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -130,7 +92,7 @@
 </div>
 {% endif %}
 
-<div class="card">
+<div class="card mb-4">
     <div class="card-header"><i class="bi bi-table"></i> Todos os Protocolos</div>
     <div class="card-body p-0">
         <div class="table-responsive" style="max-height: 500px;">

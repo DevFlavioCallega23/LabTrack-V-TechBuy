@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-person-badge"></i> {{ registro.nome }} <small class="text-secondary fs-6">({{ registro.data or 'sem data' }})</small></h3>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('maquinas.maquina_novo', id=registro.id) }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Nova Máquina
+        </a>
+        <a href="{{ url_for('maquinas.editar', id=registro.id) }}" class="btn btn-outline-warning">
+            <i class="bi bi-pencil"></i>
+        </a>
+        <button onclick="confirmDeleteRegistro({{ registro.id }}, '{{ registro.nome }}')" class="btn btn-outline-danger">
+            <i class="bi bi-trash"></i>
+        </button>
+    </div>
+</div>
+
+{% for m in registro.maquinas %}
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-pc-display"></i> {{ m.identificacao or 'Máquina' }}</span>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('maquinas.maquina_editar', mid=m.id) }}" class="btn btn-sm btn-outline-warning"><i class="bi bi-pencil"></i></a>
+            <button onclick="confirmDeleteMaquina({{ m.id }})" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+        </div>
+    </div>
+    <div class="card-body">
+        {% set comps = [
+            ('Processador', m.cfg_processador, m.ns_processador),
+            ('Placa-Mãe', m.cfg_placa_mae, m.ns_placa_mae),
+            ('Memória', m.cfg_memoria, m.ns_memoria),
+            ('SSD', m.cfg_ssd, m.ns_ssd),
+            ('Fonte', m.cfg_fonte, m.ns_fonte)
+        ] %}
+        <div class="table-responsive">
+            <table class="table table-dark table-sm mb-3">
+                <thead>
+                    <tr>
+                        <th>Componente</th>
+                        <th>Configuração</th>
+                        <th>NS atual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for label, cfg, ns in comps %}
+                    <tr>
+                        <td>{{ label }}</td>
+                        <td>{{ cfg or '-' }}</td>
+                        <td><code>{{ ns or '-' }}</code></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="text-secondary small d-block mb-2"><i class="bi bi-arrow-repeat"></i> Trocas</label>
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Produto</th>
+                                <th>NS</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in m.trocas %}
+                            <tr>
+                                <td>{{ t.data or '-' }}</td>
+                                <td>{{ t.produto or '-' }}</td>
+                                <td><code>{{ t.ns or '-' }}</code></td>
+                                <td class="action-btns">
+                                    <button onclick="confirmDeleteTroca({{ t.id }})" class="btn btn-sm btn-outline-danger"><i class="bi bi-x"></i></button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-center text-secondary">Sem trocas.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <form method="POST" action="{{ url_for('maquinas.troca_novo', mid=m.id) }}" class="row g-2">
+                    <div class="col-3"><input type="text" name="data" class="form-control form-control-sm date-mask" placeholder="Data"></div>
+                    <div class="col-4"><input type="text" name="produto" class="form-control form-control-sm" placeholder="Produto"></div>
+                    <div class="col-3"><input type="text" name="ns" class="form-control form-control-sm" placeholder="NS"></div>
+                    <div class="col-2"><button class="btn btn-sm btn-outline-success w-100"><i class="bi bi-plus"></i></button></div>
+                </form>
+            </div>
+
+            <div class="col-md-6">
+                <label class="text-secondary small d-block mb-2"><i class="bi bi-exclamation-triangle text-danger"></i> Histórico de Defeito</label>
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Produto</th>
+                                <th>NS</th>
+                                <th>Defeito</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for d in m.defeitos %}
+                            <tr>
+                                <td>{{ d.data or '-' }}</td>
+                                <td>{{ d.produto or '-' }}</td>
+                                <td><code>{{ d.ns or '-' }}</code></td>
+                                <td class="text-danger">{{ d.defeito or '-' }}</td>
+                                <td class="action-btns">
+                                    <button onclick="confirmDeleteDefeito({{ d.id }})" class="btn btn-sm btn-outline-danger"><i class="bi bi-x"></i></button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="5" class="text-center text-secondary">Sem defeitos.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <form method="POST" action="{{ url_for('maquinas.defeito_novo', mid=m.id) }}" class="row g-2">
+                    <div class="col-2"><input type="text" name="data" class="form-control form-control-sm date-mask" placeholder="Data"></div>
+                    <div class="col-3"><input type="text" name="produto" class="form-control form-control-sm" placeholder="Produto"></div>
+                    <div class="col-3"><input type="text" name="ns" class="form-control form-control-sm" placeholder="NS"></div>
+                    <div class="col-3"><input type="text" name="defeito" class="form-control form-control-sm" placeholder="Defeito"></div>
+                    <div class="col-1"><button class="btn btn-sm btn-outline-success w-100"><i class="bi bi-plus"></i></button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center text-secondary py-4">
+        <i class="bi bi-pc-display fs-3 d-block mb-2"></i>
+        Nenhuma máquina cadastrada para {{ registro.nome }}.
+        <a href="{{ url_for('maquinas.maquina_novo', id=registro.id) }}" class="d-block mt-2">Adicionar primeira máquina</a>
+    </div>
+</div>
+{% endfor %}
+
+<form id="deleteForm" method="POST" style="display:none;">
+<script>
+function confirmDeleteRegistro(id, nome) {
+    if (confirm(`Excluir o registro de ${nome} e todas as máquinas?`)) {
+        document.getElementById('deleteForm').action = '/maquinas/' + id + '/excluir';
+        document.getElementById('deleteForm').submit();
+    }
+}
+function confirmDeleteMaquina(id) {
+    if (confirm('Excluir esta máquina?')) {
+        document.getElementById('deleteForm').action = '/maquinas/maquina/' + id + '/excluir';
+        document.getElementById('deleteForm').submit();
+    }
+}
+function confirmDeleteTroca(id) {
+    if (confirm('Excluir esta troca?')) {
+        document.getElementById('deleteForm').action = '/maquinas/troca/' + id + '/excluir';
+        document.getElementById('deleteForm').submit();
+    }
+}
+function confirmDeleteDefeito(id) {
+    if (confirm('Excluir este defeito?')) {
+        document.getElementById('deleteForm').action = '/maquinas/defeito/' + id + '/excluir';
+        document.getElementById('deleteForm').submit();
+    }
+}
+</script>
+{% endblock %}

@@ -307,6 +307,9 @@
                             <thead>
                                 <tr>
                                     <th>Componente</th>
+                                    {% if protocol.type == 'ponta_entrega' %}
+                                    <th>Máquina</th>
+                                    {% endif %}
                                     <th>Modelo</th>
                                     <th>Nº Série</th>
                                     <th>Defeito</th>
@@ -318,6 +321,9 @@
                                 {% for defect in protocol.defects %}
                                 <tr>
                                     <td>{{ defect.type_label() }}</td>
+                                    {% if protocol.type == 'ponta_entrega' %}
+                                    <td><span class="badge bg-secondary">{{ defect.maquina or '-' }}</span></td>
+                                    {% endif %}
                                     <td><code>{{ defect.specification or '-' }}</code></td>
                                     <td><code>{{ defect.serial_number or '-' }}</code></td>
                                     <td class="text-danger">{{ defect.description or '-' }}</td>
