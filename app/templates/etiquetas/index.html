@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-tags"></i> Etiquetas</h3>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="border-bottom pb-2"><i class="bi bi-sliders"></i> Configuração da etiqueta</h6>
+
+                <div class="mb-3">
+                    <label class="form-label">Protocolo</label>
+                    <select id="selProtocolo" class="form-select form-select-sm">
+                        <option value="">— Sem protocolo (digitar à mão) —</option>
+                        {% for p in protocolos %}
+                        <option value="{{ p.protocol_number }}"
+                            data-tipo="{{ p.type_label() }}"
+                            data-cliente="{{ p.client_name or '' }}"
+                            data-vendedor="{{ p.seller or '' }}"
+                            data-entrada="{{ p.entry_date.strftime('%d/%m/%Y') if p.entry_date else '' }}"
+                            data-pedido="{{ p.order_number or '' }}"
+                            data-garantia="{% if p.type == 'rma' %}{{ 'Sim' if p.rma_in_warranty else 'Não' }}{% endif %}">
+                            {{ p.protocol_number }} — {{ p.client_name or 'sem cliente' }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3" id="refManualGroup">
+                    <label class="form-label">Referência (se sem protocolo)</label>
+                    <input type="text" id="refManual" class="form-control form-control-sm" placeholder="Ex: PRO-2026-0070">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Destino / Situação</label>
+                    <select id="selCenario" class="form-select form-select-sm">
+                        <option value="case">Identificação do serviço (case)</option>
+                        <option value="estoque">Volta ao estoque</option>
+                        <option value="descarte">Descarte</option>
+                    </select>
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label">Peça</label>
+                        <select id="selPeca" class="form-select form-select-sm">
+                            <option value="processador" data-produto="Processador" data-tam="pequena">Processador</option>
+                            <option value="ram" data-produto="Memória RAM" data-tam="pequena">Memória RAM</option>
+                            <option value="hdd" data-produto="HD (mecânico)" data-tam="media">HD (mecânico)</option>
+                            <option value="ssd" data-produto="SSD" data-tam="media">SSD</option>
+                            <option value="fonte" data-produto="Fonte" data-tam="grande">Fonte</option>
+                            <option value="placa_mae" data-produto="Placa-Mãe" data-tam="grande">Placa-Mãe</option>
+                            <option value="monitor" data-produto="Monitor" data-tam="grande">Monitor</option>
+                            <option value="outro" data-produto="Outro" data-tam="media">Outro</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Tamanho</label>
+                        <select id="selTamanho" class="form-select form-select-sm">
+                            <option value="pequena">Pequena 50×30</option>
+                            <option value="media" selected>Média 100×50</option>
+                            <option value="grande">Grande 100×60</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Produto (marca/modelo)</label>
+                    <input type="text" id="inpProduto" class="form-control form-control-sm" placeholder="Ex: SSD Kingston 120GB">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">NS</label>
+                    <input type="text" id="inpNs" class="form-control form-control-sm" placeholder="Nº de série da peça">
+                </div>
+
+                <div class="mb-3" id="obsGroup">
+                    <label class="form-label" id="obsLabel">Situação / Defeito</label>
+                    <textarea id="inpObs" class="form-control form-control-sm" rows="3" placeholder="Detalhe aqui o defeito ou a situação da peça..."></textarea>
+                </div>
+
+                <div class="row g-2 align-items-end mb-3">
+                    <div class="col-7">
+                        <label class="form-label">Cópias</label>
+                        <select id="selCopias" class="form-select form-select-sm">
+                            <option value="1">1</option>
+                            <option value="4">4</option>
+                            <option value="8">8</option>
+                            <option value="12">12</option>
+                            <option value="16">16</option>
+                            <option value="24">24</option>
+                            <option value="32">32</option>
+                        </select>
+                    </div>
+                    <div class="col-5">
+                        <button type="button" class="btn btn-outline-info w-100" onclick="window.print()">
+                            <i class="bi bi-printer"></i> Imprimir
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="border-bottom pb-2"><i class="bi bi-eye"></i> Pré-visualização
+                    <small class="text-secondary ms-1" id="tamInfo">100×50mm</small>
+                </h6>
+                <div id="printArea" class="print-area size-media">
+                    {% for _ in range(8) %}
+                    <div class="label">
+                        <div class="label-top">
+                            <span class="brand">LABTRACK</span>
+                            <span class="ref">PRO-2026-0070</span>
+                        </div>
+                        <div class="badge-flag">IDENTIFICAÇÃO DO SERVIÇO</div>
+                        <div class="label-lines">
+                            <div><span>Cliente:</span> Fulano</div>
+                            <div><span>Vendedor:</span> —</div>
+                            <div><span>Entrada:</span> 19/08/2026</div>
+                            <div><span>Pedido:</span> —</div>
+                            <div><span>Produto:</span> SSD 120GB</div>
+                            <div><span>NS:</span> S12345</div>
+                        </div>
+                        <div class="label-obs">Situação / defeito...</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.print-area { display: flex; flex-wrap: wrap; gap: 5mm; padding: 2mm; }
+.label {
+    box-sizing: border-box;
+    border: 0.4mm solid #222;
+    border-radius: 1mm;
+    background: #fff; color: #111;
+    display: flex; flex-direction: column;
+    padding: 1mm 2mm;
+    overflow: hidden;
+}
+.size-pequena .label { width: 50mm; height: 30mm; }
+.size-media   .label { width: 100mm; height: 50mm; }
+.size-grande  .label { width: 100mm; height: 60mm; }
+
+.size-pequena .label { font-size: 6px; }
+.size-pequena .label-top .ref { font-size: 8px; }
+.size-pequena .label-top .brand { font-size: 6px; }
+.size-media   .label { font-size: 8px; }
+.size-media   .label-top .ref { font-size: 11px; }
+.size-media   .label-top .brand { font-size: 7px; }
+.size-grande  .label { font-size: 10px; }
+.size-grande  .label-top .ref { font-size: 13px; }
+.size-grande  .label-top .brand { font-size: 8px; }
+
+.label-top { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 0.3mm solid #444; margin-bottom: 0.5mm; }
+.label-top .brand { font-weight: bold; letter-spacing: 1px; }
+.label-top .ref { font-weight: bold; }
+.badge-flag {
+    font-weight: bold; text-transform: uppercase;
+    text-align: center; margin: 0.5mm 0;
+    border: 0.3mm solid #222; border-radius: 1mm;
+    padding: 0.2mm 0;
+}
+.label-lines div { display: flex; gap: 1mm; line-height: 1.25; }
+.label-lines span { font-weight: bold; }
+.label-obs {
+    margin-top: auto; border: 0.3mm dashed #555;
+    border-radius: 1mm; padding: 0.5mm 1mm;
+    font-style: italic; min-height: 4mm;
+}
+
+@media print {
+    body * { visibility: hidden; }
+    .print-area, .print-area * { visibility: visible; }
+    .print-area {
+        position: absolute; left: 0; top: 0;
+        padding: 0; gap: 0;
+    }
+    @page { size: A4 landscape; margin: 0; }
+}
+</style>
+
+<script>
+const PRECOS = { 'processador': 'Processador', 'ram': 'RAM', 'hdd': 'HD', 'ssd': 'SSD',
+                 'fonte': 'Fonte', 'placa_mae': 'Placa-Mãe', 'monitor': 'Monitor', 'outro': 'Outro' };
+const TAMS = { 'processador': 'pequena', 'ram': 'pequena', 'hdd': 'media', 'ssd': 'media',
+               'fonte': 'grande', 'placa_mae': 'grande', 'monitor': 'grande', 'outro': 'media' };
+const TAM_INFO = { 'pequena': '50×30mm', 'media': '100×50mm', 'grande': '100×60mm' };
+
+function esc(s) {
+    return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function render() {
+    const ref = $('#selProtocolo').value || $('#refManual').value.trim() || 'PRO-____-____';
+    const opt = $('#selProtocolo').selectedOptions[0] || {};
+    const cliente = $('#selProtocolo').value ? (opt.dataset.cliente || '—') : '—';
+    const vendedor = $('#selProtocolo').value ? (opt.dataset.vendedor || '—') : '—';
+    const entrada = $('#selProtocolo').value ? (opt.dataset.entrada || '—') : '—';
+    const pedido = $('#selProtocolo').value ? (opt.dataset.pedido || '—') : '—';
+    const garantia = opt.dataset.garantia || '';
+    const cenario = $('#selCenario').value;
+    const cenarioFlag = { 'case': 'IDENTIFICAÇÃO DO SERVIÇO', 'estoque': 'VOLTA AO ESTOQUE', 'descarte': 'DESCARTE' }[cenario];
+    const obsLabel = { 'case': 'Observações', 'estoque': 'Situação / Defeito', 'descarte': 'Motivo do descarte' }[cenario];
+    $('#obsLabel').textContent = obsLabel;
+    $('#obsGroup').style.display = cenario === 'case' ? 'none' : '';
+    const produto = $('#inpProduto').value.trim() || PRECOS[$('#selPeca').value] || '—';
+    const ns = $('#inpNs').value.trim() || '—';
+    const obs = cenario === 'case' ? '' : ($('#inpObs').value.trim() || '(vazio)');
+    const copias = parseInt($('#selCopias').value, 10);
+    const tam = $('#selTamanho').value;
+
+    const printArea = $('#printArea');
+    printArea.className = 'print-area size-' + tam;
+    $('#tamInfo').textContent = TAM_INFO[tam];
+
+    let html = '';
+    for (let i = 0; i < copias; i++) {
+        html += `
+        <div class="label">
+            <div class="label-top">
+                <span class="brand">LABTRACK</span>
+                <span class="ref">${esc(ref)}</span>
+            </div>
+            <div class="badge-flag">${cenarioFlag}</div>
+            <div class="label-lines">
+                <div><span>Cliente:</span> ${esc(cliente)}</div>
+                <div><span>Vendedor:</span> ${esc(vendedor)}</div>
+                <div><span>Entrada:</span> ${esc(entrada)}</div>
+                <div><span>Pedido:</span> ${esc(pedido)}</div>
+                <div><span>Produto:</span> ${esc(produto)}</div>
+                <div><span>NS:</span> ${esc(ns)}</div>
+                ${garantia ? `<div><span>Garantia:</span> ${esc(garantia)}</div>` : ''}
+            </div>
+            <div class="label-obs">${esc(obs)}</div>
+        </div>`;
+    }
+    printArea.innerHTML = html;
+}
+
+function $(id) { return document.getElementById(String(id).replace(/^#/, '')); }
+
+$('#selProtocolo').addEventListener('change', function() {
+    $('#refManualGroup').style.display = this.value ? 'none' : '';
+});
+['selProtocolo', 'refManual', 'selCenario', 'inpProduto', 'inpNs', 'inpObs', 'selCopias', 'selTamanho']
+    .forEach(function(id) { $(id).addEventListener('input', render); });
+['selProtocolo', 'selCenario', 'selPeca', 'selCopias', 'selTamanho']
+    .forEach(function(id) { $(id).addEventListener('change', render); });
+
+function refreshCenario() {
+    $('#obsLabel').textContent = { 'case': 'Observações', 'estoque': 'Situação / Defeito', 'descarte': 'Motivo do descarte' }[$('#selCenario').value];
+    $('#obsGroup').style.display = $('#selCenario').value === 'case' ? 'none' : '';
+}
+$('#selProtocolo').addEventListener('change', function() {
+    $('#refManualGroup').style.display = this.value ? 'none' : '';
+    refreshCenario();
+    render();
+});
+$('#selCenario').addEventListener('change', function() {
+    refreshCenario();
+    render();
+});
+$('#selPeca').addEventListener('change', function() {
+    $('#selTamanho').value = TAMS[this.value];
+    render();
+});
+refreshCenario();
+render();
+</script>
+{% endblock %}
