@@ -9,48 +9,92 @@
 
 <div class="card">
     <div class="card-body">
-        <form method="POST" class="row g-3">
-            <div class="col-12">
+        <form method="POST">
+            <div class="mb-3">
                 <label class="form-label">Identificação da máquina</label>
                 <input type="text" name="identificacao" class="form-control" placeholder="Ex: TechBuy, TB, Máquina 01..." value="{{ maquina.identificacao or '' if maquina else '' }}">
             </div>
 
-            <div class="col-md-6">
-                <h6 class="text-secondary border-bottom pb-1"><i class="bi bi-sliders"></i> Configuração</h6>
-                {% for field, label in [
-                    ('cfg_processador', 'Processador'),
-                    ('cfg_placa_mae', 'Placa-Mãe'),
-                    ('cfg_memoria', 'Memória'),
-                    ('cfg_ssd', 'SSD'),
-                    ('cfg_fonte', 'Fonte')
-                ] %}
-                <div class="mb-2">
-                    <label class="form-label small text-secondary">{{ label }}</label>
-                    <input type="text" name="{{ field }}" class="form-control form-control-sm" placeholder="Ex: I3-2100..." value="{{ maquina[field] or '' if maquina else '' }}">
-                </div>
-                {% endfor %}
+            <h6 class="text-secondary border-bottom pb-2 d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-sliders"></i> Configuração e NS das peças</span>
+                <button type="button" class="btn btn-sm btn-outline-success" onclick="addCompRow()">
+                    <i class="bi bi-plus-lg"></i> Componente
+                </button>
+            </h6>
+            <small class="text-secondary d-block mb-2">Adicione uma linha por peça. Para mais de uma peça igual (ex: 2 RAM, 2 SSD, HD mecânico), adicione quantas linhas precisar.</small>
+
+            <div class="table-responsive">
+                <table class="table table-dark table-sm">
+                    <thead>
+                        <tr>
+                            <th style="width:28%">Componente</th>
+                            <th style="width:37%">Configuração</th>
+                            <th style="width:30%">NS</th>
+                            <th style="width:5%"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="nsItensBody">
+                        {% for item in (maquina.get_ns_itens() if maquina else []) %}
+                        <tr class="comp-row">
+                            <td>
+                                <select name="comp_type[]" class="form-select form-select-sm comp-type">
+                                    <option value="">-- Selecione --</option>
+                                    {% for key, label in [
+                                        ('processador', 'Processador'),
+                                        ('placa_mae', 'Placa-Mãe (Soquete)'),
+                                        ('ram', 'RAM'),
+                                        ('ssd', 'SSD'),
+                                        ('hdd', 'HD (mecânico)'),
+                                        ('fonte', 'Fonte'),
+                                        ('monitor', 'Monitor'),
+                                        ('outro', 'Outro')
+                                    ] %}
+                                    <option value="{{ key }}" {{ 'selected' if item.comp == key }}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td><input type="text" name="comp_model[]" class="form-control form-control-sm" placeholder="Ex: I3-2100, 8GB, WD 120..." value="{{ item.model or '' }}"></td>
+                            <td><input type="text" name="comp_ns[]" class="form-control form-control-sm" placeholder="Nº de Série" value="{{ item.ns or '' }}"></td>
+                            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+                        </tr>
+                        {% else %}
+                        <tr class="comp-row">
+                            <td colspan="4" class="text-center text-secondary py-3">
+                                <i class="bi bi-plus-circle d-block mb-1"></i>
+                                Clique em "Componente" para registrar processador, RAM, SSD, HD...
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
 
-            <div class="col-md-6">
-                <h6 class="text-secondary border-bottom pb-1"><i class="bi bi-upc-scan"></i> NS das peças</h6>
-                {% for field, label in [
-                    ('ns_processador', 'NS Processador'),
-                    ('ns_placa_mae', 'NS Placa-Mãe'),
-                    ('ns_memoria', 'NS Memória'),
-                    ('ns_ssd', 'NS SSD'),
-                    ('ns_fonte', 'NS Fonte')
-                ] %}
-                <div class="mb-2">
-                    <label class="form-label small text-secondary">{{ label }}</label>
-                    <input type="text" name="{{ field }}" class="form-control form-control-sm" value="{{ maquina[field] or '' if maquina else '' }}">
-                </div>
-                {% endfor %}
-            </div>
-
-            <div class="col-12">
-                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Salvar</button>
-            </div>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Salvar</button>
         </form>
     </div>
 </div>
+
+<script>
+const COMP_OPTIONS = '<option value="">-- Selecione --</option>' +
+    [['processador', 'Processador'], ['placa_mae', 'Placa-Mãe (Soquete)'], ['ram', 'RAM'],
+     ['ssd', 'SSD'], ['hdd', 'HD (mecânico)'], ['fonte', 'Fonte'], ['monitor', 'Monitor'],
+     ['outro', 'Outro']]
+    .map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+
+function addCompRow() {
+    const tbody = document.getElementById('nsItensBody');
+    const empty = tbody.querySelector('tr:first-child');
+    if (empty && empty.querySelector('td[colspan]')) empty.remove();
+    const tr = document.createElement('tr');
+    tr.className = 'comp-row';
+    tr.innerHTML = `
+        <td><select name="comp_type[]" class="form-select form-select-sm comp-type">${COMP_OPTIONS}</select></td>
+        <td><input type="text" name="comp_model[]" class="form-control form-control-sm" placeholder="Ex: I3-2100, 8GB, WD 120..."></td>
+        <td><input type="text" name="comp_ns[]" class="form-control form-control-sm" placeholder="Nº de Série"></td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+    `;
+    tbody.appendChild(tr);
+    tr.querySelector('.comp-type').focus();
+}
+</script>
 {% endblock %}

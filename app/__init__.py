@@ -27,6 +27,7 @@ def add_missing_columns():
     protocol_cols = [c['name'] for c in inspector.get_columns('protocol')]
     defect_cols = [c['name'] for c in inspector.get_columns('defect')]
     component_cols = [c['name'] for c in inspector.get_columns('component')]
+    tb_maquina_cols = [c['name'] for c in inspector.get_columns('tb_maquina')]
     with engine.connect() as conn:
         if 'specification' not in defect_cols:
             conn.execute(db.text('ALTER TABLE defect ADD COLUMN specification VARCHAR(200)'))
@@ -60,6 +61,8 @@ def add_missing_columns():
             conn.execute(db.text('ALTER TABLE defect ADD COLUMN defeito_status VARCHAR(30)'))
         if 'maquina' not in defect_cols:
             conn.execute(db.text('ALTER TABLE defect ADD COLUMN maquina VARCHAR(50)'))
+        if 'ns_itens' not in tb_maquina_cols:
+            conn.execute(db.text('ALTER TABLE tb_maquina ADD COLUMN ns_itens TEXT'))
         conn.commit()
 
 def create_app():

@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -213,16 +214,15 @@ class TBMaquina(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     registro_id = db.Column(db.Integer, db.ForeignKey('tb_registro.id'), nullable=False)
     identificacao = db.Column(db.String(120))
-    cfg_processador = db.Column(db.String(100))
-    cfg_placa_mae = db.Column(db.String(100))
-    cfg_memoria = db.Column(db.String(100))
-    cfg_ssd = db.Column(db.String(100))
-    cfg_fonte = db.Column(db.String(100))
-    ns_processador = db.Column(db.String(100))
-    ns_placa_mae = db.Column(db.String(100))
-    ns_memoria = db.Column(db.String(100))
-    ns_ssd = db.Column(db.String(100))
-    ns_fonte = db.Column(db.String(100))
+    ns_itens = db.Column(db.Text)
+
+    def get_ns_itens(self):
+        if not self.ns_itens:
+            return []
+        try:
+            return json.loads(self.ns_itens)
+        except (json.JSONDecodeError, TypeError):
+            return []
     trocas = db.relationship('TBTroca', backref='maquina', lazy=True,
                              order_by='TBTroca.id',
                              cascade='all, delete-orphan')

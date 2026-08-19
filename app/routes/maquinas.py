@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app import db
 from app.models import TBRegistro, TBMaquina, TBTroca, TBDefeito
+import json
 
 maquinas_bp = Blueprint('maquinas', __name__, url_prefix='/maquinas')
 
@@ -16,6 +17,20 @@ def master_required():
 def get_or_abort_master():
     """Return redirect error if not master, otherwise None."""
     return master_required()
+
+
+def parse_ns_itens():
+    """Parse dynamic component rows (Componente | Configuração | NS) like the venda form."""
+    tipos = request.form.getlist('comp_type[]')
+    modelos = request.form.getlist('comp_model[]')
+    nss = request.form.getlist('comp_ns[]')
+    itens = []
+    for i, tipo in enumerate(tipos):
+        modelo = modelos[i].strip() if i < len(modelos) else ''
+        ns = nss[i].strip() if i < len(nss) else ''
+        if tipo or modelo or ns:
+            itens.append({'comp': tipo, 'model': modelo, 'ns': ns})
+    return json.dumps(itens, ensure_ascii=False)
 
 
 @maquinas_bp.route('/')
@@ -98,16 +113,7 @@ def maquina_novo(id):
         maquina = TBMaquina(
             registro_id=registro.id,
             identificacao=request.form.get('identificacao', '').strip() or None,
-            cfg_processador=request.form.get('cfg_processador', '').strip() or None,
-            cfg_placa_mae=request.form.get('cfg_placa_mae', '').strip() or None,
-            cfg_memoria=request.form.get('cfg_memoria', '').strip() or None,
-            cfg_ssd=request.form.get('cfg_ssd', '').strip() or None,
-            cfg_fonte=request.form.get('cfg_fonte', '').strip() or None,
-            ns_processador=request.form.get('ns_processador', '').strip() or None,
-            ns_placa_mae=request.form.get('ns_placa_mae', '').strip() or None,
-            ns_memoria=request.form.get('ns_memoria', '').strip() or None,
-            ns_ssd=request.form.get('ns_ssd', '').strip() or None,
-            ns_fonte=request.form.get('ns_fonte', '').strip() or None,
+            ns_itens=parse_ns_itens() or None,
         )
         db.session.add(maquina)
         db.session.commit()
@@ -125,16 +131,7 @@ def maquina_editar(mid):
     maquina = TBMaquina.query.get_or_404(mid)
     if request.method == 'POST':
         maquina.identificacao = request.form.get('identificacao', '').strip() or None
-        maquina.cfg_processador = request.form.get('cfg_processador', '').strip() or None
-        maquina.cfg_placa_mae = request.form.get('cfg_placa_mae', '').strip() or None
-        maquina.cfg_memoria = request.form.get('cfg_memoria', '').strip() or None
-        maquina.cfg_ssd = request.form.get('cfg_ssd', '').strip() or None
-        maquina.cfg_fonte = request.form.get('cfg_fonte', '').strip() or None
-        maquina.ns_processador = request.form.get('ns_processador', '').strip() or None
-        maquina.ns_placa_mae = request.form.get('ns_placa_mae', '').strip() or None
-        maquina.ns_memoria = request.form.get('ns_memoria', '').strip() or None
-        maquina.ns_ssd = request.form.get('ns_ssd', '').strip() or None
-        maquina.ns_fonte = request.form.get('ns_fonte', '').strip() or None
+        maquina.ns_itens = parse_ns_itens() or None
         db.session.commit()
         flash('Máquina atualizada!', 'success')
         return redirect(url_for('maquinas.detail', id=maquina.registro_id))

@@ -25,28 +25,33 @@
         </div>
     </div>
     <div class="card-body">
-        {% set comps = [
-            ('Processador', m.cfg_processador, m.ns_processador),
-            ('Placa-Mãe', m.cfg_placa_mae, m.ns_placa_mae),
-            ('Memória', m.cfg_memoria, m.ns_memoria),
-            ('SSD', m.cfg_ssd, m.ns_ssd),
-            ('Fonte', m.cfg_fonte, m.ns_fonte)
-        ] %}
+        {% set itens = m.get_ns_itens() %}
         <div class="table-responsive">
             <table class="table table-dark table-sm mb-3">
                 <thead>
                     <tr>
                         <th>Componente</th>
                         <th>Configuração</th>
-                        <th>NS atual</th>
+                        <th>NS</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for label, cfg, ns in comps %}
+                    {% for item in itens %}
                     <tr>
-                        <td>{{ label }}</td>
-                        <td>{{ cfg or '-' }}</td>
-                        <td><code>{{ ns or '-' }}</code></td>
+                        <td>{{ {
+                            'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)',
+                            'ram': 'RAM', 'ssd': 'SSD', 'hdd': 'HD (mecânico)',
+                            'fonte': 'Fonte', 'monitor': 'Monitor', 'outro': 'Outro'
+                        }.get(item.comp, item.comp) or '-' }}</td>
+                        <td>{{ item.model or '-' }}</td>
+                        <td><code>{{ item.ns or '-' }}</code></td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="text-center text-secondary py-3">
+                            Nenhuma peça cadastrada.
+                            <a href="{{ url_for('maquinas.maquina_editar', mid=m.id) }}">Editar máquina</a> para adicionar.
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
