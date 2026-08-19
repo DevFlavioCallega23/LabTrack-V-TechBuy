@@ -4,6 +4,7 @@
     <h3><i class="bi bi-tags"></i> Etiqueta salva <small class="text-secondary fs-6">#{{ e.id }}</small></h3>
     <div class="d-flex gap-2">
         <a href="{{ url_for('etiquetas.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Nova etiqueta</a>
+        <a href="{{ url_for('etiquetas.salva_pdf', id=e.id) }}" class="btn btn-outline-primary"><i class="bi bi-file-earmark-pdf"></i> Baixar PDF</a>
         <button type="button" class="btn btn-outline-info" onclick="window.print()"><i class="bi bi-printer"></i> Imprimir</button>
     </div>
 </div>
