@@ -831,6 +831,7 @@ def defeitos():
 def rastreio_ns():
     busca = request.args.get('busca', '').strip()
     resultados = []
+    tb_resultados = []
     if busca:
         termo = busca.lower()
         for p in Protocol.query.order_by(Protocol.created_at.desc()).all():
@@ -923,7 +924,6 @@ def rastreio_ns():
                 })
 
         # Máquinas TechBuy (módulo do Master)
-        tb_resultados = []
         for maq in TBMaquina.query.all():
             ocorrencias = []
             dono = maq.registro.nome if maq.registro else ''
