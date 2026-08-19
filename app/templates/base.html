@@ -41,11 +41,6 @@
                             <i class="bi bi-upc-scan"></i> Rastreio NS
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('etiquetas.index') }}">
-                            <i class="bi bi-tags"></i> Etiquetas
-                        </a>
-                    </li>
                     {% if current_user.is_master() %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('maquinas.index') }}">

@@ -267,31 +267,3 @@ class TBPassagem(db.Model):
 
     def __repr__(self):
         return f'<TBPassagem {self.produto} {self.ns}>'
-
-class EtiquetaSalva(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    created_by = db.Column(db.String(80))
-    protocolo_id = db.Column(db.Integer, db.ForeignKey('protocol.id'), nullable=True)
-    ref = db.Column(db.String(30))
-    cliente = db.Column(db.String(120))
-    vendedor = db.Column(db.String(80))
-    entrada = db.Column(db.String(12))
-    pedido = db.Column(db.String(80))
-    garantia = db.Column(db.String(20))
-    cenario = db.Column(db.String(20))
-    tamanho = db.Column(db.String(20))
-    produto = db.Column(db.String(120))
-    ns = db.Column(db.String(100))
-    obs = db.Column(db.Text)
-    copias = db.Column(db.Integer, default=1)
-
-    def cenario_label(self):
-        return {
-            'case': 'Identificação do serviço (case)',
-            'estoque': 'Volta ao estoque',
-            'descarte': 'Descarte',
-        }.get(self.cenario, self.cenario)
-
-    def __repr__(self):
-        return f'<EtiquetaSalva {self.ref}>'
