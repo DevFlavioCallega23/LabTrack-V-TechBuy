@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app import db
-from app.models import TBRegistro, TBMaquina, TBTroca, TBDefeito
+from app.models import TBRegistro, TBMaquina, TBTroca, TBDefeito, TBPassagem
 import json
 
 maquinas_bp = Blueprint('maquinas', __name__, url_prefix='/maquinas')
@@ -225,4 +225,43 @@ def defeito_excluir(did):
     db.session.delete(defeito)
     db.session.commit()
     flash('Defeito excluído.', 'success')
+    return redirect(url_for('maquinas.detail', id=registro_id))
+
+
+@maquinas_bp.route('/maquina/<int:mid>/passagem', methods=['POST'])
+@login_required
+def passagem_novo(mid):
+    bloqueio = get_or_abort_master()
+    if bloqueio:
+        return bloqueio
+    maquina = TBMaquina.query.get_or_404(mid)
+    produto = request.form.get('produto', '').strip()
+    ns = request.form.get('ns', '').strip()
+    defeito = request.form.get('defeito', '').strip()
+    if produto or ns or defeito:
+        db.session.add(TBPassagem(
+            maquina_id=maquina.id,
+            data=request.form.get('data', '').strip() or None,
+            produto=produto or None,
+            ns=ns or None,
+            defeito=defeito,
+        ))
+        db.session.commit()
+        flash('Passagem registrada!', 'success')
+    else:
+        flash('Preencha os dados da passagem.', 'warning')
+    return redirect(url_for('maquinas.detail', id=maquina.registro_id))
+
+
+@maquinas_bp.route('/passagem/<int:pid>/excluir', methods=['POST'])
+@login_required
+def passagem_excluir(pid):
+    bloqueio = get_or_abort_master()
+    if bloqueio:
+        return bloqueio
+    passagem = TBPassagem.query.get_or_404(pid)
+    registro_id = passagem.maquina.registro_id
+    db.session.delete(passagem)
+    db.session.commit()
+    flash('Passagem excluída.', 'success')
     return redirect(url_for('maquinas.detail', id=registro_id))

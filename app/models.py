@@ -229,6 +229,9 @@ class TBMaquina(db.Model):
     defeitos = db.relationship('TBDefeito', backref='maquina', lazy=True,
                                order_by='TBDefeito.id',
                                cascade='all, delete-orphan')
+    passagens = db.relationship('TBPassagem', backref='maquina', lazy=True,
+                                order_by='TBPassagem.id',
+                                cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<TBMaquina {self.identificacao}>'
@@ -253,3 +256,14 @@ class TBDefeito(db.Model):
 
     def __repr__(self):
         return f'<TBDefeito {self.produto}>'
+
+class TBPassagem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    maquina_id = db.Column(db.Integer, db.ForeignKey('tb_maquina.id'), nullable=False)
+    data = db.Column(db.String(10))
+    produto = db.Column(db.String(100))
+    ns = db.Column(db.String(100))
+    defeito = db.Column(db.Text)
+
+    def __repr__(self):
+        return f'<TBPassagem {self.produto} {self.ns}>'

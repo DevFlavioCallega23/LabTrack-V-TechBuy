@@ -5,6 +5,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app import db
 from app.models import Protocol, Component, Defect, User, WindowsKey
+from app.models import TBRegistro, TBMaquina, TBTroca, TBDefeito, TBPassagem
 from app.forms import ProtocolForm, UserForm, CreateUserForm, MasterUserForm, MasterCreateUserForm, ChangePasswordForm
 from sqlalchemy import func
 
@@ -722,6 +723,7 @@ COMP_LABELS = {
     'placa_mae': 'Placa-Mãe',
     'ram': 'RAM',
     'ssd': 'SSD',
+    'hdd': 'HD (mecânico)',
     'fonte': 'Fonte',
     'monitor': 'Monitor',
     'outro': 'Outro'
@@ -769,34 +771,34 @@ def build_defeitos_agrupados():
                 'tipo': p.type,
                 'garantia': p.rma_in_warranty if p.type == 'rma' else None
             })
-        # Teste de Mesa items (RMA/NTB)
-        if p.rma_test_result and p.type in ('rma', 'nao_comprado'):
-            try:
-                itens = json.loads(p.rma_test_result)
-                for idx, item in enumerate(itens):
-                    if not item.get('component'):
-                        continue
-                    grupos[situacao].append({
-                        'fonte': 'teste',
-                        'defect_id': None,
-                        'teste_idx': idx,
-                        'protocolo_id': p.id,
-                        'protocolo_status': p.status,
-                        'component': item.get('component', ''),
-                        'model': item.get('model', ''),
-                        'serial': item.get('serial', ''),
-                        'desc': item.get('defeito', ''),
-                        'responsavel': 'loja' if situacao == 'rma_garantia' else ('cliente' if situacao == 'rma_fora' else ''),
-                        'status': item.get('status', ''),
-                        'maquina': '',
-                        'protocolo': p.protocol_number,
-                        'cliente': p.client_name or '',
-                        'data': p.entry_date,
-                        'tipo': p.type,
-                        'garantia': p.rma_in_warranty if p.type == 'rma' else None
-                    })
-            except (json.JSONDecodeError, TypeError):
-                pass
+        # Teste de Mesa items (RMA/NTB) NÃO aparecem em "Defeitos" — só no Rastreio de NS
+        # if p.rma_test_result and p.type in ('rma', 'nao_comprado'):
+        #     try:
+        #         itens = json.loads(p.rma_test_result)
+        #         for idx, item in enumerate(itens):
+        #             if not item.get('component'):
+        #                 continue
+        #             grupos[situacao].append({
+        #                 'fonte': 'teste',
+        #                 'defect_id': None,
+        #                 'teste_idx': idx,
+        #                 'protocolo_id': p.id,
+        #                 'protocolo_status': p.status,
+        #                 'component': item.get('component', ''),
+        #                 'model': item.get('model', ''),
+        #                 'serial': item.get('serial', ''),
+        #                 'desc': item.get('defeito', ''),
+        #                 'responsavel': 'loja' if situacao == 'rma_garantia' else ('cliente' if situacao == 'rma_fora' else ''),
+        #                 'status': item.get('status', ''),
+        #                 'maquina': '',
+        #                 'protocolo': p.protocol_number,
+        #                 'cliente': p.client_name or '',
+        #                 'data': p.entry_date,
+        #                 'tipo': p.type,
+        #                 'garantia': p.rma_in_warranty if p.type == 'rma' else None
+        #             })
+        #     except (json.JSONDecodeError, TypeError):
+        #         pass
     return grupos
 
 @protocols_bp.route('/defeitos')
@@ -920,8 +922,51 @@ def rastreio_ns():
                     'ocorrencias': ocorrencias
                 })
 
+        # Máquinas TechBuy (módulo do Master)
+        tb_resultados = []
+        for maq in TBMaquina.query.all():
+            ocorrencias = []
+            dono = maq.registro.nome if maq.registro else ''
+            ident = maq.identificacao or 'Máquina'
+            base_local = f'Máquinas TechBuy — {dono} — {ident}'
+            for item in maq.get_ns_itens():
+                if item.get('ns') and termo in item['ns'].lower():
+                    ocorrencias.append({
+                        'local': f'{base_local} — peça {COMP_LABELS.get(item.get("comp", ""), item.get("comp", ""))}',
+                        'valor': item['ns'],
+                        'detalhe': item.get('model') or ''
+                    })
+            for t in maq.trocas:
+                if t.ns and termo in t.ns.lower():
+                    ocorrencias.append({
+                        'local': f'{base_local} — troca de {t.produto or "produto"}',
+                        'valor': t.ns,
+                        'detalhe': f'Data: {t.data or "-"}'
+                    })
+            for d in maq.defeitos:
+                if d.ns and termo in d.ns.lower():
+                    ocorrencias.append({
+                        'local': f'{base_local} — defeito em {d.produto or "produto"}',
+                        'valor': d.ns,
+                        'detalhe': d.defeito or ''
+                    })
+            for pas in maq.passagens:
+                if pas.ns and termo in pas.ns.lower():
+                    ocorrencias.append({
+                        'local': f'{base_local} — passagem de {pas.produto or "produto"}',
+                        'valor': pas.ns,
+                        'detalhe': pas.defeito or ''
+                    })
+            if ocorrencias:
+                tb_resultados.append({
+                    'maquina': maq,
+                    'dono': dono,
+                    'identificacao': maq.identificacao or 'Máquina',
+                    'ocorrencias': ocorrencias
+                })
+
     return render_template('protocols/ns.html', busca=busca, resultados=resultados,
-        total_resultados=len(resultados))
+        total_resultados=len(resultados), tb_resultados=tb_resultados)
 
 @protocols_bp.route('/defeitos/<int:id>/status', methods=['POST'])
 @login_required
