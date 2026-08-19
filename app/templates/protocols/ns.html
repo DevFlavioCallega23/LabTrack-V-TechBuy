@@ -24,8 +24,9 @@
     <span class="text-secondary ms-2">com o NS "<strong>{{ busca }}</strong>"</span>
 </div>
 
+{% if resultados or tb_resultados %}
 {% if resultados %}
-<div class="card">
+<div class="card mb-4">
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-dark table-hover mb-0 table-sm">
@@ -65,11 +66,50 @@
         </div>
     </div>
 </div>
+{% endif %}
+
+{% if tb_resultados %}
+<div class="card">
+    <div class="card-header"><i class="bi bi-pc-display"></i> Máquinas TechBuy (módulo do Master)</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 table-sm">
+                <thead>
+                    <tr>
+                        <th>Pessoa</th>
+                        <th>Máquina</th>
+                        <th>Onde o NS aparece</th>
+                        <th>NS</th>
+                        <th>Detalhe</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in tb_resultados %}
+                    {% set qtd = r.ocorrencias|length %}
+                    {% for occ in r.ocorrencias %}
+                    <tr class="clickable-row" data-href="{{ url_for('maquinas.detail', id=r.maquina.registro_id) }}">
+                        {% if loop.first %}
+                        <td rowspan="{{ qtd }}">{{ r.dono }}</td>
+                        <td rowspan="{{ qtd }}">{{ r.identificacao }}</td>
+                        {% endif %}
+                        <td>{{ occ.local }}</td>
+                        <td><code>{{ occ.valor }}</code></td>
+                        <td class="text-secondary">{{ occ.detalhe or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% else %}
 <div class="card">
     <div class="card-body text-center text-secondary py-4">
         <i class="bi bi-search fs-3 d-block mb-2"></i>
-        Nenhum protocolo encontrado com o NS "<strong>{{ busca }}</strong>".
+        Nenhum registro encontrado com o NS "<strong>{{ busca }}</strong>".
     </div>
 </div>
 {% endif %}
