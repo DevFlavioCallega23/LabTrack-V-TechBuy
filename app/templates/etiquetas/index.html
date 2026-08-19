@@ -96,14 +96,18 @@
                         </select>
                     </div>
                     <div class="col-7 d-flex gap-2">
-                        <button type="button" class="btn btn-outline-success flex-fill" onclick="salvarEtiqueta()">
+                        <button type="button" class="btn btn-outline-success flex-fill" onclick="baixarEtiqueta('/etiquetas/salvar')">
                             <i class="bi bi-save"></i> Salvar
+                        </button>
+                        <button type="button" class="btn btn-outline-primary flex-fill" onclick="baixarEtiqueta('/etiquetas/pdf')">
+                            <i class="bi bi-file-earmark-pdf"></i> Baixar PDF
                         </button>
                         <button type="button" class="btn btn-outline-info flex-fill" onclick="window.print()">
                             <i class="bi bi-printer"></i> Imprimir
                         </button>
                     </div>
                 </div>
+                <small class="text-secondary d-block">Baixar PDF gera o arquivo pra enviar no WhatsApp Web — a pessoa imprime e te devolve.</small>
                 <form id="salvarForm" method="POST" action="{{ url_for('etiquetas.salvar') }}">
                     <input type="hidden" name="protocolo_id">
                     <input type="hidden" name="ref">
@@ -330,6 +334,18 @@ function refreshCenario() {
 }
 
 function salvarEtiqueta() {
+    prepararDados();
+    $('#salvarForm').action = '/etiquetas/salvar';
+    $('#salvarForm').submit();
+}
+
+function baixarEtiqueta(url) {
+    prepararDados();
+    $('#salvarForm').action = url;
+    $('#salvarForm').submit();
+}
+
+function prepararDados() {
     const opt = $('#selProtocolo').selectedOptions[0] || {};
     const temProtocolo = $('#selProtocolo').value ? true : false;
     const form = $('#salvarForm');
@@ -346,7 +362,6 @@ function salvarEtiqueta() {
     form.querySelector('[name=ns]').value = $('#inpNs').value.trim();
     form.querySelector('[name=obs]').value = $('#inpObs').value.trim();
     form.querySelector('[name=copias]').value = $('#selCopias').value;
-    form.submit();
 }
 $('#selProtocolo').addEventListener('change', function() {
     $('#refManualGroup').style.display = this.value ? 'none' : '';
