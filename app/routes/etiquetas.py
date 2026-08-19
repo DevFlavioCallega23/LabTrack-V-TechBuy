@@ -1,9 +1,32 @@
+import socket
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app import db
 from app.models import Protocol, EtiquetaSalva
 
 etiquetas_bp = Blueprint('etiquetas', __name__, url_prefix='/etiquetas')
+
+
+def get_lan_ip():
+    """Return o IP local da máquina na rede (funciona para os outros PCs da loja)."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(('8.8.8.8', 80))
+            return s.getsockname()[0]
+        finally:
+            s.close()
+    except Exception:
+        return '127.0.0.1'
+
+
+def share_url(e):
+    """Monta o link com o IP da máquina, não com o hostname (labtracktb)."""
+    try:
+        port = request.host.partition(':')[2] or '5000'
+    except Exception:
+        port = '5000'
+    return f'http://{get_lan_ip()}:{port}/etiquetas/salva/{e.id}'
 
 
 @etiquetas_bp.route('/')
@@ -49,7 +72,7 @@ def salvar():
 @login_required
 def salva(id):
     etiqueta = EtiquetaSalva.query.get_or_404(id)
-    return render_template('etiquetas/salva.html', e=etiqueta)
+    return render_template('etiquetas/salva.html', e=etiqueta, url_compartilhar=share_url(etiqueta))
 
 
 @etiquetas_bp.route('/salva/<int:id>/excluir', methods=['POST'])
