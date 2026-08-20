@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 {% set COMP_LABELS = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor', 'outro': 'Outro'} %}
+{% set DEFEITO_STATUS_LABELS = {'aguardando_peca': 'Aguardando peça', 'em_teste': 'Em teste', 'trocado': 'Trocado', 'devolvido': 'Devolvido ao cliente', 'concluido': 'Concluído'} %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3><i class="bi bi-file-text"></i> Protocolo {{ protocol.protocol_number }}</h3>
     <div class="d-flex align-items-center gap-2">
@@ -30,63 +31,85 @@
             <i class="bi bi-trash"></i> Excluir
         </button>
         {% endif %}
-        {% set wa_parts = [protocol.protocol_number, protocol.type_label(), 'Cliente: ' + (protocol.client_name or ''), 'Status: ' + (protocol.status_label() or '')] %}
-        {% if protocol.seller %}{% set _ = wa_parts.append('Vendedor: ' + protocol.seller) %}{% endif %}
-        {% if protocol.type in ('rma', 'servico', 'nao_comprado') %}
-            {% if protocol.type in ('rma', 'servico') and protocol.entry_date %}{% set _ = wa_parts.append('Data da Compra: ' + protocol.entry_date.strftime('%d/%m/%Y')) %}{% endif %}
-            {% if protocol.type == 'nao_comprado' and protocol.entry_date %}{% set _ = wa_parts.append('Data de Entrada: ' + protocol.entry_date.strftime('%d/%m/%Y')) %}{% endif %}
-            {% if protocol.rma_in_warranty is not none and protocol.type in ('rma', 'servico') %}{% set _ = wa_parts.append('Na Garantia: ' + ('Sim' if protocol.rma_in_warranty else 'Não')) %}{% endif %}
-            {% if protocol.rma_entry_date and protocol.type in ('rma', 'servico') %}{% set _ = wa_parts.append('Data de Entrada: ' + protocol.rma_entry_date) %}{% endif %}
-            {% if protocol.exit_date %}{% set _ = wa_parts.append('Data de Saida: ' + protocol.exit_date.strftime('%d/%m/%Y')) %}{% endif %}
-            {% if protocol.rma_test_result and protocol.type in ('rma', 'servico') %}
-                {% set rma_test = protocol.rma_test_result|from_json %}
-                {% if rma_test %}
-                    {% set _ = wa_parts.append('--- Defeitos ---') %}
-                    {% for item in rma_test[:5] %}
-                        {% set ns = item.serial or 'sem NS' %}
-                        {% set ped = item.pedido or 'NTB' %}
-                        {% set line = (item.component or '') + ' ' + (item.model or '') + ' | NS: ' + ns + ' | Pedido: ' + ped + ' | Defeito: ' + (item.defeito or '-') %}
-                        {% set _ = wa_parts.append(line) %}
-                    {% endfor %}
-                {% endif %}
-            {% endif %}
-            {% if protocol.defects and protocol.type == 'nao_comprado' %}
-                {% set _ = wa_parts.append('--- Defeitos ---') %}
-                {% for defect in protocol.defects[:5] %}
-                    {% set line = (defect.type_label() or '') + ' ' + (defect.specification or '') + ' | NS: ' + (defect.serial_number or '-') %}
-                    {% set _ = wa_parts.append(line) %}
+        {% set wa_parts = [] %}
+        {% set _ = wa_parts.append('*' + protocol.protocol_number + '* - *' + protocol.type_label() + '*') %}
+        {% set _ = wa_parts.append('') %}
+        {% set _ = wa_parts.append('_Cliente:_ ' + (protocol.client_name or '-')) %}
+        {% if protocol.seller %}{% set _ = wa_parts.append('_Vendedor:_ ' + protocol.seller) %}{% endif %}
+        {% set _ = wa_parts.append('_Status do protocolo:_ ' + (protocol.status_label() or '-')) %}
+        {% if protocol.type in ('rma', 'servico') %}
+            {% if protocol.rma_in_warranty is not none %}{% set _ = wa_parts.append('_Garantia:_ ' + ('Sim, coberto pela garantia' if protocol.rma_in_warranty else 'Não, fora da garantia')) %}{% endif %}
+            {% if protocol.rma_entry_date %}{% set _ = wa_parts.append('_Entrada no laboratório:_ ' + protocol.rma_entry_date) %}{% endif %}
+            {% if protocol.entry_date %}{% set _ = wa_parts.append('_Data da compra:_ ' + protocol.entry_date.strftime('%d/%m/%Y')) %}{% endif %}
+            {% if protocol.exit_date %}{% set _ = wa_parts.append('_Saída:_ ' + protocol.exit_date.strftime('%d/%m/%Y')) %}{% endif %}
+        {% elif protocol.type == 'nao_comprado' %}
+            {% if protocol.entry_date %}{% set _ = wa_parts.append('_Data de entrada:_ ' + protocol.entry_date.strftime('%d/%m/%Y')) %}{% endif %}
+            {% if protocol.exit_date %}{% set _ = wa_parts.append('_Saída:_ ' + protocol.exit_date.strftime('%d/%m/%Y')) %}{% endif %}
+        {% endif %}
+        {% if protocol.rma_test_result and protocol.type in ('rma', 'servico') %}
+            {% set rma_test = protocol.rma_test_result|from_json %}
+            {% if rma_test %}
+                {% set _ = wa_parts.append('') %}
+                {% set _ = wa_parts.append('*Itens enviados ao laboratório:*') %}
+                {% for item in rma_test %}
+                    {% set ns = item.serial or 'sem NS' %}
+                    {% set ped = item.pedido or 'NTB' %}
+                    {% set comp = COMP_LABELS.get(item.component, '') if item.component and item.component != 'outro' and (item.component.lower() not in (item.model or '').lower()) else '' %}
+                    {% set nome = (comp + ' ' if comp else '') + ((item.model or '').strip()) %}
+                    {% if not nome %}{% set nome = 'Item ' + (loop.index|string) %}{% endif %}
+                    {% set st = DEFEITO_STATUS_LABELS.get(item.status, item.status or 'Em análise') %}
+                    {% if item.pedido and item.data_compra %}{% set origem = ' (compra em ' + item.data_compra.strip() + ')' %}{% else %}{% set origem = '' %}{% endif %}
+                    {% set _ = wa_parts.append('') %}
+                    {% set _ = wa_parts.append((loop.index|string) + ') *' + nome + '*') %}
+                    {% set _ = wa_parts.append('   Pedido: ' + ped + origem) %}
+                    {% set _ = wa_parts.append('   NS: ' + ns) %}
+                    {% if item.defeito %}{% set _ = wa_parts.append('   Defeito: ' + item.defeito.strip()) %}{% endif %}
+                    {% set _ = wa_parts.append('   Situação: ' + st) %}
                 {% endfor %}
-            {% endif %}
-            {% if protocol.rma_trocados %}
-                {% set trocados_raw = protocol.rma_trocados|from_json %}
-                {% if trocados_raw %}
-                    {% if trocados_raw is mapping %}
-                        {% set trocados = trocados_raw %}
-                    {% else %}
-                        {% set trocados = {'01': {'name': 'Computador 01', 'components': trocados_raw}} %}
-                    {% endif %}
-                    {% set _ = wa_parts.append('--- Produtos Trocados ---') %}
-                    {% for unit, entry in trocados.items()|sort %}
-                        {% set machine_label = entry.name if entry.name else 'Computador ' + unit %}
-                        {% if entry.components %}
-                            {% for comp in entry.components[:3] %}
-                                {% set comp_label = COMP_LABELS.get(comp.type, comp.type or '') %}
-                                {% set line = (comp_label or '') + ' ' + (comp.model or '') + ' | NS: ' + (comp.serial or '-') %}
-                                {% set _ = wa_parts.append(line) %}
-                            {% endfor %}
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
+                {% set _ = wa_parts.append('') %}
+                {% set _ = wa_parts.append('Total: ' + (rma_test|length|string) + ' item(ns) em análise.') %}
             {% endif %}
         {% endif %}
-        {% if protocol.type not in ('rma', 'servico', 'nao_comprado') and protocol.defects %}
-            {% set _ = wa_parts.append('--- Defeitos ---') %}
+        {% if protocol.defects and protocol.type == 'nao_comprado' %}
+            {% set _ = wa_parts.append('') %}
+            {% set _ = wa_parts.append('*Defeitos encontrados:*') %}
             {% for defect in protocol.defects[:5] %}
-                {% set line = (defect.type_label() or '') + ' ' + (defect.specification or '') + ' | NS: ' + (defect.serial_number or '-') %}
+                {% set line = '- ' + (defect.type_label() or '') + ' ' + (defect.specification or '') + ' | NS: ' + (defect.serial_number or 'sem NS') %}
                 {% set _ = wa_parts.append(line) %}
             {% endfor %}
         {% endif %}
-        {% set _ = wa_parts.append('Para mais informações desse protocolo acesse: http://192.168.0.50:5000' + url_for('protocols.detail_protocol', id=protocol.id)) %}
+        {% if protocol.rma_trocados %}
+            {% set trocados_raw = protocol.rma_trocados|from_json %}
+            {% if trocados_raw %}
+                {% if trocados_raw is mapping %}
+                    {% set trocados = trocados_raw %}
+                {% else %}
+                    {% set trocados = {'01': {'name': 'Computador 01', 'components': trocados_raw}} %}
+                {% endif %}
+                {% set _ = wa_parts.append('') %}
+                {% set _ = wa_parts.append('*Produtos trocados:*') %}
+                {% for unit, entry in trocados.items()|sort %}
+                    {% set machine_label = entry.name if entry.name else 'Computador ' + unit %}
+                    {% if entry.components %}
+                        {% for comp in entry.components[:3] %}
+                            {% set comp_label = COMP_LABELS.get(comp.type, comp.type or '') %}
+                            {% set line = '- ' + (comp_label or '') + ' ' + (comp.model or '') + ' | NS: ' + (comp.serial or 'sem NS') %}
+                            {% set _ = wa_parts.append(line) %}
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endif %}
+        {% if protocol.type not in ('rma', 'servico', 'nao_comprado') and protocol.defects %}
+            {% set _ = wa_parts.append('') %}
+            {% set _ = wa_parts.append('*Defeitos encontrados:*') %}
+            {% for defect in protocol.defects[:5] %}
+                {% set line = '- ' + (defect.type_label() or '') + ' ' + (defect.specification or '') + ' | NS: ' + (defect.serial_number or 'sem NS') %}
+                {% set _ = wa_parts.append(line) %}
+            {% endfor %}
+        {% endif %}
+        {% set _ = wa_parts.append('') %}
+        {% set _ = wa_parts.append('Para acompanhar o andamento, acesse: http://192.168.0.50:5000' + url_for('protocols.detail_protocol', id=protocol.id)) %}
         <a href="https://wa.me/?text={{ wa_parts|join('%0A') }}" target="_blank" class="btn btn-success">
             <i class="bi bi-whatsapp"></i> Compartilhar
         </a>
