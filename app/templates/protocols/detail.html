@@ -78,7 +78,8 @@
                 {% for pas in passagens %}
                     {% set bits = [] %}
                     {% if pas.protocolo %}{% set _ = bits.append('Protocolo ' ~ pas.protocolo) %}{% endif %}
-                    {% if pas.ns %}{% set _ = bits.append('NS ' ~ pas.ns) %}{% endif %}
+                    {% if pas.ns %}{% set _ = bits.append('NS defeito ' ~ pas.ns) %}{% endif %}
+                    {% if pas.ns_novo %}{% set _ = bits.append('Novo NS ' ~ pas.ns_novo) %}{% endif %}
                     {% if pas.pedido %}{% set _ = bits.append('Pedido ' ~ pas.pedido) %}{% endif %}
                     {% if pas.data_entrada %}{% set _ = bits.append('Entrada ' ~ pas.data_entrada) %}{% endif %}
                     {% if pas.data_saida %}{% set _ = bits.append('Saída ' ~ pas.data_saida) %}{% endif %}
@@ -445,8 +446,9 @@
                                     <th>Protocolo</th>
                                     <th>Data Entrada</th>
                                     <th>Data Saída</th>
-                                    <th>Pedido</th>
-                                    <th>NS Produto Trocado</th>
+                                    <th>Pedido do produto com defeito</th>
+                                    <th>NS Produto com Defeito</th>
+                                    <th>NS Novo Produto</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -457,6 +459,7 @@
                                     <td>{{ p.data_saida or '-' }}</td>
                                     <td>{{ p.pedido or '-' }}</td>
                                     <td><code>{{ p.ns or '-' }}</code></td>
+                                    <td><code>{{ p.ns_novo or '-' }}</code></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

@@ -913,13 +913,15 @@ def rastreio_ns():
             if p.rma_passagens:
                 try:
                     for pas in json.loads(p.rma_passagens):
-                        if pas.get('ns') and termo in pas['ns'].lower():
-                            ocorrencias.append({
-                                'local': 'Passagem anterior'
-                                            + (f' — protocolo {pas.get("protocolo")}' if pas.get('protocolo') else ''),
-                                'valor': pas['ns'],
-                                'detalhe': pas.get('pedido') or ''
-                            })
+                        for chave_serial in ('ns', 'ns_novo'):
+                            if pas.get(chave_serial) and termo in pas[chave_serial].lower():
+                                ocorrencias.append({
+                                    'local': 'Passagem anterior'
+                                                + (f' — protocolo {pas.get("protocolo")}' if pas.get('protocolo') else '')
+                                                + (' — novo produto' if chave_serial == 'ns_novo' else ''),
+                                    'valor': pas[chave_serial],
+                                    'detalhe': pas.get('pedido') or ''
+                                })
                 except (json.JSONDecodeError, TypeError):
                     pass
 
