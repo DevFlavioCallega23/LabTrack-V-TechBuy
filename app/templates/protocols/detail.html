@@ -70,6 +70,23 @@
                 {% set _ = wa_parts.append('Total: ' + (rma_test|length|string) + ' item(ns) em análise.') %}
             {% endif %}
         {% endif %}
+        {% if protocol.rma_passagens and protocol.type in ('rma', 'servico') %}
+            {% set passagens = protocol.rma_passagens|from_json %}
+            {% if passagens %}
+                {% set _ = wa_parts.append('') %}
+                {% set _ = wa_parts.append('*Passagens anteriores:*') %}
+                {% for pas in passagens %}
+                    {% set bits = [] %}
+                    {% if pas.protocolo %}{% set _ = bits.append('Protocolo ' ~ pas.protocolo) %}{% endif %}
+                    {% if pas.ns %}{% set _ = bits.append('NS ' ~ pas.ns) %}{% endif %}
+                    {% if pas.pedido %}{% set _ = bits.append('Pedido ' ~ pas.pedido) %}{% endif %}
+                    {% if pas.data_entrada %}{% set _ = bits.append('Entrada ' ~ pas.data_entrada) %}{% endif %}
+                    {% if pas.data_saida %}{% set _ = bits.append('Saída ' ~ pas.data_saida) %}{% endif %}
+                    {% if not bits %}{% set _ = bits.append('Passagem sem detalhes') %}{% endif %}
+                    {% set _ = wa_parts.append('- ' + bits|join(' | ')) %}
+                {% endfor %}
+            {% endif %}
+        {% endif %}
         {% if protocol.defects and protocol.type == 'nao_comprado' %}
             {% set _ = wa_parts.append('') %}
             {% set _ = wa_parts.append('*Defeitos encontrados:*') %}
