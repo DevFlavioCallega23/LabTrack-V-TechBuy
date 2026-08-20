@@ -146,12 +146,14 @@
                         <table class="table table-dark table-sm" id="rmaTestTable">
                             <thead>
                                 <tr>
-                                    <th style="width:17%">Componente</th>
-                                    <th style="width:18%">Modelo</th>
-                                    <th style="width:18%" id="rmaTestNsHeader">NS</th>
-                                    <th style="width:27%">Defeito</th>
-                                    <th style="width:14%">Status</th>
-                                    <th style="width:6%"></th>
+                                    <th style="width:13%">Componente</th>
+                                    <th style="width:12%">Modelo</th>
+                                    <th style="width:13%" id="rmaTestNsHeader">NS</th>
+                                    <th style="width:20%">Defeito</th>
+                                    <th style="width:12%">Pedido</th>
+                                    <th style="width:11%">Data Compra</th>
+                                    <th style="width:11%">Status</th>
+                                    <th style="width:5%"></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -753,6 +755,8 @@ function addRmaTestRow() {
         <td><input type="text" name="rma_test_model[]" class="form-control form-control-sm" placeholder="Ex: I5-2400"></td>
         <td class="rma-test-ns-cell" style="display:${rmaTestHasNs() ? '' : 'none'}"><input type="text" name="rma_test_serial[]" class="form-control form-control-sm" placeholder="Nº de Série"></td>
         <td><input type="text" name="rma_test_defeito[]" class="form-control form-control-sm" placeholder="Descrição do defeito"></td>
+        <td><input type="text" name="rma_test_pedido[]" class="form-control form-control-sm" placeholder="Pedido"></td>
+        <td><input type="text" name="rma_test_data_compra[]" class="form-control form-control-sm date-mask" placeholder="DD/MM/AA"></td>
         <td>
             <select name="rma_test_status[]" class="form-select form-select-sm">
                 <option value="">--</option>
@@ -1142,6 +1146,8 @@ function loadRmaTestItems(items) {
             <td><input type="text" name="rma_test_model[]" class="form-control form-control-sm" value="${item.model || ''}"></td>
             <td class="rma-test-ns-cell" style="display:${rmaTestHasNs() ? '' : 'none'}"><input type="text" name="rma_test_serial[]" class="form-control form-control-sm" placeholder="Nº de Série" value="${item.serial || ''}"></td>
             <td><input type="text" name="rma_test_defeito[]" class="form-control form-control-sm" value="${item.defeito || ''}"></td>
+            <td><input type="text" name="rma_test_pedido[]" class="form-control form-control-sm" value="${item.pedido || ''}"></td>
+            <td><input type="text" name="rma_test_data_compra[]" class="form-control form-control-sm date-mask" value="${item.data_compra || ''}"></td>
             <td>
                 <select name="rma_test_status[]" class="form-select form-select-sm">
                     <option value="">--</option>
@@ -1364,12 +1370,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const model = row.querySelector('input[name^="rma_test_model"]');
             const serial = row.querySelector('input[name^="rma_test_serial"]');
             const defeito = row.querySelector('input[name^="rma_test_defeito"]');
+            const pedido = row.querySelector('input[name^="rma_test_pedido"]');
+            const dataCompra = row.querySelector('input[name^="rma_test_data_compra"]');
             const status = row.querySelector('select[name^="rma_test_status"]');
             items.push({
                 component: comp ? comp.value : '',
                 model: model ? model.value : '',
                 serial: serial ? serial.value : '',
                 defeito: defeito ? defeito.value : '',
+                pedido: pedido ? pedido.value : '',
+                data_compra: dataCompra ? dataCompra.value : '',
                 status: status ? status.value : ''
             });
         });

@@ -231,6 +231,8 @@
                                     <th>Modelo</th>
                                     {% if protocol.type == 'rma' %}<th>NS</th>{% endif %}
                                     <th>Defeito</th>
+                                    <th>Pedido</th>
+                                    <th>Data Compra</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -240,6 +242,8 @@
                                     <td><code>{{ item.model or '-' }}</code></td>
                                     {% if protocol.type == 'rma' %}<td><code>{{ item.serial or '-' }}</code></td>{% endif %}
                                     <td class="text-danger">{{ item.defeito or '-' }}</td>
+                                    <td><code>{{ item.pedido or '-' }}</code></td>
+                                    <td>{{ item.data_compra or '-' }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

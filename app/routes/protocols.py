@@ -128,6 +128,8 @@ def build_rma_test_data_from_form(request_form):
     models = request_form.getlist('rma_test_model[]')
     serials = request_form.getlist('rma_test_serial[]')
     defeitos = request_form.getlist('rma_test_defeito[]')
+    pedidos = request_form.getlist('rma_test_pedido[]')
+    datas_compra = request_form.getlist('rma_test_data_compra[]')
     statuses = request_form.getlist('rma_test_status[]')
     items = []
     for i in range(len(comps)):
@@ -137,6 +139,8 @@ def build_rma_test_data_from_form(request_form):
                 'model': models[i].strip() if i < len(models) else '',
                 'serial': serials[i].strip() if i < len(serials) else '',
                 'defeito': defeitos[i].strip() if i < len(defeitos) else '',
+                'pedido': pedidos[i].strip() if i < len(pedidos) else '',
+                'data_compra': datas_compra[i].strip() if i < len(datas_compra) else '',
                 'status': statuses[i].strip() if i < len(statuses) else ''
             })
     return json.dumps(items) if items else None
@@ -899,7 +903,9 @@ def rastreio_ns():
                                 'local': 'Teste de mesa',
                                 'valor': item['serial'],
                                 'detalhe': (COMP_LABELS.get(item.get('component', ''), item.get('component', '')))
-                                            + (' — ' + item.get('defeito', '') if item.get('defeito') else '')
+                                        + (' — ' + item.get('defeito', '') if item.get('defeito') else '')
+                                        + (f' — Ped.: {item.get("pedido")}' if item.get('pedido') else '')
+                                        + (f' — Compra: {item.get("data_compra")}' if item.get('data_compra') else '')
                             })
                 except (json.JSONDecodeError, TypeError):
                     pass
