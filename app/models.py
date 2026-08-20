@@ -92,7 +92,8 @@ class Protocol(db.Model):
         'venda': 'Venda',
         'ponta_entrega': 'Pronta-Entrega',
         'venda_ponta_entrega': 'Venda Pronta-Entrega',
-        'rma': 'RMA',
+        'rma': 'RMA (Garantia)',
+        'servico': 'Serviço (Fora de Garantia)',
         'nao_comprado': 'NTB'
     }
 
@@ -101,6 +102,7 @@ class Protocol(db.Model):
         'ponta_entrega': 'bg-warning text-dark',
         'venda_ponta_entrega': 'bg-info',
         'rma': 'bg-primary',
+        'servico': 'bg-danger',
         'nao_comprado': 'bg-secondary'
     }
 

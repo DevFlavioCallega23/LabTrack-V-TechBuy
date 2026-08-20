@@ -47,7 +47,8 @@ class ProtocolForm(FlaskForm):
         ('venda', 'Venda'),
         ('ponta_entrega', 'Pronta-Entrega'),
         ('venda_ponta_entrega', 'Venda Pronta-Entrega'),
-        ('rma', 'RMA'),
+        ('rma', 'RMA (Garantia)'),
+        ('servico', 'Serviço (Fora de Garantia)'),
         ('nao_comprado', 'Não comprado na TechBuy')
     ], validators=[DataRequired()])
     client_name = StringField('Cliente / Nome', validators=[Optional(), Length(max=200)])
@@ -79,7 +80,7 @@ class ProtocolForm(FlaskForm):
     observations = TextAreaField('Observações', validators=[Optional()])
     submit = SubmitField('Salvar')
 
-    REQUIRED_CLIENT_SELLER = {'venda', 'rma', 'venda_ponta_entrega', 'nao_comprado'}
+    REQUIRED_CLIENT_SELLER = {'venda', 'servico', 'rma', 'venda_ponta_entrega', 'nao_comprado'}
 
     def validate(self, extra_validators=None):
         if not super().validate(extra_validators):

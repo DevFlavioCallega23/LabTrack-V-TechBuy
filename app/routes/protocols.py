@@ -361,7 +361,7 @@ def create_protocol():
             rma_test_result=rma_test_result,
             rma_trocados=parse_rma_trocados(request.form),
             rma_entry_date=form.rma_entry_date.data or None,
-            rma_in_warranty=request.form.get('rma_in_warranty') == '1',
+            rma_in_warranty=form.type.data == 'rma',
             rma_passagens=rma_passagens,
             created_by=current_user.id
         )
@@ -523,7 +523,7 @@ def edit_protocol(id):
 
         protocol.power_cable = request.form.get('power_cable', '').strip() or None
         protocol.power_cable_fonte_serial = request.form.get('power_cable_fonte_serial', '').strip() or None
-        protocol.rma_in_warranty = request.form.get('rma_in_warranty') == '1'
+        protocol.rma_in_warranty = form.type.data == 'rma'
         protocol.rma_passagens = request.form.get('rma_passagens_json', '').strip() or None
         protocol.original_order = form.original_order.data or None
         protocol.rma_extra_equip = form.rma_extra_equip.data or None
@@ -600,7 +600,7 @@ def report():
     for d in Defect.query.all():
         defect_totals[d.component_type] = defect_totals.get(d.component_type, 0) + 1
     for p in protocols:
-        if p.type == 'rma' and p.rma_test_result:
+        if p.type in ('rma', 'servico') and p.rma_test_result:
             try:
                 items = json.loads(p.rma_test_result)
                 for item in items:
@@ -743,7 +743,7 @@ DEFEITO_STATUS_LABELS = {
 
 def situacao_protocolo(p):
     """Classify a protocol into one of the defect situations."""
-    if p.type == 'rma':
+    if p.type in ('rma', 'servico'):
         return 'rma_garantia' if p.rma_in_warranty else 'rma_fora'
     if p.type == 'nao_comprado':
         return 'ntb'
@@ -773,7 +773,7 @@ def build_defeitos_agrupados():
                 'cliente': p.client_name or '',
                 'data': p.entry_date,
                 'tipo': p.type,
-                'garantia': p.rma_in_warranty if p.type == 'rma' else None
+                'garantia': p.rma_in_warranty if p.type in ('rma', 'servico') else None
             })
         # Teste de Mesa items (RMA/NTB) NÃO aparecem em "Defeitos" — só no Rastreio de NS
         # if p.rma_test_result and p.type in ('rma', 'nao_comprado'):

@@ -42,19 +42,19 @@
             </div>
 
             <div class="row g-3 mb-3 rma-field" style="display:none">
-                <div class="col-md-2" data-show-for="rma">
+                <div class="col-md-2" data-show-for="rma,servico">
                     <label class="form-label">{{ form.status.label }}</label>
                     {{ form.status(class='form-select') }}
                 </div>
-                <div class="col-md-1" data-show-for="rma">
+                <div class="col-md-1" data-show-for="rma,servico">
                     <label class="form-label">Quantidade</label>
                     {{ form.lote(class='form-control', placeholder='1', id='rmaLote') }}
                 </div>
-                <div class="col-md-2" data-show-for="rma">
+                <div class="col-md-2" data-show-for="rma,servico">
                     <label class="form-label">{{ form.rma_entry_date.label }}</label>
                     {{ form.rma_entry_date(class='form-control date-mask', placeholder='DD/MM/AA') }}
                 </div>
-                <div class="col-md-2" data-show-for="rma,nao_comprado">
+                <div class="col-md-2" data-show-for="rma,servico,nao_comprado">
                     <label class="form-label">Data de Saída</label>
                     {{ form.exit_date(class='form-control date-mask', placeholder='DD/MM/AA') }}
                 </div>
@@ -65,23 +65,23 @@
                     <h6 class="text-secondary border-bottom pb-2" id="sectionClientLabel"><i class="bi bi-person"></i> Dados do Cliente</h6>
                 </div>
 
-                <div class="col-md-4 field-group" data-show-for="venda,venda_ponta_entrega,rma,nao_comprado">
+                <div class="col-md-4 field-group" data-show-for="venda,venda_ponta_entrega,rma,servico,nao_comprado">
                     <label class="form-label">{{ form.client_name.label }}</label>
                     {{ form.client_name(class='form-control', placeholder='Nome do cliente ou solicitante') }}
                 </div>
-                <div class="col-md-2 field-group" data-show-for="venda,venda_ponta_entrega,rma,nao_comprado">
+                <div class="col-md-2 field-group" data-show-for="venda,venda_ponta_entrega,rma,servico,nao_comprado">
                     <label class="form-label"><span id="entryDateLabel">Data da Compra</span></label>
                     {{ form.entry_date(class='form-control date-mask', placeholder='DD/MM/AA') }}
                 </div>
-                <div class="col-md-2 field-group" data-show-for="venda,venda_ponta_entrega,rma,nao_comprado">
+                <div class="col-md-2 field-group" data-show-for="venda,venda_ponta_entrega,rma,servico,nao_comprado">
                     <label class="form-label">{{ form.seller.label }}</label>
                     {{ form.seller(class='form-select') }}
                 </div>
-                <div class="col-md-2 field-group" data-show-for="rma">
+                <div class="col-md-2 field-group" data-show-for="rma,servico">
                     <label class="form-label">{{ form.original_order.label }}</label>
                     {{ form.original_order(class='form-control', placeholder='Pedido original da compra') }}
                 </div>
-                <div class="col-12 mt-2 field-group" data-show-for="rma">
+                <div class="col-12 mt-2 field-group" data-show-for="rma,servico">
                     <label class="form-label"><i class="bi bi-arrow-repeat"></i> Outras Passagens</label>
                     <div id="passagensContainer">
                     </div>
@@ -92,16 +92,13 @@
             </div>
 
             <!-- RMA: campos específicos -->
-            <div class="row g-3 mt-2" data-show-for="rma" style="display:none">
+            <div class="row g-3 mt-2" data-show-for="rma,servico" style="display:none">
                 <div class="col-12">
-                    <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-info-circle"></i> Dados do RMA</h6>
+                    <h6 class="text-secondary border-bottom pb-2" id="rmaDataHeading"><i class="bi bi-info-circle"></i> Dados do RMA</h6>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Na Garantia?</label>
-                    <select name="rma_in_warranty" class="form-select">
-                        <option value="1" {{ 'selected' if editing and protocol.rma_in_warranty else '' }}>Sim</option>
-                        <option value="0" {{ 'selected' if editing and not protocol.rma_in_warranty else '' }}>Não</option>
-                    </select>
+                    <input type="text" class="form-control" id="rmaWarrantyInfo" value="{{ 'Sim' if editing and protocol.rma_in_warranty else 'Não' }}" readonly tabindex="-1">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">{{ form.ref_ns.label }}</label>
@@ -110,7 +107,7 @@
             </div>
 
             <!-- RMA / NTB: Dados do Equipamento do Cliente -->
-            <div class="row g-3 mt-2 rma-field" data-show-for="rma,nao_comprado" style="display:none">
+            <div class="row g-3 mt-2 rma-field" data-show-for="rma,servico,nao_comprado" style="display:none">
                 <div class="col-12">
                     <h6 class="text-secondary border-bottom pb-2" id="equipClientHeading"><i class="bi bi-box-seam"></i> Dados do Equipamento do Cliente</h6>
                 </div>
@@ -133,7 +130,7 @@
             </div>
 
             <!-- RMA / NTB: Resultado do Teste de Mesa -->
-            <div class="row g-3 mt-2 rma-field" data-show-for="rma,nao_comprado" style="display:none">
+            <div class="row g-3 mt-2 rma-field" data-show-for="rma,servico,nao_comprado" style="display:none">
                 <div class="col-12">
                     <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-tools"></i> Resultado do Teste de Mesa / Defeitos encontrados
                         <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="addRmaTestRow()">
@@ -164,7 +161,7 @@
             </div>
 
             <!-- RMA / NTB: Equipamentos Mudados -->
-            <div class="row g-3 mt-2 rma-field" data-show-for="rma,nao_comprado" style="display:none">
+            <div class="row g-3 mt-2 rma-field" data-show-for="rma,servico,nao_comprado" style="display:none">
                 <div class="col-12">
                     <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-arrow-repeat"></i> Equipamentos Mudados
                         <button type="button" class="btn btn-sm btn-outline-info ms-2" onclick="addTrocadoMachine()">
@@ -180,7 +177,7 @@
                     <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-box-seam"></i> Identificação</h6>
                 </div>
 
-                <div class="col-md-2 field-group hide-for-rma" data-show-for="rma" style="display:none">
+                <div class="col-md-2 field-group hide-for-rma" data-show-for="rma,servico" style="display:none">
                     <!-- espaço reservado, escondido no RMA -->
                 </div>
                 <div class="col-md-3 field-group hide-for-rma" data-hide-for="rma">
@@ -191,7 +188,7 @@
                     <label class="form-label">Data de Entrada</label>
                     {{ form.entry_date(class='form-control date-mask', placeholder='DD/MM/AA') }}
                 </div>
-                <div class="col-md-3 field-group" data-show-for="venda,venda_ponta_entrega,rma,nao_comprado">
+                <div class="col-md-3 field-group" data-show-for="venda,venda_ponta_entrega,rma,servico,nao_comprado">
                     <label class="form-label">{{ form.order_number.label }}</label>
                     {{ form.order_number(class='form-control', placeholder='Nº Pedido / NF') }}
                 </div>
@@ -199,7 +196,7 @@
                     <label class="form-label">{{ form.status.label }}</label>
                     {{ form.status(class='form-select') }}
                 </div>
-                <div class="col-md-2 field-group" data-show-for="rma">
+                <div class="col-md-2 field-group" data-show-for="rma,servico">
                     <label class="form-label">{{ form.exit_date.label }}</label>
                     {{ form.exit_date(class='form-control date-mask', placeholder='DD/MM/AA') }}
                 </div>
@@ -218,7 +215,7 @@
                 </div>
             </div>
 
-            <div class="row g-3 mt-2 hide-for-rma hide-for-nao-comprado" data-show-for="rma" style="display:none">
+            <div class="row g-3 mt-2 hide-for-rma hide-for-nao-comprado" data-show-for="rma,servico" style="display:none">
                 <div class="col-md-3">
                     <label class="form-label">Cabo de Força</label>
                     <select name="power_cable" class="form-select" id="powerCable" onchange="togglePowerCableFonte()">
@@ -434,7 +431,7 @@
                 <div class="col-12">
                     <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-chat-dots"></i> Observações</h6>
                 </div>
-                <div class="col-12 field-group" data-show-for="rma">
+                <div class="col-12 field-group" data-show-for="rma,servico">
                     <label class="form-label text-warning"><i class="bi bi-exclamation-triangle"></i> Defeito Relatado / Observações Técnicas</label>
                     {{ form.observations(class='form-control', rows=4, placeholder='Descreva o defeito relatado pelo cliente, peças necessárias, etc.') }}
                 </div>
@@ -732,7 +729,7 @@ function replicateRmaMachine(btn) {
 
 function rmaTestHasNs() {
     const sel = document.getElementById('protocolType');
-    return sel ? sel.value === 'rma' : false;
+    return sel ? sel.value === 'rma' || sel.value === 'servico' : false;
 }
 
 function updateRmaTestNsColumns() {
@@ -1282,7 +1279,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const sf = g.getAttribute('data-show-for');
             if (sf) g.style.display = sf.split(',').includes(type) ? 'block' : 'none';
         });
-        var isRma = type === 'rma';
+        var isRma = type === 'rma' || type === 'servico';
         var isNaoComprado = type === 'nao_comprado';
         document.querySelectorAll('.rma-only').forEach(function(g) {
             var showRmaOrNtb = isRma || isNaoComprado;
@@ -1314,6 +1311,10 @@ document.addEventListener('DOMContentLoaded', function() {
         var entryLabel = document.getElementById('entryDateLabel');
         if (entryLabel) entryLabel.textContent = type === 'nao_comprado' ? 'Data de Entrada' : 'Data da Compra';
         if (sectionClient) sectionClient.style.display = type === 'ponta_entrega' ? 'none' : 'block';
+        var rmaDataHeading = document.getElementById('rmaDataHeading');
+        if (rmaDataHeading) rmaDataHeading.textContent = type === 'servico' ? 'Dados do Serviço' : 'Dados do RMA';
+        var rmaWarrantyInfo = document.getElementById('rmaWarrantyInfo');
+        if (rmaWarrantyInfo) rmaWarrantyInfo.value = type === 'rma' ? 'Sim' : 'Não';
         updateRmaTestNsColumns();
     }
     if (typeSelect) { typeSelect.addEventListener('change', updateFields); updateFields(); }

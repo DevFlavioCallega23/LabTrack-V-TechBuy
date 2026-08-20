@@ -32,14 +32,14 @@
         {% endif %}
         {% set wa_parts = [protocol.protocol_number, protocol.type_label(), 'Cliente: ' + (protocol.client_name or ''), 'Status: ' + (protocol.status_label() or '')] %}
         {% if protocol.seller %}{% set _ = wa_parts.append('Vendedor: ' + protocol.seller) %}{% endif %}
-        {% if protocol.type in ('rma', 'nao_comprado') %}
-            {% if protocol.type == 'rma' and protocol.entry_date %}{% set _ = wa_parts.append('Data da Compra: ' + protocol.entry_date.strftime('%d/%m/%Y')) %}{% endif %}
+        {% if protocol.type in ('rma', 'servico', 'nao_comprado') %}
+            {% if protocol.type in ('rma', 'servico') and protocol.entry_date %}{% set _ = wa_parts.append('Data da Compra: ' + protocol.entry_date.strftime('%d/%m/%Y')) %}{% endif %}
             {% if protocol.type == 'nao_comprado' and protocol.entry_date %}{% set _ = wa_parts.append('Data de Entrada: ' + protocol.entry_date.strftime('%d/%m/%Y')) %}{% endif %}
-            {% if protocol.rma_in_warranty is not none and protocol.type == 'rma' %}{% set _ = wa_parts.append('Na Garantia: ' + ('Sim' if protocol.rma_in_warranty else 'Não')) %}{% endif %}
-            {% if protocol.rma_entry_date and protocol.type == 'rma' %}{% set _ = wa_parts.append('Data de Entrada: ' + protocol.rma_entry_date) %}{% endif %}
+            {% if protocol.rma_in_warranty is not none and protocol.type in ('rma', 'servico') %}{% set _ = wa_parts.append('Na Garantia: ' + ('Sim' if protocol.rma_in_warranty else 'Não')) %}{% endif %}
+            {% if protocol.rma_entry_date and protocol.type in ('rma', 'servico') %}{% set _ = wa_parts.append('Data de Entrada: ' + protocol.rma_entry_date) %}{% endif %}
             {% if protocol.exit_date %}{% set _ = wa_parts.append('Data de Saida: ' + protocol.exit_date.strftime('%d/%m/%Y')) %}{% endif %}
-            {% if protocol.original_order and protocol.type == 'rma' %}{% set _ = wa_parts.append('Pedido Original: ' + protocol.original_order) %}{% endif %}
-            {% if protocol.rma_test_result and protocol.type == 'rma' %}
+            {% if protocol.original_order and protocol.type in ('rma', 'servico') %}{% set _ = wa_parts.append('Pedido Original: ' + protocol.original_order) %}{% endif %}
+            {% if protocol.rma_test_result and protocol.type in ('rma', 'servico') %}
                 {% set rma_test = protocol.rma_test_result|from_json %}
                 {% if rma_test %}
                     {% set _ = wa_parts.append('--- Defeitos RMA ---') %}
@@ -78,7 +78,7 @@
                 {% endif %}
             {% endif %}
         {% endif %}
-        {% if protocol.type not in ('rma', 'nao_comprado') and protocol.defects %}
+        {% if protocol.type not in ('rma', 'servico', 'nao_comprado') and protocol.defects %}
             {% set _ = wa_parts.append('--- Defeitos ---') %}
             {% for defect in protocol.defects[:5] %}
                 {% set line = (defect.type_label() or '') + ' ' + (defect.specification or '') + ' | NS: ' + (defect.serial_number or '-') %}
@@ -130,7 +130,7 @@
                         <strong>{{ protocol.lote }}</strong>
                     </div>
                     {% endif %}
-                    {% if protocol.type not in ('rma', 'ponta_entrega', 'nao_comprado') %}
+                    {% if protocol.type not in ('rma', 'servico', 'ponta_entrega', 'nao_comprado') %}
                     <div class="col-md-2">
                         <label class="text-secondary small d-block">Nº do Pedido</label>
                         <strong>{{ protocol.order_number if protocol.order_number else 'Não Informado ao Laboratório' }}</strong>
@@ -172,9 +172,9 @@
                 </div>
                 {% endif %}
 
-                {% if protocol.type in ('rma', 'nao_comprado') %}
+{% if protocol.type in ('rma', 'servico', 'nao_comprado') %}
                 <hr>
-                {% if protocol.rma_in_warranty is not none and protocol.type == 'rma' %}
+                {% if protocol.rma_in_warranty is not none and protocol.type in ('rma', 'servico') %}
                 <div class="mb-2">
                     <label class="text-secondary small d-block">Na Garantia?</label>
                     <strong>{{ 'Sim' if protocol.rma_in_warranty else 'Não' }}</strong>
@@ -229,7 +229,7 @@
                                 <tr>
                                     <th>Componente</th>
                                     <th>Modelo</th>
-                                    {% if protocol.type == 'rma' %}<th>NS</th>{% endif %}
+                                    {% if protocol.type in ('rma', 'servico') %}<th>NS</th>{% endif %}
                                     <th>Defeito</th>
                                     <th>Pedido</th>
                                     <th>Data Compra</th>
@@ -240,7 +240,7 @@
                                 <tr>
                                     <td>{{ COMP_LABELS.get(item.component, item.component) if item.component else '-' }}</td>
                                     <td><code>{{ item.model or '-' }}</code></td>
-                                    {% if protocol.type == 'rma' %}<td><code>{{ item.serial or '-' }}</code></td>{% endif %}
+                                    {% if protocol.type in ('rma', 'servico') %}<td><code>{{ item.serial or '-' }}</code></td>{% endif %}
                                     <td class="text-danger">{{ item.defeito or '-' }}</td>
                                     <td><code>{{ item.pedido or '-' }}</code></td>
                                     <td>{{ item.data_compra or '-' }}</td>
@@ -353,7 +353,7 @@
                 </div>
                 {% endif %}
 
-                {% if protocol.type in ('rma', 'nao_comprado') and protocol.rma_trocados %}
+                {% if protocol.type in ('rma', 'servico', 'nao_comprado') and protocol.rma_trocados %}
                 {% set trocados_raw = protocol.rma_trocados|from_json %}
                 {% if trocados_raw %}
                 {% if trocados_raw is mapping %}
@@ -447,11 +447,11 @@
                 </div>
                 <div class="mb-3">
                     <label class="text-secondary small d-block">
-                        {% if protocol.type in ('venda', 'venda_ponta_entrega') %}Data da Compra{% elif protocol.type == 'rma' %}Data da Compra{% else %}Data da Entrada{% endif %}
+                        {% if protocol.type in ('venda', 'venda_ponta_entrega', 'rma', 'servico') %}Data da Compra{% else %}Data da Entrada{% endif %}
                     </label>
                     <strong>{{ protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else '-' }}</strong>
                 </div>
-                {% if protocol.type == 'rma' %}
+                {% if protocol.type in ('rma', 'servico') %}
                 <div class="mb-3">
                     <label class="text-secondary small d-block">Data de Entrada (RMA)</label>
                     <strong>{{ protocol.rma_entry_date or '-' }}</strong>
