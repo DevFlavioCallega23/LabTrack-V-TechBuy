@@ -38,13 +38,14 @@
             {% if protocol.rma_in_warranty is not none and protocol.type in ('rma', 'servico') %}{% set _ = wa_parts.append('Na Garantia: ' + ('Sim' if protocol.rma_in_warranty else 'Não')) %}{% endif %}
             {% if protocol.rma_entry_date and protocol.type in ('rma', 'servico') %}{% set _ = wa_parts.append('Data de Entrada: ' + protocol.rma_entry_date) %}{% endif %}
             {% if protocol.exit_date %}{% set _ = wa_parts.append('Data de Saida: ' + protocol.exit_date.strftime('%d/%m/%Y')) %}{% endif %}
-            {% if protocol.original_order and protocol.type in ('rma', 'servico') %}{% set _ = wa_parts.append('Pedido Original: ' + protocol.original_order) %}{% endif %}
             {% if protocol.rma_test_result and protocol.type in ('rma', 'servico') %}
                 {% set rma_test = protocol.rma_test_result|from_json %}
                 {% if rma_test %}
-                    {% set _ = wa_parts.append('--- Defeitos RMA ---') %}
+                    {% set _ = wa_parts.append('--- Defeitos ---') %}
                     {% for item in rma_test[:5] %}
-                        {% set line = (item.component or '') + ' ' + (item.model or '') + ' | NS: ' + (item.serial or '-') + ' | Defeito: ' + (item.defeito or '-') %}
+                        {% set ns = item.serial or 'sem NS' %}
+                        {% set ped = item.pedido or 'NTB' %}
+                        {% set line = (item.component or '') + ' ' + (item.model or '') + ' | NS: ' + ns + ' | Pedido: ' + ped + ' | Defeito: ' + (item.defeito or '-') %}
                         {% set _ = wa_parts.append(line) %}
                     {% endfor %}
                 {% endif %}
