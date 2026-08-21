@@ -51,6 +51,7 @@ class Protocol(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     protocol_number = db.Column(db.String(20), unique=True, nullable=False)
     type = db.Column(db.String(30), nullable=False)
+    venda_pe = db.Column(db.Boolean, default=False)
     client_name = db.Column(db.String(200))
     contact = db.Column(db.String(100))
     lote = db.Column(db.String(50))
@@ -91,7 +92,6 @@ class Protocol(db.Model):
     TYPE_LABELS = {
         'venda': 'Venda',
         'ponta_entrega': 'Pronta-Entrega',
-        'venda_ponta_entrega': 'Venda Pronta-Entrega',
         'rma': 'RMA (Garantia)',
         'servico': 'Serviço (Fora de Garantia)',
         'nao_comprado': 'NTB'
@@ -100,7 +100,6 @@ class Protocol(db.Model):
     TYPE_BADGES = {
         'venda': 'bg-success',
         'ponta_entrega': 'bg-warning text-dark',
-        'venda_ponta_entrega': 'bg-info',
         'rma': 'bg-primary',
         'servico': 'bg-danger',
         'nao_comprado': 'bg-secondary'

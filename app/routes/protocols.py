@@ -1,7 +1,8 @@
 import json
 import re
+import io
 from datetime import datetime, date
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file
 from flask_login import login_required, current_user
 from app import db
 from app.models import Protocol, Component, Defect, User, WindowsKey
@@ -343,6 +344,7 @@ def create_protocol():
         protocol = Protocol(
             protocol_number=protocol_number,
             type=form.type.data,
+            venda_pe=bool(form.venda_pe.data) if form.type.data == 'venda' else False,
             client_name=form.client_name.data,
             lote=form.lote.data,
             order_number=form.order_number.data,
@@ -407,6 +409,33 @@ def create_protocol():
 def detail_protocol(id):
     protocol = Protocol.query.get_or_404(id)
     return render_template('protocols/detail.html', protocol=protocol)
+
+@protocols_bp.route('/<int:id>/pdf')
+@login_required
+def protocol_pdf(id):
+    from xhtml2pdf import pisa
+    protocol = Protocol.query.get_or_404(id)
+
+    def _load_json(text):
+        try:
+            return json.loads(text) if text else []
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+    rma_test = _load_json(protocol.rma_test_result) if protocol.type in ('rma', 'servico') else []
+    passagens = _load_json(protocol.rma_passagens) if protocol.type in ('rma', 'servico') else []
+
+    html = render_template('protocols/pdf.html', protocol=protocol,
+                           rma_test=rma_test, passagens=passagens,
+                           now=datetime.utcnow())
+    result = io.BytesIO()
+    pdf_status = pisa.CreatePDF(io.StringIO(html), dest=result, encoding='utf-8')
+    if pdf_status.err:
+        flash('Erro ao gerar o PDF.', 'danger')
+        return redirect(url_for('protocols.detail_protocol', id=protocol.id))
+    result.seek(0)
+    return send_file(result, mimetype='application/pdf', as_attachment=True,
+                     download_name=f'{protocol.protocol_number}.pdf')
 
 def build_component_data(protocol):
     """Build {unit: {name: str, components: [{type, serial, model}], is_prebuilt}} dict for editing."""
@@ -517,6 +546,7 @@ def edit_protocol(id):
                 machines=build_machine_names(comp_data))
 
         form.populate_obj(protocol)
+        protocol.venda_pe = bool(form.venda_pe.data) if form.type.data == 'venda' else False
         protocol.entry_date = parse_date_br(form.entry_date.data) if form.entry_date.data else datetime.utcnow()
         protocol.exit_date = parse_date_br(form.exit_date.data) if form.exit_date.data else None
         protocol.updated_at = datetime.utcnow()
@@ -590,14 +620,30 @@ def delete_protocol(id):
 @protocols_bp.route('/relatorio')
 @login_required
 def report():
+    ano_sel = request.args.get('ano', type=int)
+    mes_sel = request.args.get('mes', type=int)
+
     protocols = Protocol.query.order_by(Protocol.created_at.desc()).all()
+    anos = sorted({(p.entry_date or p.created_at).year for p in protocols if (p.entry_date or p.created_at)}, reverse=True)
+
+    def data_ref(p):
+        return p.entry_date or p.created_at
+
+    if ano_sel:
+        protocols = [p for p in protocols if data_ref(p) and data_ref(p).year == ano_sel]
+    if mes_sel:
+        protocols = [p for p in protocols if data_ref(p) and data_ref(p).month == mes_sel]
+
     total = len(protocols)
     by_type = {}
     for p in protocols:
         by_type[p.type] = by_type.get(p.type, 0) + 1
 
+    protocol_ids = {p.id for p in protocols}
     defect_totals = {}
     for d in Defect.query.all():
+        if d.protocol_id not in protocol_ids:
+            continue
         defect_totals[d.component_type] = defect_totals.get(d.component_type, 0) + 1
     for p in protocols:
         if p.type in ('rma', 'servico') and p.rma_test_result:
@@ -614,7 +660,7 @@ def report():
                    7:'Jul', 8:'Ago', 9:'Set', 10:'Out', 11:'Nov', 12:'Dez'}
     por_mes = {}
     for p in protocols:
-        d = p.entry_date or p.created_at
+        d = data_ref(p)
         if d:
             por_mes[(d.year, d.month)] = por_mes.get((d.year, d.month), 0) + 1
     entradas_por_mes = [{
@@ -623,9 +669,33 @@ def report():
         'count': count
     } for (ano, mes), count in sorted(por_mes.items())]
 
+    tempo_por_tipo = {}
+    for p in protocols:
+        if p.entry_date and p.exit_date:
+            dias = (p.exit_date - p.entry_date).days
+            if dias < 0:
+                continue
+            chave = 'rma_servico' if p.type in ('rma', 'servico') else p.type
+            acc = tempo_por_tipo.setdefault(chave, {'soma': 0, 'n': 0})
+            acc['soma'] += dias
+            acc['n'] += 1
+    TEMPO_LABELS = {
+        'venda': 'Venda',
+        'ponta_entrega': 'Pronta-Entrega',
+        'nao_comprado': 'NTB',
+        'rma_servico': 'RMA / Serviço'
+    }
+    tempo_medio = [{
+        'tipo': TEMPO_LABELS.get(chave, chave),
+        'dias': round(acc['soma'] / acc['n'], 1),
+        'n': acc['n']
+    } for chave, acc in sorted(tempo_por_tipo.items(), key=lambda kv: -kv[1]['n'])]
+
     return render_template('protocols/report.html',
         protocols=protocols, total=total, by_type=by_type,
-        defect_totals=defect_totals, entradas_por_mes=entradas_por_mes)
+        defect_totals=defect_totals, entradas_por_mes=entradas_por_mes,
+        anos=anos, ano_sel=ano_sel, mes_sel=mes_sel,
+        MESES=MESES_ABREV, tempo_medio=tempo_medio)
 
 @protocols_bp.route('/usuarios')
 @login_required
@@ -775,34 +845,34 @@ def build_defeitos_agrupados():
                 'tipo': p.type,
                 'garantia': p.rma_in_warranty if p.type in ('rma', 'servico') else None
             })
-        # Teste de Mesa items (RMA/NTB) NÃO aparecem em "Defeitos" — só no Rastreio de NS
-        # if p.rma_test_result and p.type in ('rma', 'nao_comprado'):
-        #     try:
-        #         itens = json.loads(p.rma_test_result)
-        #         for idx, item in enumerate(itens):
-        #             if not item.get('component'):
-        #                 continue
-        #             grupos[situacao].append({
-        #                 'fonte': 'teste',
-        #                 'defect_id': None,
-        #                 'teste_idx': idx,
-        #                 'protocolo_id': p.id,
-        #                 'protocolo_status': p.status,
-        #                 'component': item.get('component', ''),
-        #                 'model': item.get('model', ''),
-        #                 'serial': item.get('serial', ''),
-        #                 'desc': item.get('defeito', ''),
-        #                 'responsavel': 'loja' if situacao == 'rma_garantia' else ('cliente' if situacao == 'rma_fora' else ''),
-        #                 'status': item.get('status', ''),
-        #                 'maquina': '',
-        #                 'protocolo': p.protocol_number,
-        #                 'cliente': p.client_name or '',
-        #                 'data': p.entry_date,
-        #                 'tipo': p.type,
-        #                 'garantia': p.rma_in_warranty if p.type == 'rma' else None
-        #             })
-        #     except (json.JSONDecodeError, TypeError):
-        #         pass
+        # Itens do Teste de Mesa (RMA/Serviço)
+        if p.rma_test_result and p.type in ('rma', 'servico'):
+            try:
+                itens = json.loads(p.rma_test_result)
+                for idx, item in enumerate(itens):
+                    if not item.get('component'):
+                        continue
+                    grupos[situacao].append({
+                        'fonte': 'teste',
+                        'defect_id': None,
+                        'teste_idx': idx,
+                        'protocolo_id': p.id,
+                        'protocolo_status': p.status,
+                        'component': item.get('component', ''),
+                        'model': item.get('model', ''),
+                        'serial': item.get('serial', ''),
+                        'desc': item.get('defeito', ''),
+                        'responsavel': 'loja' if situacao == 'rma_garantia' else ('cliente' if situacao == 'rma_fora' else ''),
+                        'status': item.get('status', ''),
+                        'maquina': '',
+                        'protocolo': p.protocol_number,
+                        'cliente': p.client_name or '',
+                        'data': p.entry_date,
+                        'tipo': p.type,
+                        'garantia': p.rma_in_warranty if p.type in ('rma', 'servico') else None
+                    })
+            except (json.JSONDecodeError, TypeError):
+                pass
     return grupos
 
 @protocols_bp.route('/defeitos')
@@ -830,6 +900,122 @@ def defeitos():
         resp_labels=RESP_LABELS, status_labels=DEFEITO_STATUS_LABELS,
         q_filter=q, status_filtro=f_status, resp_filtro=f_resp)
 
+def _ns_ocorrencias_protocolo(p, termo=None):
+    """Collect every NS occurrence in a protocol. If termo is None, return all."""
+    def casa(valor):
+        return termo is None or (valor and termo in valor.lower())
+
+    ocorrencias = []
+
+    for c in p.components:
+        if casa(c.serial_number):
+            ocorrencias.append({
+                'local': f'Componente {c.type_label()}' + (f' — {c.machine_name}' if c.machine_name else ''),
+                'valor': c.serial_number,
+                'detalhe': c.specification or ''
+            })
+        if casa(c.machine_ref_ns):
+            ocorrencias.append({
+                'local': 'Referência da máquina' + (f' — {c.machine_name}' if c.machine_name else ''),
+                'valor': c.machine_ref_ns,
+                'detalhe': ''
+            })
+
+    for d in p.defects:
+        if casa(d.serial_number):
+            ocorrencias.append({
+                'local': f'Defeito — {d.type_label()}',
+                'valor': d.serial_number,
+                'detalhe': d.description or ''
+            })
+
+    if casa(p.power_cable_fonte_serial):
+        ocorrencias.append({
+            'local': 'Fonte (serial do cabo de força)',
+            'valor': p.power_cable_fonte_serial,
+            'detalhe': ''
+        })
+
+    if casa(p.ref_ns):
+        ocorrencias.append({
+            'local': 'Referência NS do protocolo',
+            'valor': p.ref_ns,
+            'detalhe': ''
+        })
+
+    for campo, label in [('rma_equip_itens', 'Equipamento RMA'),
+                         ('rma_trocados', 'Equipamento mudado')]:
+        raw = getattr(p, campo)
+        if not raw:
+            continue
+        try:
+            data = json.loads(raw)
+            for unit, info in data.items():
+                for comp in info.get('components', []):
+                    if casa(comp.get('serial')):
+                        ocorrencias.append({
+                            'local': f'{label} — {info.get("name", "Máquina")}',
+                            'valor': comp['serial'],
+                            'detalhe': comp.get('model') or ''
+                        })
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    if p.rma_test_result:
+        try:
+            for item in json.loads(p.rma_test_result):
+                if casa(item.get('serial')):
+                    ocorrencias.append({
+                        'local': 'Teste de mesa',
+                        'valor': item['serial'],
+                        'detalhe': (COMP_LABELS.get(item.get('component', ''), item.get('component', '')))
+                                + (' — ' + item.get('defeito', '') if item.get('defeito') else '')
+                                + (f' — Ped.: {item.get("pedido")}' if item.get('pedido') else '')
+                                + (f' — Compra: {item.get("data_compra")}' if item.get('data_compra') else '')
+                    })
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    if p.rma_passagens:
+        try:
+            for pas in json.loads(p.rma_passagens):
+                for chave_serial in ('ns', 'ns_novo'):
+                    if casa(pas.get(chave_serial)):
+                        ocorrencias.append({
+                            'local': 'Passagem anterior'
+                                        + (f' — protocolo {pas.get("protocolo")}' if pas.get('protocolo') else '')
+                                        + (' — novo produto' if chave_serial == 'ns_novo' else ''),
+                            'valor': pas[chave_serial],
+                            'detalhe': pas.get('pedido') or ''
+                        })
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    return ocorrencias
+
+@protocols_bp.route('/ns/todos')
+@login_required
+def ns_todos():
+    q = request.args.get('q', '').strip().lower()
+    linhas = []
+    for p in Protocol.query.order_by(Protocol.created_at.desc()).all():
+        for oc in _ns_ocorrencias_protocolo(p):
+            linhas.append({
+                'ns': oc['valor'] or '',
+                'local': oc['local'],
+                'detalhe': oc['detalhe'],
+                'protocolo': p.protocol_number,
+                'protocolo_id': p.id,
+                'tipo': p.type_label(),
+                'venda_pe': p.venda_pe,
+                'data': p.entry_date or p.created_at,
+                'status': p.status_label()
+            })
+    if q:
+        linhas = [l for l in linhas if q in l['ns'].lower() or q in l['local'].lower()
+                  or q in l['protocolo'].lower() or q in l['detalhe'].lower()]
+    return render_template('protocols/ns_todos.html', linhas=linhas, total=len(linhas), q=q)
+
 @protocols_bp.route('/ns')
 @login_required
 def rastreio_ns():
@@ -839,92 +1025,7 @@ def rastreio_ns():
     if busca:
         termo = busca.lower()
         for p in Protocol.query.order_by(Protocol.created_at.desc()).all():
-            ocorrencias = []
-
-            for c in p.components:
-                if c.serial_number and termo in c.serial_number.lower():
-                    ocorrencias.append({
-                        'local': f'Componente {c.type_label()}' + (f' — {c.machine_name}' if c.machine_name else ''),
-                        'valor': c.serial_number,
-                        'detalhe': c.specification or ''
-                    })
-                if c.machine_ref_ns and termo in c.machine_ref_ns.lower():
-                    ocorrencias.append({
-                        'local': 'Referência da máquina' + (f' — {c.machine_name}' if c.machine_name else ''),
-                        'valor': c.machine_ref_ns,
-                        'detalhe': ''
-                    })
-
-            for d in p.defects:
-                if d.serial_number and termo in d.serial_number.lower():
-                    ocorrencias.append({
-                        'local': f'Defeito — {d.type_label()}',
-                        'valor': d.serial_number,
-                        'detalhe': d.description or ''
-                    })
-
-            if p.power_cable_fonte_serial and termo in p.power_cable_fonte_serial.lower():
-                ocorrencias.append({
-                    'local': 'Fonte (serial do cabo de força)',
-                    'valor': p.power_cable_fonte_serial,
-                    'detalhe': ''
-                })
-
-            if p.ref_ns and termo in p.ref_ns.lower():
-                ocorrencias.append({
-                    'local': 'Referência NS do protocolo',
-                    'valor': p.ref_ns,
-                    'detalhe': ''
-                })
-
-            for campo, label in [('rma_equip_itens', 'Equipamento RMA'),
-                                 ('rma_trocados', 'Equipamento mudado')]:
-                raw = getattr(p, campo)
-                if not raw:
-                    continue
-                try:
-                    data = json.loads(raw)
-                    for unit, info in data.items():
-                        for comp in info.get('components', []):
-                            if comp.get('serial') and termo in comp['serial'].lower():
-                                ocorrencias.append({
-                                    'local': f'{label} — {info.get("name", "Máquina")}',
-                                    'valor': comp['serial'],
-                                    'detalhe': comp.get('model') or ''
-                                })
-                except (json.JSONDecodeError, TypeError):
-                    pass
-
-            if p.rma_test_result:
-                try:
-                    for item in json.loads(p.rma_test_result):
-                        if item.get('serial') and termo in item['serial'].lower():
-                            ocorrencias.append({
-                                'local': 'Teste de mesa',
-                                'valor': item['serial'],
-                                'detalhe': (COMP_LABELS.get(item.get('component', ''), item.get('component', '')))
-                                        + (' — ' + item.get('defeito', '') if item.get('defeito') else '')
-                                        + (f' — Ped.: {item.get("pedido")}' if item.get('pedido') else '')
-                                        + (f' — Compra: {item.get("data_compra")}' if item.get('data_compra') else '')
-                            })
-                except (json.JSONDecodeError, TypeError):
-                    pass
-
-            if p.rma_passagens:
-                try:
-                    for pas in json.loads(p.rma_passagens):
-                        for chave_serial in ('ns', 'ns_novo'):
-                            if pas.get(chave_serial) and termo in pas[chave_serial].lower():
-                                ocorrencias.append({
-                                    'local': 'Passagem anterior'
-                                                + (f' — protocolo {pas.get("protocolo")}' if pas.get('protocolo') else '')
-                                                + (' — novo produto' if chave_serial == 'ns_novo' else ''),
-                                    'valor': pas[chave_serial],
-                                    'detalhe': pas.get('pedido') or ''
-                                })
-                except (json.JSONDecodeError, TypeError):
-                    pass
-
+            ocorrencias = _ns_ocorrencias_protocolo(p, termo)
             if ocorrencias:
                 resultados.append({
                     'protocolo': p,

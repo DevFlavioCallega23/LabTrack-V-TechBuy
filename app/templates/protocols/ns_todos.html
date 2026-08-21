@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <h3 class="mb-0"><i class="bi bi-upc-scan"></i> Todos os NS Registrados</h3>
+    <a href="{{ url_for('protocols.rastreio_ns') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-search"></i> Buscar por um NS específico
+    </a>
+</div>
+
+<form method="GET" class="d-flex gap-2 mb-3">
+    <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Filtrar por NS, protocolo, componente..." autofocus>
+    <button type="submit" class="btn btn-outline-info"><i class="bi bi-funnel"></i> Filtrar</button>
+    {% if q %}<a href="{{ url_for('protocols.ns_todos') }}" class="btn btn-outline-secondary">Limpar</a>{% endif %}
+</form>
+
+<p class="text-secondary small">{{ total }} registro(s) de NS encontrados em todos os protocolos.</p>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Nº de Série</th>
+                        <th>Protocolo</th>
+                        <th>Tipo</th>
+                        <th>Data</th>
+                        <th>Registrado em</th>
+                        <th>Detalhe</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in linhas %}
+                    <tr class="clickable-row" data-href="{{ url_for('protocols.detail_protocol', id=l.protocolo_id) }}">
+                        <td><code class="text-warning fs-6">{{ l.ns or '—' }}</code></td>
+                        <td><strong>{{ l.protocolo }}</strong></td>
+                        <td>{{ l.tipo }}{% if l.venda_pe %} <span class="badge bg-info">PE</span>{% endif %}</td>
+                        <td>{{ l.data.strftime('%d/%m/%Y') if l.data else '—' }}</td>
+                        <td class="small">{{ l.local }}</td>
+                        <td class="small text-secondary">{{ l.detalhe or '—' }}</td>
+                        <td>{{ l.status }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

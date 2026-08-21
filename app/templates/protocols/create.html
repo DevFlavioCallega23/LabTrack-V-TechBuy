@@ -35,9 +35,15 @@
             </div>
 
             <div class="row mb-4">
-                <div class="col-12">
+                <div class="col-md-6 col-lg-4">
                     <label class="form-label fw-bold fs-5"><i class="bi bi-tag"></i> {{ form.type.label }}</label>
                     {{ form.type(class='form-select form-select-lg', id='protocolType') }}
+                </div>
+                <div class="col-md-3 d-flex align-items-end field-group" data-show-for="venda">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="vendaPe" name="venda_pe" {% if (editing and protocol.venda_pe) or request.form.get('venda_pe') %}checked{% endif %}>
+                        <label class="form-check-label" for="vendaPe">Venda Pronta-Entrega (PE)</label>
+                    </div>
                 </div>
             </div>
 
@@ -65,15 +71,15 @@
                     <h6 class="text-secondary border-bottom pb-2" id="sectionClientLabel"><i class="bi bi-person"></i> Dados do Cliente</h6>
                 </div>
 
-                <div class="col-md-4 field-group" data-show-for="venda,venda_ponta_entrega,rma,servico,nao_comprado">
+                <div class="col-md-4 field-group" data-show-for="venda,rma,servico,nao_comprado">
                     <label class="form-label">{{ form.client_name.label }}</label>
                     {{ form.client_name(class='form-control', placeholder='Nome do cliente ou solicitante') }}
                 </div>
-                <div class="col-md-2 field-group" data-show-for="venda,venda_ponta_entrega,rma,servico,nao_comprado">
+                <div class="col-md-2 field-group" data-show-for="venda,rma,servico,nao_comprado">
                     <label class="form-label"><span id="entryDateLabel">Data da Compra</span></label>
                     {{ form.entry_date(class='form-control date-mask', placeholder='DD/MM/AA') }}
                 </div>
-                <div class="col-md-2 field-group" data-show-for="venda,venda_ponta_entrega,rma,servico,nao_comprado">
+                <div class="col-md-2 field-group" data-show-for="venda,rma,servico,nao_comprado">
                     <label class="form-label">{{ form.seller.label }}</label>
                     {{ form.seller(class='form-select') }}
                 </div>
@@ -188,7 +194,7 @@
                     <label class="form-label">Data de Entrada</label>
                     {{ form.entry_date(class='form-control date-mask', placeholder='DD/MM/AA') }}
                 </div>
-                <div class="col-md-3 field-group" data-show-for="venda,venda_ponta_entrega,rma,servico,nao_comprado">
+                <div class="col-md-3 field-group" data-show-for="venda,rma,servico,nao_comprado">
                     <label class="form-label">{{ form.order_number.label }}</label>
                     {{ form.order_number(class='form-control', placeholder='Nº Pedido / NF') }}
                 </div>
@@ -435,7 +441,7 @@
                     <label class="form-label text-warning"><i class="bi bi-exclamation-triangle"></i> Defeito Relatado / Observações Técnicas</label>
                     {{ form.observations(class='form-control', rows=4, placeholder='Descreva o defeito relatado pelo cliente, peças necessárias, etc.') }}
                 </div>
-                <div class="col-12 field-group" data-show-for="venda,ponta_entrega,venda_ponta_entrega,nao_comprado">
+                <div class="col-12 field-group" data-show-for="venda,ponta_entrega,nao_comprado">
                     <label class="form-label">{{ form.observations.label }}</label>
                     {{ form.observations(class='form-control', rows=3, placeholder='Observações adicionais (opcional)') }}
                 </div>

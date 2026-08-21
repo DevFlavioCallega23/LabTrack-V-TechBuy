@@ -1,6 +1,35 @@
 {% extends "base.html" %}
 {% block content %}
-<h3 class="mb-4"><i class="bi bi-bar-chart"></i> Relatório Geral</h3>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <h3 class="mb-0"><i class="bi bi-bar-chart"></i> Relatório Geral</h3>
+    <form method="GET" class="d-flex align-items-center gap-2">
+        <select name="ano" class="form-select form-select-sm" style="width:auto">
+            <option value="">Todo o período</option>
+            {% for a in anos %}
+            <option value="{{ a }}" {{ 'selected' if ano_sel == a }}>Ano {{ a }}</option>
+            {% endfor %}
+        </select>
+        <select name="mes" class="form-select form-select-sm" style="width:auto">
+            <option value="">Todos os meses</option>
+            {% for num, abrev in MESES.items() %}
+            <option value="{{ num }}" {{ 'selected' if mes_sel == num }}>{{ abrev }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-sm btn-outline-info"><i class="bi bi-funnel"></i> Filtrar</button>
+        {% if ano_sel or mes_sel %}
+        <a href="{{ url_for('protocols.report') }}" class="btn btn-sm btn-outline-secondary">Limpar</a>
+        {% endif %}
+    </form>
+</div>
+
+{% if ano_sel or mes_sel %}
+<p class="text-secondary small">
+    <i class="bi bi-funnel"></i> Exibindo:
+    {% if mes_sel %}{{ MESES.get(mes_sel) }}{% endif %}
+    {% if ano_sel %}{{ MESES.get(mes_sel, '') ~ ('/' if mes_sel else '') ~ ano_sel }}{% endif %}
+    — <strong>{{ total }}</strong> protocolo(s)
+</p>
+{% endif %}
 
 <div class="row g-3 mb-4">
     <div class="col-md-6">
@@ -16,7 +45,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% set labels = {'venda': 'Venda', 'ponta_entrega': 'Pronta-Entrega', 'venda_ponta_entrega': 'Venda Pronta-Entrega', 'rma': 'RMA (Garantia)', 'servico': 'Serviço (Fora de Garantia)', 'nao_comprado': 'Não comprado na TechBuy'} %}
+                            {% set labels = {'venda': 'Venda', 'ponta_entrega': 'Pronta-Entrega', 'rma': 'RMA (Garantia)', 'servico': 'Serviço (Fora de Garantia)', 'nao_comprado': 'Não comprado na TechBuy'} %}
                             {% for type_key, count in by_type.items() %}
                             <tr>
                                 <td>{{ labels.get(type_key, type_key) }}</td>
@@ -63,6 +92,25 @@
         </div>
     </div>
 </div>
+
+{% if tempo_medio %}
+<div class="card mb-4">
+    <div class="card-header"><i class="bi bi-stopwatch"></i> Tempo Médio no Laboratório (entrada até saída)</div>
+    <div class="card-body">
+        <div class="row g-3">
+            {% for t in tempo_medio %}
+            <div class="col-md-3 col-6">
+                <div class="border rounded p-3 text-center h-100">
+                    <div class="text-secondary small">{{ t.tipo }}</div>
+                    <div class="fs-4 fw-bold">{{ t.dias }} dias</div>
+                    <div class="text-secondary small">{{ t.n }} protocolo(s) finalizado(s)</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {% if entradas_por_mes %}
 <div class="card mb-4">
@@ -113,7 +161,7 @@
                     {% for p in protocols %}
                     <tr>
                         <td>{{ p.protocol_number }}</td>
-                        <td>{{ p.type_label() }}</td>
+                        <td>{{ p.type_label() }}{% if p.venda_pe %} <span class="badge bg-info">PE</span>{% endif %}</td>
                         <td>{{ p.client_name }}</td>
                         <td>{{ p.lote or '-' }}</td>
                         <td>{{ p.status_label() }}</td>

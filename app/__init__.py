@@ -51,6 +51,10 @@ def add_missing_columns():
             conn.execute(db.text('ALTER TABLE protocol ADD COLUMN rma_trocados TEXT'))
         if 'rma_entry_date' not in protocol_cols:
             conn.execute(db.text('ALTER TABLE protocol ADD COLUMN rma_entry_date VARCHAR(10)'))
+        if 'venda_pe' not in protocol_cols:
+            conn.execute(db.text('ALTER TABLE protocol ADD COLUMN venda_pe BOOLEAN DEFAULT 0'))
+        conn.execute(db.text("UPDATE protocol SET type='venda', venda_pe=1 WHERE type='venda_ponta_entrega'"))
+        conn.execute(db.text("UPDATE protocol SET type='servico' WHERE type='rma' AND (rma_in_warranty=0 OR rma_in_warranty IS NULL)"))
         if 'is_prebuilt' not in component_cols:
             conn.execute(db.text('ALTER TABLE component ADD COLUMN is_prebuilt BOOLEAN DEFAULT 0'))
         if 'machine_ref_ns' not in component_cols:

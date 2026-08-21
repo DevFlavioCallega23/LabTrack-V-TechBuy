@@ -131,6 +131,9 @@
         <a href="https://wa.me/?text={{ wa_parts|join('%0A') }}" target="_blank" class="btn btn-success">
             <i class="bi bi-whatsapp"></i> Compartilhar
         </a>
+        <a href="{{ url_for('protocols.protocol_pdf', id=protocol.id) }}" class="btn btn-danger">
+            <i class="bi bi-file-earmark-pdf"></i> Baixar PDF
+        </a>
     </div>
 </div>
 
@@ -146,7 +149,7 @@
                     </div>
                     <div class="col-md-3">
                         <label class="text-secondary small d-block">Tipo</label>
-                        <span class="badge {{ protocol.type_badge() }}">{{ protocol.type_label() }}</span>
+                        <span class="badge {{ protocol.type_badge() }}">{{ protocol.type_label() }}</span>{% if protocol.venda_pe %} <span class="badge bg-info" title="Venda Pronta-Entrega">PE</span>{% endif %}
                     </div>
                     {% if protocol.client_name %}
                     <div class="col-md-2">
@@ -491,7 +494,7 @@
                 </div>
                 <div class="mb-3">
                     <label class="text-secondary small d-block">
-                        {% if protocol.type in ('venda', 'venda_ponta_entrega', 'rma', 'servico') %}Data da Compra{% else %}Data da Entrada{% endif %}
+                        {% if protocol.type in ('venda', 'rma', 'servico') %}Data da Compra{% else %}Data da Entrada{% endif %}
                     </label>
                     <strong>{{ protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else '-' }}</strong>
                 </div>

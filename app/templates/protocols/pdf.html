@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<style>
+    @page {
+        size: A4;
+        margin: 1.6cm 1.4cm 2cm 1.4cm;
+        @frame footer_frame {
+            -pdf-frame-content: pdf_footer;
+            left: 50pt; width: 495pt; top: 790pt; height: 30pt;
+        }
+    }
+    body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1a1a1a; }
+    h1 { font-size: 16pt; margin: 0; color: #0d47a1; }
+    h2 { font-size: 11pt; margin: 14pt 0 6pt 0; border-bottom: 1px solid #999; padding-bottom: 3pt; color: #333; }
+    .head-table { width: 100%; margin-bottom: 10pt; }
+    .meta-box { background-color: #f2f5fa; border: 1px solid #ccd6e4; padding: 8pt; }
+    table.data { width: 100%; border-collapse: collapse; margin-top: 4pt; }
+    table.data th { background-color: #e8edf4; border: 1px solid #b8c2cf; padding: 4pt; font-size: 9pt; text-align: left; }
+    table.data td { border: 1px solid #c9d1da; padding: 4pt; font-size: 9pt; }
+    .lbl { color: #666; font-size: 8pt; display: block; }
+    .val { font-size: 10pt; font-weight: bold; }
+    .pe-tag { background-color: #0aa2c0; color: white; padding: 1pt 5pt; font-size: 8pt; }
+    .footer { font-size: 8pt; color: #888; text-align: center; }
+</style>
+</head>
+<body>
+
+<table class="head-table">
+    <tr>
+        <td>
+            <h1>LABTRACK — Protocolo {{ protocol.protocol_number }}</h1>
+            <span class="lbl">Tipo: {{ protocol.type_label() }}{% if protocol.venda_pe %} <span class="pe-tag">PRONTA-ENTREGA (PE)</span>{% endif %} &nbsp;|&nbsp; Status: {{ protocol.status_label() }}</span>
+        </td>
+        <td align="right" valign="top">
+            <span class="lbl">Emitido em</span>
+            <strong>{{ now.strftime('%d/%m/%Y %H:%M') }}</strong>
+        </td>
+    </tr>
+</table>
+
+<div class="meta-box">
+    <table class="head-table">
+        <tr>
+            <td><span class="lbl">Cliente / Solicitante</span><span class="val">{{ protocol.client_name or '—' }}</span></td>
+            <td><span class="lbl">Vendedor</span><span class="val">{{ protocol.seller or '—' }}</span></td>
+            <td><span class="lbl">{% if protocol.type in ('venda', 'rma', 'servico') %}Data da Compra{% else %}Data de Entrada{% endif %}</span><span class="val">{{ protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else '—' }}</span></td>
+            <td><span class="lbl">Saída</span><span class="val">{{ protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else '—' }}</span></td>
+        </tr>
+        <tr>
+            <td><span class="lbl">Pedido / NF</span><span class="val">{{ protocol.order_number or '—' }}</span></td>
+            <td><span class="lbl">Quantidade</span><span class="val">{{ protocol.lote or '—' }}</span></td>
+            {% if protocol.type in ('rma', 'servico') %}
+            <td><span class="lbl">Entrada no Lab.</span><span class="val">{{ protocol.rma_entry_date or '—' }}</span></td>
+            <td><span class="lbl">Garantia</span><span class="val">{{ 'Sim' if protocol.rma_in_warranty else 'Não' }}</span></td>
+            {% else %}
+            <td><span class="lbl">Ref. NS</span><span class="val">{{ protocol.ref_ns or '—' }}</span></td>
+            <td><span class="lbl">&nbsp;</span><span class="val">&nbsp;</span></td>
+            {% endif %}
+        </tr>
+    </table>
+</div>
+
+{% if rma_test %}
+<h2>Itens enviados ao laboratório (Teste de Mesa)</h2>
+<table class="data">
+    <tr>
+        <th>#</th>
+        <th>Componente</th>
+        <th>Pedido</th>
+        <th>Compra em</th>
+        <th>Nº Série</th>
+        <th>Defeito</th>
+        <th>Situação</th>
+    </tr>
+    {% set comp_labels = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor', 'outro': 'Outro'} %}
+    {% set status_labels = {'aguardando_peca': 'Aguardando peça', 'em_teste': 'Em teste', 'trocado': 'Trocado', 'devolvido': 'Devolvido ao cliente', 'concluido': 'Concluído'} %}
+    {% for item in rma_test %}
+    <tr>
+        <td>{{ loop.index }}</td>
+        <td>{% if item.component and item.component != 'outro' and item.component.lower() not in (item.model or '').lower() %}{{ comp_labels.get(item.component, item.component) }} {% endif %}{{ item.model or '' }}</td>
+        <td>{{ item.pedido or 'NTB' }}</td>
+        <td>{{ item.data_compra or '—' }}</td>
+        <td>{{ item.serial or 'sem NS' }}</td>
+        <td>{{ item.defeito or '—' }}</td>
+        <td>{{ status_labels.get(item.status, item.status or 'Em análise') }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endif %}
+
+{% if passagens %}
+<h2>Passagens anteriores</h2>
+<table class="data">
+    <tr>
+        <th>Protocolo</th>
+        <th>NS defeito</th>
+        <th>NS novo</th>
+        <th>Pedido</th>
+        <th>Entrada</th>
+        <th>Saída</th>
+    </tr>
+    {% for pas in passagens %}
+    <tr>
+        <td>{{ pas.protocolo or '—' }}</td>
+        <td>{{ pas.ns or '—' }}</td>
+        <td>{{ pas.ns_novo or '—' }}</td>
+        <td>{{ pas.pedido or '—' }}</td>
+        <td>{{ pas.data_entrada or '—' }}</td>
+        <td>{{ pas.data_saida or '—' }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endif %}
+
+{% if protocol.rma_trocados and protocol.type in ('rma', 'servico') %}
+{% set trocados_raw = protocol.rma_trocados | from_json %}
+{% if trocados_raw %}
+<h2>Produtos trocados</h2>
+<ul>
+    {% if trocados_raw is mapping %}{% set trocados = trocados_raw %}{% else %}{% set trocados = {'01': {'name': 'Computador 01', 'components': trocados_raw}} %}{% endif %}
+    {% for unit, entry in trocados.items() | sort %}
+        {% if entry.components %}
+            {% for comp in entry.components %}
+            <li>{{ entry.name if entry.name else 'Computador ' ~ unit }} — {{ comp.type or '' }} {{ comp.model or '' }} | NS: {{ comp.serial or 'sem NS' }}</li>
+            {% endfor %}
+        {% endif %}
+    {% endfor %}
+</ul>
+{% endif %}
+{% endif %}
+
+{% if protocol.defects %}
+<h2>Defeitos encontrados</h2>
+<table class="data">
+    <tr>
+        <th>Componente</th>
+        {% if protocol.type == 'ponta_entrega' %}<th>Máquina</th>{% endif %}
+        <th>Modelo</th>
+        <th>Nº Série</th>
+        <th>Defeito</th>
+        <th>Responsável</th>
+        <th>Status</th>
+    </tr>
+    {% set resp_labels = {'loja': 'Loja', 'cliente': 'Cliente', 'terceiro': 'Terceiro'} %}
+    {% set dstatus_labels = {'aguardando_peca': 'Aguardando peça', 'em_teste': 'Em teste', 'trocado': 'Trocado', 'devolvido': 'Devolvido ao cliente', 'concluido': 'Concluído'} %}
+    {% for defect in protocol.defects %}
+    <tr>
+        <td>{{ defect.type_label() }}</td>
+        {% if protocol.type == 'ponta_entrega' %}<td>{{ defect.maquina or '—' }}</td>{% endif %}
+        <td>{{ defect.specification or '—' }}</td>
+        <td>{{ defect.serial_number or '—' }}</td>
+        <td>{{ defect.description or '—' }}</td>
+        <td>{{ resp_labels.get(defect.responsavel, defect.responsavel or '—') }}</td>
+        <td>{{ dstatus_labels.get(defect.defeito_status, defect.defeito_status or '—') }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endif %}
+
+{% if protocol.base_defect %}
+<h2>Defeito de base relatado</h2>
+<p>{{ protocol.base_defect }}</p>
+{% endif %}
+
+{% if protocol.observations %}
+<h2>Observações</h2>
+<p>{{ protocol.observations }}</p>
+{% endif %}
+
+<div id="pdf_footer">
+    <hr>
+    <div class="footer">
+        LabTrack — Controle de Laboratório &nbsp;|&nbsp; Documento gerado automaticamente em {{ now.strftime('%d/%m/%Y às %H:%M') }}
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SelectField, TextAreaField, DateField, SubmitField
+from wtforms import StringField, PasswordField, SelectField, TextAreaField, DateField, SubmitField, BooleanField
 from wtforms.validators import DataRequired, Email, Length, Optional
 
 class LoginForm(FlaskForm):
@@ -46,11 +46,11 @@ class ProtocolForm(FlaskForm):
     type = SelectField('Tipo de Protocolo', choices=[
         ('venda', 'Venda'),
         ('ponta_entrega', 'Pronta-Entrega'),
-        ('venda_ponta_entrega', 'Venda Pronta-Entrega'),
         ('rma', 'RMA (Garantia)'),
         ('servico', 'Serviço (Fora de Garantia)'),
         ('nao_comprado', 'Não comprado na TechBuy')
     ], validators=[DataRequired()])
+    venda_pe = BooleanField('Venda Pronta-Entrega (PE)', default=False)
     client_name = StringField('Cliente / Nome', validators=[Optional(), Length(max=200)])
     lote = StringField('Quantidade', validators=[Optional(), Length(max=50)])
     order_number = StringField('Número do Pedido', validators=[Optional(), Length(max=100)])
@@ -80,7 +80,7 @@ class ProtocolForm(FlaskForm):
     observations = TextAreaField('Observações', validators=[Optional()])
     submit = SubmitField('Salvar')
 
-    REQUIRED_CLIENT_SELLER = {'venda', 'servico', 'rma', 'venda_ponta_entrega', 'nao_comprado'}
+    REQUIRED_CLIENT_SELLER = {'venda', 'servico', 'rma', 'nao_comprado'}
 
     def validate(self, extra_validators=None):
         if not super().validate(extra_validators):
