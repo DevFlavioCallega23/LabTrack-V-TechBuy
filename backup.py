@@ -8,7 +8,7 @@ BASEDIR = os.path.abspath(os.path.dirname(__file__))
 DB_PATH = os.path.join(BASEDIR, 'labtrack.db')
 ONE_DRIVE_DIR = r'C:\Users\BigBossTechBuy\OneDrive'
 ZIP_PREFIX = 'labtrack_backup_'
-RETENCAO = 14
+RETENCAO = 7
 
 def fazer_backup_one_drive(destino=None):
     if not os.path.exists(DB_PATH):
