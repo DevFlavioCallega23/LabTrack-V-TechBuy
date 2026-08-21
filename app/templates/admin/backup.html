@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-archive"></i> Backup do Banco de Dados</h3>
+    <form method="POST" action="{{ url_for('backup_admin.criar') }}">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-cloud-arrow-up"></i> Fazer backup agora</button>
+    </form>
+</div>
+
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i>
+    <strong>Atenção na restauração:</strong> restaurar um backup <strong>substitui todo o banco atual</strong> pelos dados do arquivo.
+    Antes de restaurar, o sistema salva automaticamente o estado atual como
+    <code>labtrack_backup_pre-restore_...</code> no OneDrive, então dá para voltar atrás se precisar.
+</div>
+
+<div class="card mb-4">
+    <div class="card-header"><i class="bi bi-folder2-open"></i> Backups no OneDrive</div>
+    <div class="card-body">
+        {% if backups %}
+        <div class="table-responsive">
+            <table class="table table-dark table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Arquivo</th>
+                        <th>Tamanho</th>
+                        <th>Data</th>
+                        <th class="text-end">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in backups %}
+                    <tr>
+                        <td><code>{{ b.nome }}</code></td>
+                        <td>{{ (b.tamanho / 1024) | round(1) }} KB</td>
+                        <td>{{ b.quando.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('backup_admin.baixar', nome=b.nome) }}" class="btn btn-sm btn-outline-info">
+                                <i class="bi bi-download"></i> Baixar
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-warning"
+                                    onclick="document.getElementById('zip_nome').value='{{ b.nome }}';document.getElementById('origem').value='lista';document.getElementById('cardRestaurar').scrollIntoView({behavior:'smooth'})">
+                                <i class="bi bi-arrow-counterclockwise"></i> Restaurar este
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-secondary mb-0">Nenhum backup encontrado. Use "Fazer backup agora" ou aguarde a rotina automática (seg-sex, 16h).</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-3" id="cardRestaurar">
+    <div class="col-md-6">
+        <div class="card h-100 border-warning">
+            <div class="card-header"><i class="bi bi-arrow-counterclockwise"></i> Restaurar de um backup da lista</div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('backup_admin.restaurar') }}">
+                    <input type="hidden" name="origem" value="lista" id="origem">
+                    <div class="mb-3">
+                        <label class="form-label">Arquivo</label>
+                        <select name="zip_nome" id="zip_nome" class="form-select">
+                            {% for b in backups %}
+                            <option value="{{ b.nome }}">{{ b.nome }} ({{ b.quando.strftime('%d/%m/%Y %H:%M') }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Digite <strong>RESTAURAR</strong> para confirmar</label>
+                        <input type="text" name="confirmacao" class="form-control" placeholder="RESTAURAR" autocomplete="off">
+                    </div>
+                    <button type="submit" class="btn btn-warning" onclick="return confirm('Tem certeza? Todo o banco atual será substituído pelo backup selecionado.')">
+                        <i class="bi bi-arrow-counterclockwise"></i> Restaurar banco
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100 border-warning">
+            <div class="card-header"><i class="bi bi-upload"></i> Restaurar de um zip do meu computador</div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('backup_admin.restaurar') }}" enctype="multipart/form-data">
+                    <input type="hidden" name="origem" value="upload">
+                    <div class="mb-3">
+                        <label class="form-label">Arquivo .zip (precisa conter o labtrack.db)</label>
+                        <input type="file" name="arquivo" accept=".zip" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Digite <strong>RESTAURAR</strong> para confirmar</label>
+                        <input type="text" name="confirmacao" class="form-control" placeholder="RESTAURAR" autocomplete="off">
+                    </div>
+                    <button type="submit" class="btn btn-warning" onclick="return confirm('Tem certeza? Todo o banco atual será substituído pelo arquivo enviado.')">
+                        <i class="bi bi-upload"></i> Enviar e restaurar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

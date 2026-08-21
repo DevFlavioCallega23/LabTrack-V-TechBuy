@@ -102,11 +102,13 @@ def create_app():
     from app.routes.main import main_bp
     from app.routes.protocols import protocols_bp
     from app.routes.maquinas import maquinas_bp
+    from app.routes.backup_admin import backup_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(protocols_bp)
     app.register_blueprint(maquinas_bp)
+    app.register_blueprint(backup_bp)
 
     with app.app_context():
         db.create_all()
