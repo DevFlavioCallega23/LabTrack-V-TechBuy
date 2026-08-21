@@ -820,14 +820,24 @@ def situacao_protocolo(p):
     return 'venda'
 
 def build_defeitos_agrupados():
-    """Aggregate all defects grouped by situation."""
+    """Aggregate defects grouped by situation.
+
+    Teste de Mesa items = produto que voltou do cliente (RMA garantia / fora / NTB).
+    Defeitos Encontrados (tabela defect) = sempre equipamento novo de estoque TechBuy.
+    """
     grupos = {'rma_garantia': [], 'rma_fora': [], 'ntb': [], 'venda': []}
     protocols = Protocol.query.order_by(Protocol.created_at.desc()).all()
     for p in protocols:
-        situacao = situacao_protocolo(p)
-        # Defects from Defect table (Venda/PE/NTB and RMA if registered there)
+        if p.type in ('rma', 'servico'):
+            situacao = 'rma_garantia' if p.rma_in_warranty else 'rma_fora'
+        elif p.type == 'nao_comprado':
+            situacao = 'ntb'
+        else:
+            situacao = None
+
+        # Defeitos Encontrados: equipamento novo TechBuy, independentemente do protocolo
         for d in p.defects:
-            grupos[situacao].append({
+            grupos['venda'].append({
                 'fonte': 'defect',
                 'defect_id': d.id,
                 'component': d.component_type,
@@ -843,6 +853,7 @@ def build_defeitos_agrupados():
                 'cliente': p.client_name or '',
                 'data': p.entry_date,
                 'tipo': p.type,
+                'venda_pe': p.venda_pe,
                 'garantia': p.rma_in_warranty if p.type in ('rma', 'servico') else None
             })
         # Itens do Teste de Mesa (RMA/Serviço)

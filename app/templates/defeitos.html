@@ -46,6 +46,11 @@
 {% else %}<span class="text-secondary">-</span>{% endif %}
 {% endmacro %}
 
+{% macro tipo_badge(tipo, venda_pe) %}
+{% set labels = {'venda': 'Venda', 'ponta_entrega': 'Pronta-Entrega', 'rma': 'RMA', 'servico': 'Serviço', 'nao_comprado': 'NTB'} %}
+<span class="badge {% if tipo == 'venda' or tipo == 'ponta_entrega' %}bg-success{% elif tipo == 'rma' %}bg-primary{% elif tipo == 'servico' %}bg-danger{% else %}bg-secondary{% endif %}">{{ labels.get(tipo, tipo) }}</span>{% if venda_pe %} <span class="badge bg-info">PE</span>{% endif %}
+{% endmacro %}
+
 {% macro defeitos_table(itens) %}
 <div class="table-responsive" style="max-height: 420px;">
     <table class="table table-dark table-hover mb-0 table-sm">
@@ -56,6 +61,7 @@
                 <th>Modelo</th>
                 <th>NS</th>
                 <th>Defeito</th>
+                <th>Tipo</th>
                 <th>Responsável</th>
                 <th>Status</th>
                 <th>Cliente</th>
@@ -71,6 +77,7 @@
                 <td><code>{{ d.model or '-' }}</code></td>
                 <td><code>{{ d.serial or '-' }}</code></td>
                 <td class="text-danger">{{ d.desc or '-' }}</td>
+                <td>{{ tipo_badge(d.tipo, d.venda_pe) }}</td>
                 <td>{{ resp_badge(d.responsavel) }}</td>
                 <td>
                     {% if d.protocolo_status == 'pendente' %}<span class="badge bg-warning text-dark">Pendente</span>
@@ -85,7 +92,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="10" class="text-center text-secondary">Nenhum defeito nesta situação.</td>
+                <td colspan="11" class="text-center text-secondary">Nenhum defeito nesta situação.</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -97,7 +104,7 @@
     <div class="col-12">
         <div class="card h-100 border-primary">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-shield-check text-primary"></i> RMA em Garantia — <span class="text-primary">responsabilidade da Loja</span></span>
+                <span><i class="bi bi-shield-check text-primary"></i> RMA em Garantia — <span class="text-primary">responsabilidade da Loja</span> <span class="text-secondary small">(produto que voltou do cliente)</span></span>
                 <span class="badge bg-primary">{{ grupos['rma_garantia']|length }}</span>
             </div>
             <div class="card-body p-0">
@@ -108,7 +115,7 @@
     <div class="col-12">
         <div class="card h-100 border-warning">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-shield-exclamation text-warning"></i> RMA Fora de Garantia — <span class="text-warning">responsabilidade do Cliente</span></span>
+                <span><i class="bi bi-shield-exclamation text-warning"></i> Fora de Garantia — <span class="text-warning">responsabilidade do Cliente</span> <span class="text-secondary small">(produto que voltou do cliente)</span></span>
                 <span class="badge bg-warning text-dark">{{ grupos['rma_fora']|length }}</span>
             </div>
             <div class="card-body p-0">
@@ -122,7 +129,7 @@
     <div class="col-12">
         <div class="card h-100 border-secondary">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-pc-display text-secondary"></i> NTB — Não comprado na TechBuy</span>
+                <span><i class="bi bi-pc-display text-secondary"></i> NTB — Não comprado na TechBuy <span class="text-secondary small">(produto que voltou do cliente)</span></span>
                 <span class="badge bg-secondary">{{ grupos['ntb']|length }}</span>
             </div>
             <div class="card-body p-0">
@@ -133,7 +140,7 @@
     <div class="col-12">
         <div class="card h-100 border-success">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-bag-check text-success"></i> Venda / Pronta-Entrega</span>
+                <span><i class="bi bi-pc-display text-success"></i> Equipamentos da TechBuy — <span class="text-secondary small">equipamento novo vindo do estoque que apresentou defeito (de qualquer tipo de protocolo)</span></span>
                 <span class="badge bg-success">{{ grupos['venda']|length }}</span>
             </div>
             <div class="card-body p-0">
