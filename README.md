@@ -71,7 +71,13 @@ pip install -r requirements.txt
 python run.py
 ```
 
-O sistema sobe em `http://localhost:5000`. Na primeira execução o banco é criado automaticamente com um usuário administrador padrão.
+O sistema sobe em `http://localhost:5000`. Na primeira execução (banco vazio) é criado automaticamente o usuário inicial:
+
+| Usuário | Senha | Papel |
+|---|---|---|
+| `admin` | `admin123` | Master |
+
+> 🔐 **Recomendação**: altere a senha no primeiro acesso (menu da conta → Minha Conta). Em bancos que já possuem usuários, nenhum usuário automático é criado.
 
 > Observação: o módulo de backup aponta para uma pasta local específica do ambiente de produção; para uso em outra máquina basta ajustar `ONE_DRIVE_DIR` em `backup.py`.
 

@@ -34,18 +34,17 @@ class User(UserMixin, db.Model):
 
     @classmethod
     def create_admin(cls):
-        admin = cls.query.filter_by(username='admin').first()
-        if not admin:
-            admin = cls.query.filter_by(email='admin@labtrack.local').first()
-        if not admin:
-            admin = cls(
-                username='admin',
-                email='admin@labtrack.local',
-                role='admin'
-            )
-            admin.set_password('admin123')
-            db.session.add(admin)
-            db.session.commit()
+        """Cria o usuario inicial apenas em banco vazio (instalacao nova)."""
+        if cls.query.count() > 0:
+            return
+        admin = cls(
+            username='admin',
+            email='admin@labtrack.local',
+            role='master'
+        )
+        admin.set_password('admin123')
+        db.session.add(admin)
+        db.session.commit()
 
 class Protocol(db.Model):
     id = db.Column(db.Integer, primary_key=True)
