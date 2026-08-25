@@ -1,8 +1,9 @@
 import json
 import re
 import io
+import os
 from datetime import datetime, date
-from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file
+from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file, current_app
 from flask_login import login_required, current_user
 from app import db
 from app.models import Protocol, Component, Defect, User, WindowsKey
@@ -437,7 +438,8 @@ def protocol_pdf(id):
 
     html = render_template('protocols/pdf.html', protocol=protocol,
                            rma_test=rma_test, passagens=passagens,
-                           now=datetime.utcnow())
+                           now=datetime.utcnow(),
+                           logo_path=os.path.join(current_app.root_path, 'static', 'img', 'techbuy-logo.png'))
     result = io.BytesIO()
     pdf_status = pisa.CreatePDF(io.StringIO(html), dest=result, encoding='utf-8')
     if pdf_status.err:
