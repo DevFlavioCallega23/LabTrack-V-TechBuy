@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <h3 class="mb-0"><i class="bi bi-search"></i> Busca Avançada</h3>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('protocols.rastreio_ns') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-upc-scan"></i> Rastreio rápido de NS</a>
+        <a href="{{ url_for('protocols.ns_todos') }}" class="btn btn-outline-info btn-sm"><i class="bi bi-list-ul"></i> Todos os NS</a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header"><i class="bi bi-funnel"></i> Filtros — combine os campos que quiser</div>
+    <div class="card-body">
+        <form method="GET">
+            <div class="row g-3">
+                <div class="col-md-4 col-6">
+                    <label class="form-label">Cliente</label>
+                    <input type="text" name="cliente" value="{{ f_cliente }}" class="form-control" placeholder="Nome do cliente...">
+                </div>
+                <div class="col-md-2 col-6">
+                    <label class="form-label">Vendedor</label>
+                    <select name="vendedor" class="form-select">
+                        <option value="">Todos</option>
+                        {% for v in vendedores %}
+                        <option value="{{ v }}" {{ 'selected' if f_vendedor == v }}>{{ v }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 col-6">
+                    <label class="form-label">Tipo de protocolo</label>
+                    <select name="tipo" class="form-select">
+                        <option value="">Todos</option>
+                        {% for chave, rotulo in TYPE_LABELS.items() %}
+                        <option value="{{ chave }}" {{ 'selected' if f_tipo == chave }}>{{ rotulo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 col-6">
+                    <label class="form-label">Pedido (nº ou original)</label>
+                    <input type="text" name="pedido" value="{{ f_pedido }}" class="form-control" placeholder="PED..., NF...">
+                </div>
+                <div class="col-md-4 col-6">
+                    <label class="form-label">Nº de Série (NS)</label>
+                    <input type="text" name="ns" value="{{ f_ns }}" class="form-control" placeholder="Busca em todo o protocolo">
+                </div>
+                <div class="col-md-2 col-6">
+                    <label class="form-label">Entrada de</label>
+                    <input type="text" name="data_de" value="{{ f_data_de }}" class="form-control date-mask" placeholder="DD/MM/AAAA">
+                </div>
+                <div class="col-md-2 col-6">
+                    <label class="form-label">Entrada até</label>
+                    <input type="text" name="data_ate" value="{{ f_data_ate }}" class="form-control date-mask" placeholder="DD/MM/AAAA">
+                </div>
+                <div class="col-md-4 col-12 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Buscar</button>
+                    <a href="{{ url_for('protocols.busca_avancada') }}" class="btn btn-outline-secondary">Limpar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if not filtros_ativos %}
+<p class="text-secondary"><i class="bi bi-info-circle"></i> Preencha pelo menos um filtro para buscar. Dica: pode combinar vários — ex.: cliente + tipo + período.</p>
+{% elif total == 0 %}
+<div class="alert alert-warning"><i class="bi bi-emoji-neutral"></i> Nenhum protocolo encontrado com esses filtros. Tente ampliar o período ou limpar algum campo.</div>
+{% else %}
+<p class="text-secondary small mb-2">
+    <strong>{{ total }}</strong> protocolo(s) encontrado(s){% if f_ns %} — <strong>{{ total_ocorrencias }}</strong> ocorrência(s) do NS{% endif %}.
+</p>
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover table-sm mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th>Protocolo</th>
+                        <th>Tipo</th>
+                        <th>Cliente</th>
+                        <th>Vendedor</th>
+                        <th>Pedido</th>
+                        <th>Entrada</th>
+                        <th>Saída</th>
+                        <th>Status</th>
+                        {% if f_ns %}<th>NS encontrado em</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in resultados %}
+                    {% set p = r.p %}
+                    <tr class="clickable-row" data-href="{{ url_for('protocols.detail_protocol', id=p.id) }}">
+                        <td><strong>{{ p.protocol_number }}</strong></td>
+                        <td><span class="badge {{ p.type_badge() }}">{{ p.type_label() }}</span>{% if p.venda_pe %} <span class="badge bg-info">PE</span>{% endif %}</td>
+                        <td>{{ p.client_name or '-' }}</td>
+                        <td>{{ p.seller or '-' }}</td>
+                        <td>{{ p.order_number or p.original_order or '-' }}</td>
+                        <td>{{ p.entry_date.strftime('%d/%m/%Y') if p.entry_date else '-' }}</td>
+                        <td>{{ p.exit_date.strftime('%d/%m/%Y') if p.exit_date else '-' }}</td>
+                        <td>{{ p.status_label() }}</td>
+                        {% if f_ns %}
+                        <td class="small">
+                            {% for oc in r.ocorrencias %}
+                            <span class="text-info">{{ oc.local }}</span>: <code>{{ oc.valor }}</code>{% if not loop.last %}; {% endif %}
+                            {% endfor %}
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

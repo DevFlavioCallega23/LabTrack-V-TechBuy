@@ -2,7 +2,7 @@ import json
 import re
 import io
 import os
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file, current_app
 from flask_login import login_required, current_user
 from app import db
@@ -1038,6 +1038,63 @@ def ns_todos():
         linhas = [l for l in linhas if q in l['ns'].lower() or q in l['local'].lower()
                   or q in l['protocolo'].lower() or q in l['detalhe'].lower()]
     return render_template('protocols/ns_todos.html', linhas=linhas, total=len(linhas), q=q)
+
+@protocols_bp.route('/busca')
+@login_required
+def busca_avancada():
+    cliente = request.args.get('cliente', '').strip()
+    vendedor = request.args.get('vendedor', '').strip()
+    tipo = request.args.get('tipo', '').strip()
+    pedido = request.args.get('pedido', '').strip()
+    ns = request.args.get('ns', '').strip()
+    data_de_raw = request.args.get('data_de', '').strip()
+    data_ate_raw = request.args.get('data_ate', '').strip()
+    data_de = parse_date_br(data_de_raw)
+    data_ate = parse_date_br(data_ate_raw)
+
+    filtros_ativos = any([cliente, vendedor, tipo, pedido, ns, data_de, data_ate])
+    resultados = []
+    total_ocorrencias = 0
+
+    if filtros_ativos:
+        q = Protocol.query
+        if cliente:
+            q = q.filter(Protocol.client_name.ilike(f'%{cliente}%'))
+        if vendedor:
+            q = q.filter(Protocol.seller == vendedor)
+        if tipo:
+            q = q.filter(Protocol.type == tipo)
+        if pedido:
+            like = f'%{pedido}%'
+            q = q.filter(db.or_(Protocol.order_number.ilike(like),
+                                Protocol.original_order.ilike(like)))
+        if data_de:
+            q = q.filter(Protocol.entry_date >= data_de)
+        if data_ate:
+            q = q.filter(Protocol.entry_date < data_ate + timedelta(days=1))
+
+        protocols = q.order_by(Protocol.entry_date.desc().nullslast(),
+                               Protocol.created_at.desc()).all()
+
+        termo_ns = ns.lower() if ns else None
+        for p in protocols:
+            ocorrencias = _ns_ocorrencias_protocolo(p, termo_ns) if termo_ns else []
+            if termo_ns and not ocorrencias:
+                continue
+            resultados.append({'p': p, 'ocorrencias': ocorrencias})
+            total_ocorrencias += len(ocorrencias)
+
+    vendedores = [r[0] for r in db.session.query(Protocol.seller).distinct()
+                  .filter(Protocol.seller.isnot(None), Protocol.seller != '')
+                  .order_by(Protocol.seller).all()]
+
+    return render_template('protocols/busca.html',
+        resultados=resultados, total=len(resultados),
+        total_ocorrencias=total_ocorrencias, vendedores=vendedores,
+        filtros_ativos=filtros_ativos,
+        f_cliente=cliente, f_vendedor=vendedor, f_tipo=tipo, f_pedido=pedido,
+        f_ns=ns, f_data_de=data_de_raw, f_data_ate=data_ate_raw,
+        TYPE_LABELS=Protocol.TYPE_LABELS)
 
 @protocols_bp.route('/ns')
 @login_required
