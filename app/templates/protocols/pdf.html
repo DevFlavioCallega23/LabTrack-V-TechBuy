@@ -12,88 +12,99 @@
         }
     }
     body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #212529; }
-    .topbar { background-color: #1b1e22; color: #f8f9fa; padding: 10pt 12pt; margin-bottom: 12pt; }
+
+    table.topbar { width: 100%; margin-bottom: 12pt; }
+    table.topbar td { background-color: #1b1e22; padding: 9pt 10pt; }
     .topbar h1 { font-size: 15pt; margin: 0; color: #6ea8fe; }
-    .topbar .sub { color: #adb5bd; font-size: 9pt; margin-top: 3pt; }
+    .topbar .sub { color: #c9d1d9; font-size: 9pt; }
     .topbar .emitido { color: #adb5bd; font-size: 8pt; }
     .topbar .emitido strong { color: #f8f9fa; font-size: 9pt; }
-    .pe-tag { background-color: #0aa2c0; color: white; padding: 1pt 5pt; font-size: 8pt; }
-    h2 {
-        font-size: 10.5pt;
-        margin: 16pt 0 6pt 0;
-        padding: 5pt 8pt;
+
+    .pe-tag { background-color: #0aa2c0; color: white; font-size: 8pt; font-weight: bold; }
+
+    table.sectitle { width: 100%; margin-top: 14pt; margin-bottom: 5pt; }
+    table.sectitle td {
         background-color: #2c3034;
         color: #f8f9fa;
+        font-size: 10.5pt;
+        font-weight: bold;
+        padding: 5pt 8pt;
         border-left: 4pt solid #0d6efd;
     }
-    .metabox { background-color: #23272c; color: #e9ecef; padding: 9pt 10pt; margin-bottom: 4pt; }
-    .metabox td { color: #e9ecef; }
-    .lbl { color: #9aa0a6; font-size: 7.5pt; display: block; }
+
+    table.metabox { width: 100%; margin-bottom: 6pt; }
+    table.metabox td { background-color: #23272c; color: #e9ecef; padding: 3pt 10pt; }
+    .lbl { color: #9aa0a6; font-size: 7.5pt; }
     .val { font-size: 10pt; font-weight: bold; color: #f8f9fa; }
-    table.data { width: 100%; border-collapse: collapse; margin-top: 2pt; }
+
+    table.data { width: 100%; border-collapse: collapse; margin-bottom: 4pt; }
     table.data th { background-color: #343a40; border: 1px solid #495057; padding: 4pt; font-size: 8.5pt; text-align: left; color: #f8f9fa; }
     table.data td { border: 1px solid #495057; padding: 4pt; font-size: 8.5pt; color: #e9ecef; background-color: #212529; }
     table.data tr.zebra td { background-color: #2b3035; }
+
+    table.txtbox { width: 100%; margin-bottom: 4pt; }
+    table.txtbox td { background-color: #212529; color: #e9ecef; font-size: 9pt; padding: 7pt 9pt; }
+
     ul { margin-top: 2pt; }
-    li { color: #e9ecef; font-size: 9pt; margin-bottom: 2pt; }
-    p.txt { color: #e9ecef; font-size: 9pt; background-color: #212529; padding: 6pt 8pt; }
-    .badge-venda { background-color: #198754; color: white; padding: 1pt 5pt; font-size: 8pt; }
-    .badge-pe { background-color: #0aa2c0; color: white; padding: 1pt 4pt; font-size: 8pt; }
-    .badge-rma { background-color: #0d6efd; color: white; padding: 1pt 5pt; font-size: 8pt; }
-    .badge-servico { background-color: #dc3545; color: white; padding: 1pt 5pt; font-size: 8pt; }
-    .badge-ntb { background-color: #6c757d; color: white; padding: 1pt 5pt; font-size: 8pt; }
+    li { color: #212529; font-size: 9pt; margin-bottom: 2pt; }
+
+    .badge-venda { background-color: #198754; color: white; font-size: 8pt; font-weight: bold; }
+    .badge-rma { background-color: #0d6efd; color: white; font-size: 8pt; font-weight: bold; }
+    .badge-servico { background-color: #dc3545; color: white; font-size: 8pt; font-weight: bold; }
+    .badge-ntb { background-color: #6c757d; color: white; font-size: 8pt; font-weight: bold; }
+
     .footer { font-size: 8pt; color: #888; text-align: center; }
 </style>
 </head>
 <body>
 
-<div class="topbar">
-    <table width="100%">
-        <tr>
-            <td valign="middle" style="width: 110pt;">
-                <img src="{{ logo_path }}" width="95" alt="TechBuy">
-            </td>
-            <td valign="middle">
-                <h1>LABTRACK — Protocolo {{ protocol.protocol_number }}</h1>
-                <div class="sub">
-                    {% set tipo_badge = {'venda': 'badge-venda', 'ponta_entrega': 'badge-venda', 'rma': 'badge-rma', 'servico': 'badge-servico', 'nao_comprado': 'badge-ntb'} %}
-                    <span class="{{ tipo_badge.get(protocol.type, 'badge-ntb') }}">{{ protocol.type_label() }}</span>
-                    {% if protocol.venda_pe %} <span class="pe-tag">PRONTA-ENTREGA (PE)</span>{% endif %}
-                    &nbsp;&nbsp;Status: {{ protocol.status_label() }}
-                </div>
-            </td>
-            <td align="right" valign="top" style="width: 90pt;">
-                <div class="emitido">Emitido em<br><strong>{{ now.strftime('%d/%m/%Y %H:%M') }}</strong></div>
-            </td>
-        </tr>
-    </table>
-</div>
+<table class="topbar" cellspacing="0">
+    <tr>
+        <td valign="middle" width="110">
+            <img src="{{ logo_path }}" width="95" alt="TechBuy">
+        </td>
+        <td valign="middle">
+            <h1>LABTRACK — Protocolo {{ protocol.protocol_number }}</h1>
+            <div class="sub">
+                {% set tipo_badge = {'venda': 'badge-venda', 'ponta_entrega': 'badge-venda', 'rma': 'badge-rma', 'servico': 'badge-servico', 'nao_comprado': 'badge-ntb'} %}
+                <span class="{{ tipo_badge.get(protocol.type, 'badge-ntb') }}">{{ protocol.type_label() }}</span>
+                {% if protocol.venda_pe %} <span class="pe-tag">PRONTA-ENTREGA (PE)</span>{% endif %}
+                &nbsp;&nbsp;Status: {{ protocol.status_label() }}
+            </div>
+        </td>
+        <td valign="top" align="right" width="90">
+            <span class="emitido">Emitido em<br><strong>{{ now.strftime('%d/%m/%Y %H:%M') }}</strong></span>
+        </td>
+    </tr>
+</table>
 
-<div class="metabox">
-    <table class="head-table" width="100%">
-        <tr>
-            <td><span class="lbl">Cliente / Solicitante</span><span class="val">{{ protocol.client_name or '—' }}</span></td>
-            <td><span class="lbl">Vendedor</span><span class="val">{{ protocol.seller or '—' }}</span></td>
-            <td><span class="lbl">{% if protocol.type in ('venda', 'rma', 'servico') %}Data da Compra{% else %}Data de Entrada{% endif %}</span><span class="val">{{ protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else '—' }}</span></td>
-            <td><span class="lbl">Saída</span><span class="val">{{ protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else '—' }}</span></td>
-        </tr>
-        <tr>
-            <td><span class="lbl">Pedido / NF</span><span class="val">{{ protocol.order_number or '—' }}</span></td>
-            <td><span class="lbl">Quantidade</span><span class="val">{{ protocol.lote or '—' }}</span></td>
-            {% if protocol.type in ('rma', 'servico') %}
-            <td><span class="lbl">Entrada no Lab.</span><span class="val">{{ protocol.rma_entry_date or '—' }}</span></td>
-            <td><span class="lbl">Garantia</span><span class="val">{{ 'Sim' if protocol.rma_in_warranty else 'Não' }}</span></td>
-            {% else %}
-            <td><span class="lbl">Ref. NS</span><span class="val">{{ protocol.ref_ns or '—' }}</span></td>
-            <td>&nbsp;</td>
-            {% endif %}
-        </tr>
-    </table>
-</div>
+<table class="metabox" cellspacing="0">
+    <tr>
+        <td><span class="lbl">Cliente / Solicitante</span><br><span class="val">{{ protocol.client_name or '—' }}</span></td>
+        <td><span class="lbl">Vendedor</span><br><span class="val">{{ protocol.seller or '—' }}</span></td>
+        <td><span class="lbl">{% if protocol.type in ('venda', 'rma', 'servico') %}Data da Compra{% else %}Data de Entrada{% endif %}</span><br><span class="val">{{ protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else '—' }}</span></td>
+        <td><span class="lbl">Saída</span><br><span class="val">{{ protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else '—' }}</span></td>
+    </tr>
+    <tr>
+        <td><span class="lbl">Pedido / NF</span><br><span class="val">{{ protocol.order_number or '—' }}</span></td>
+        <td><span class="lbl">Quantidade</span><br><span class="val">{{ protocol.lote or '—' }}</span></td>
+        {% if protocol.type in ('rma', 'servico') %}
+        <td><span class="lbl">Entrada no Lab.</span><br><span class="val">{{ protocol.rma_entry_date or '—' }}</span></td>
+        <td><span class="lbl">Garantia</span><br><span class="val">{{ 'Sim' if protocol.rma_in_warranty else 'Não' }}</span></td>
+        {% else %}
+        <td><span class="lbl">Ref. NS</span><br><span class="val">{{ protocol.ref_ns or '—' }}</span></td>
+        <td>&nbsp;</td>
+        {% endif %}
+    </tr>
+</table>
+
+{% macro secao(titulo) %}
+<table class="sectitle" cellspacing="0"><tr><td>{{ titulo }}</td></tr></table>
+{% endmacro %}
 
 {% if rma_test %}
-<h2>Itens enviados ao laboratório (Teste de Mesa)</h2>
-<table class="data">
+{{ secao('Itens enviados ao laboratório (Teste de Mesa)') }}
+<table class="data" cellspacing="0">
     <tr>
         <th>#</th>
         <th>Componente</th>
@@ -120,8 +131,8 @@
 {% endif %}
 
 {% if passagens %}
-<h2>Passagens anteriores</h2>
-<table class="data">
+{{ secao('Passagens anteriores') }}
+<table class="data" cellspacing="0">
     <tr>
         <th>Protocolo</th>
         <th>NS defeito</th>
@@ -146,7 +157,7 @@
 {% if protocol.rma_trocados and protocol.type in ('rma', 'servico') %}
 {% set trocados_raw = protocol.rma_trocados | from_json %}
 {% if trocados_raw %}
-<h2>Produtos trocados</h2>
+{{ secao('Produtos trocados') }}
 <ul>
     {% if trocados_raw is mapping %}{% set trocados = trocados_raw %}{% else %}{% set trocados = {'01': {'name': 'Computador 01', 'components': trocados_raw}} %}{% endif %}
     {% for unit, entry in trocados.items() | sort %}
@@ -161,8 +172,8 @@
 {% endif %}
 
 {% if protocol.defects %}
-<h2>Defeitos encontrados</h2>
-<table class="data">
+{{ secao('Defeitos encontrados') }}
+<table class="data" cellspacing="0">
     <tr>
         <th>Componente</th>
         {% if protocol.type == 'ponta_entrega' %}<th>Máquina</th>{% endif %}
@@ -189,13 +200,13 @@
 {% endif %}
 
 {% if protocol.base_defect %}
-<h2>Defeito de base relatado</h2>
-<p class="txt">{{ protocol.base_defect }}</p>
+{{ secao('Defeito de base relatado') }}
+<table class="txtbox" cellspacing="0"><tr><td>{{ protocol.base_defect }}</td></tr></table>
 {% endif %}
 
 {% if protocol.observations %}
-<h2>Observações</h2>
-<p class="txt">{{ protocol.observations }}</p>
+{{ secao('Observações') }}
+<table class="txtbox" cellspacing="0"><tr><td>{{ protocol.observations }}</td></tr></table>
 {% endif %}
 
 <div id="pdf_footer">
