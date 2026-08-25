@@ -975,10 +975,11 @@ def _ns_ocorrencias_protocolo(p, termo=None):
             data = json.loads(raw)
             for unit, info in data.items():
                 for comp in info.get('components', []):
-                    if casa(comp.get('serial')):
+                    serial = comp.get('serial')
+                    if casa(serial):
                         ocorrencias.append({
                             'local': f'{label} — {info.get("name", "Máquina")}',
-                            'valor': comp['serial'],
+                            'valor': serial,
                             'detalhe': comp.get('model') or ''
                         })
         except (json.JSONDecodeError, TypeError):
@@ -987,10 +988,11 @@ def _ns_ocorrencias_protocolo(p, termo=None):
     if p.rma_test_result:
         try:
             for item in json.loads(p.rma_test_result):
-                if casa(item.get('serial')):
+                serial = item.get('serial')
+                if casa(serial):
                     ocorrencias.append({
                         'local': 'Teste de mesa',
-                        'valor': item['serial'],
+                        'valor': serial,
                         'detalhe': (COMP_LABELS.get(item.get('component', ''), item.get('component', '')))
                                 + (' — ' + item.get('defeito', '') if item.get('defeito') else '')
                                 + (f' — Ped.: {item.get("pedido")}' if item.get('pedido') else '')
@@ -1003,12 +1005,13 @@ def _ns_ocorrencias_protocolo(p, termo=None):
         try:
             for pas in json.loads(p.rma_passagens):
                 for chave_serial in ('ns', 'ns_novo'):
-                    if casa(pas.get(chave_serial)):
+                    valor = pas.get(chave_serial)
+                    if casa(valor):
                         ocorrencias.append({
                             'local': 'Passagem anterior'
                                         + (f' — protocolo {pas.get("protocolo")}' if pas.get('protocolo') else '')
                                         + (' — novo produto' if chave_serial == 'ns_novo' else ''),
-                            'valor': pas[chave_serial],
+                            'valor': valor,
                             'detalhe': pas.get('pedido') or ''
                         })
         except (json.JSONDecodeError, TypeError):
