@@ -1,23 +1,9 @@
-document.addEventListener('DOMContentLoaded', function() {
-    var alerts = document.querySelectorAll('.alert');
-    setTimeout(function() {
-        alerts.forEach(function(alert) {
-            var bsAlert = new bootstrap.Alert(alert);
-            bsAlert.close();
-        });
-    }, 5000);
-
-    var rows = document.querySelectorAll('.clickable-row');
-    rows.forEach(function(row) {
-        row.addEventListener('click', function(e) {
-            if (e.target.closest('.action-btns')) return;
-            var href = this.getAttribute('data-href');
-            if (href) window.location.href = href;
-        });
-    });
-
-    var dateInputs = document.querySelectorAll('.date-mask');
+window.initDateMask = function(scope) {
+    var root = scope || document;
+    var dateInputs = root.querySelectorAll('.date-mask');
     dateInputs.forEach(function(input) {
+        if (input.dataset.maskBound) return;
+        input.dataset.maskBound = '1';
         input.addEventListener('input', function(e) {
             var value = this.value.replace(/\D/g, '');
             if (value.length > 8) value = value.slice(0, 8);
@@ -37,4 +23,25 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    var alerts = document.querySelectorAll('.alert');
+    setTimeout(function() {
+        alerts.forEach(function(alert) {
+            var bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        });
+    }, 5000);
+
+    var rows = document.querySelectorAll('.clickable-row');
+    rows.forEach(function(row) {
+        row.addEventListener('click', function(e) {
+            if (e.target.closest('.action-btns')) return;
+            var href = this.getAttribute('data-href');
+            if (href) window.location.href = href;
+        });
+    });
+
+    initDateMask();
 });

@@ -2,7 +2,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
     <h3 class="mb-0"><i class="bi bi-bar-chart"></i> Relatório Geral</h3>
-    <form method="GET" class="d-flex align-items-center gap-2">
+    <form method="GET" class="d-flex align-items-center gap-2" autocomplete="off">
         <select name="ano" class="form-select form-select-sm" style="width:auto">
             <option value="">Todo o período</option>
             {% for a in anos %}

@@ -773,6 +773,7 @@ function addRmaTestRow() {
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
     `;
     tbody.appendChild(tr);
+    if (window.initDateMask) initDateMask(tr);
 }
 
 let trocadoMachineCount = 0;
@@ -1206,6 +1207,7 @@ function loadRmaTestItems(items) {
             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
         `;
         tbody.appendChild(tr);
+        if (window.initDateMask) initDateMask(tr);
         if (item.component) tr.querySelector('select').value = item.component;
     });
 }
