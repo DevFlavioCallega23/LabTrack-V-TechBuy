@@ -16,7 +16,7 @@ def get_version():
         with open(version_file) as f:
             return f.read().strip()
     except:
-        return '1.0.0-RMA'
+        return '2.0.0'
 login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Por favor, faça login para acessar o sistema.'
 
