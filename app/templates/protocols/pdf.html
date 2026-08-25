@@ -86,7 +86,11 @@
         <td><span class="lbl">Saída</span><br><span class="val">{{ protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else '—' }}</span></td>
     </tr>
     <tr>
+        {% if protocol.type in ('rma', 'servico') %}
+        <td><span class="lbl">Pedido Original</span><br><span class="val">{{ protocol.original_order or protocol.order_number or '—' }}</span></td>
+        {% else %}
         <td><span class="lbl">Pedido / NF</span><br><span class="val">{{ protocol.order_number or '—' }}</span></td>
+        {% endif %}
         <td><span class="lbl">Quantidade</span><br><span class="val">{{ protocol.lote or '—' }}</span></td>
         {% if protocol.type in ('rma', 'servico') %}
         <td><span class="lbl">Entrada no Lab.</span><br><span class="val">{{ protocol.rma_entry_date or '—' }}</span></td>
