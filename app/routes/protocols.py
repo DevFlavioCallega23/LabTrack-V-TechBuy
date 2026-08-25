@@ -12,6 +12,19 @@ from sqlalchemy import func
 
 protocols_bp = Blueprint('protocols', __name__, url_prefix='/protocolos')
 
+def gerar_numero_protocolo():
+    """PRO-ANO-NNNN com contagem reiniciando a cada ano (0001 em diante)."""
+    ano = datetime.utcnow().year
+    prefixo = f'PRO-{ano}-'
+    numeros = [n[0] for n in db.session.query(Protocol.protocol_number)
+               .filter(Protocol.protocol_number.like(prefixo + '%')).all()]
+    maior = 0
+    for num in numeros:
+        sufixo = num[len(prefixo):]
+        if sufixo.isdigit():
+            maior = max(maior, int(sufixo))
+    return f'{prefixo}{maior + 1:04d}'
+
 def parse_date_br(text):
     if not text or not text.strip():
         return None
@@ -327,10 +340,7 @@ def create_protocol():
                 rma_comp_data=rma_comp_data, rma_test_data=rma_test_data, rma_trocados_data=rma_trocados_data,
                 defect_data=defect_data, win_keys_data=win_keys_data, machines=build_machine_names(comp_data))
 
-        last = Protocol.query.order_by(Protocol.id.desc()).first()
-        next_id = (last.id + 1) if last else 1
-        year = datetime.utcnow().year
-        protocol_number = f'PRO-{year}-{next_id:04d}'
+        protocol_number = gerar_numero_protocolo()
 
         entry = form.entry_date.data
         exit = form.exit_date.data
