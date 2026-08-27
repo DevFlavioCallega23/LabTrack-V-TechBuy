@@ -51,21 +51,48 @@
             {% if rma_test %}
                 {% set _ = wa_parts.append('') %}
                 {% set _ = wa_parts.append('*Itens enviados ao laboratório:*') %}
+                {% set wa_machines = [] %}
                 {% for item in rma_test %}
-                    {% set ns = item.serial or 'sem NS' %}
-                    {% set ped = item.pedido or 'NTB' %}
-                    {% set comp = COMP_LABELS.get(item.component, '') if item.component and item.component != 'outro' and (item.component.lower() not in (item.model or '').lower()) else '' %}
-                    {% set nome = (comp + ' ' if comp else '') + ((item.model or '').strip()) %}
-                    {% if not nome %}{% set nome = 'Item ' + (loop.index|string) %}{% endif %}
-                    {% set st = DEFEITO_STATUS_LABELS.get(item.status, item.status or 'Em análise') %}
-                    {% if item.pedido and item.data_compra %}{% set origem = ' (compra em ' + item.data_compra.strip() + ')' %}{% else %}{% set origem = '' %}{% endif %}
-                    {% set _ = wa_parts.append('') %}
-                    {% set _ = wa_parts.append((loop.index|string) + ') *' + nome + '*') %}
-                    {% set _ = wa_parts.append('   Pedido: ' + ped + origem) %}
-                    {% set _ = wa_parts.append('   NS: ' + ns) %}
-                    {% if item.defeito %}{% set _ = wa_parts.append('   Defeito: ' + item.defeito.strip()) %}{% endif %}
-                    {% set _ = wa_parts.append('   Situação: ' + st) %}
+                    {% if item.machine and item.machine not in wa_machines %}
+                        {% if wa_machines.append(item.machine) %}{% endif %}
+                    {% endif %}
                 {% endfor %}
+                {% if wa_machines|length > 1 %}
+                    {% for m in wa_machines %}
+                        {% set _ = wa_parts.append('') %}
+                        {% set _ = wa_parts.append('*' + m + ':*') %}
+                        {% set idx = [] %}
+                        {% for item in rma_test if item.machine == m %}
+                            {% if idx.append(1) %}{% endif %}
+                            {% set ns = item.serial or 'sem NS' %}
+                            {% set ped = item.pedido or 'NTB' %}
+                            {% set comp = COMP_LABELS.get(item.component, '') if item.component and item.component != 'outro' and (item.component.lower() not in (item.model or '').lower()) else '' %}
+                            {% set nome = (comp + ' ' if comp else '') + ((item.model or '').strip()) %}
+                            {% if not nome %}{% set nome = 'Item ' + (idx|length|string) %}{% endif %}
+                            {% set st = DEFEITO_STATUS_LABELS.get(item.status, item.status or 'Em análise') %}
+                            {% if item.pedido and item.data_compra %}{% set origem = ' (compra em ' + item.data_compra.strip() + ')' %}{% else %}{% set origem = '' %}{% endif %}
+                            {% set _ = wa_parts.append((idx|length|string) + ') *' + nome + '*') %}
+                            {% if item.defeito %}{% set _ = wa_parts.append('   Defeito: ' + item.defeito.strip()) %}{% endif %}
+                            {% set _ = wa_parts.append('   Situação: ' + st) %}
+                        {% endfor %}
+                    {% endfor %}
+                {% else %}
+                    {% for item in rma_test %}
+                        {% set ns = item.serial or 'sem NS' %}
+                        {% set ped = item.pedido or 'NTB' %}
+                        {% set comp = COMP_LABELS.get(item.component, '') if item.component and item.component != 'outro' and (item.component.lower() not in (item.model or '').lower()) else '' %}
+                        {% set nome = (comp + ' ' if comp else '') + ((item.model or '').strip()) %}
+                        {% if not nome %}{% set nome = 'Item ' + (loop.index|string) %}{% endif %}
+                        {% set st = DEFEITO_STATUS_LABELS.get(item.status, item.status or 'Em análise') %}
+                        {% if item.pedido and item.data_compra %}{% set origem = ' (compra em ' + item.data_compra.strip() + ')' %}{% else %}{% set origem = '' %}{% endif %}
+                        {% set _ = wa_parts.append('') %}
+                        {% set _ = wa_parts.append((loop.index|string) + ') *' + nome + '*') %}
+                        {% set _ = wa_parts.append('   Pedido: ' + ped + origem) %}
+                        {% set _ = wa_parts.append('   NS: ' + ns) %}
+                        {% if item.defeito %}{% set _ = wa_parts.append('   Defeito: ' + item.defeito.strip()) %}{% endif %}
+                        {% set _ = wa_parts.append('   Situação: ' + st) %}
+                    {% endfor %}
+                {% endif %}
                 {% set _ = wa_parts.append('') %}
                 {% set _ = wa_parts.append('Total: ' + (rma_test|length|string) + ' item(ns) em análise.') %}
             {% endif %}
@@ -91,10 +118,26 @@
         {% if protocol.defects and protocol.type == 'nao_comprado' %}
             {% set _ = wa_parts.append('') %}
             {% set _ = wa_parts.append('*Defeitos encontrados:*') %}
-            {% for defect in protocol.defects[:5] %}
-                {% set line = '- ' + (defect.type_label() or '') + ' ' + (defect.specification or '') + ' | NS: ' + (defect.serial_number or 'sem NS') %}
-                {% set _ = wa_parts.append(line) %}
+            {% set wa_def_machines = [] %}
+            {% for defect in protocol.defects %}
+                {% if defect.maquina and defect.maquina not in wa_def_machines %}
+                    {% if wa_def_machines.append(defect.maquina) %}{% endif %}
+                {% endif %}
             {% endfor %}
+            {% if wa_def_machines|length > 1 %}
+                {% for m in wa_def_machines %}
+                    {% set _ = wa_parts.append('*' + m + ':*') %}
+                    {% for defect in protocol.defects if defect.maquina == m %}
+                        {% set line = '- ' + (defect.type_label() or '') + ' ' + (defect.specification or '') + ' | NS: ' + (defect.serial_number or 'sem NS') %}
+                        {% set _ = wa_parts.append(line) %}
+                    {% endfor %}
+                {% endfor %}
+            {% else %}
+                {% for defect in protocol.defects[:5] %}
+                    {% set line = '- ' + (defect.type_label() or '') + ' ' + (defect.specification or '') + ' | NS: ' + (defect.serial_number or 'sem NS') %}
+                    {% set _ = wa_parts.append(line) %}
+                {% endfor %}
+            {% endif %}
         {% endif %}
         {% if protocol.rma_trocados %}
             {% set trocados_raw = protocol.rma_trocados|from_json %}
@@ -121,10 +164,26 @@
         {% if protocol.type not in ('rma', 'servico', 'nao_comprado') and protocol.defects %}
             {% set _ = wa_parts.append('') %}
             {% set _ = wa_parts.append('*Defeitos encontrados:*') %}
-            {% for defect in protocol.defects[:5] %}
-                {% set line = '- ' + (defect.type_label() or '') + ' ' + (defect.specification or '') + ' | NS: ' + (defect.serial_number or 'sem NS') %}
-                {% set _ = wa_parts.append(line) %}
+            {% set wa_def2_machines = [] %}
+            {% for defect in protocol.defects %}
+                {% if defect.maquina and defect.maquina not in wa_def2_machines %}
+                    {% if wa_def2_machines.append(defect.maquina) %}{% endif %}
+                {% endif %}
             {% endfor %}
+            {% if wa_def2_machines|length > 1 %}
+                {% for m in wa_def2_machines %}
+                    {% set _ = wa_parts.append('*' + m + ':*') %}
+                    {% for defect in protocol.defects if defect.maquina == m %}
+                        {% set line = '- ' + (defect.type_label() or '') + ' ' + (defect.specification or '') + ' | NS: ' + (defect.serial_number or 'sem NS') %}
+                        {% set _ = wa_parts.append(line) %}
+                    {% endfor %}
+                {% endfor %}
+            {% else %}
+                {% for defect in protocol.defects[:5] %}
+                    {% set line = '- ' + (defect.type_label() or '') + ' ' + (defect.specification or '') + ' | NS: ' + (defect.serial_number or 'sem NS') %}
+                    {% set _ = wa_parts.append(line) %}
+                {% endfor %}
+            {% endif %}
         {% endif %}
         {% set _ = wa_parts.append('') %}
         {% set _ = wa_parts.append('Para acompanhar o andamento, acesse: http://192.168.0.50:5000' + url_for('protocols.detail_protocol', id=protocol.id)) %}
@@ -268,32 +327,72 @@
                 {% if test_itens %}
                 <div>
                     <label class="text-secondary small d-block mb-2"><i class="bi bi-tools"></i> Resultado do Teste de Mesa / Defeitos encontrados</label>
-                    <div class="table-responsive">
-                        <table class="table table-dark table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Componente</th>
-                                    <th>Modelo</th>
-                                    {% if protocol.type in ('rma', 'servico') %}<th>NS</th>{% endif %}
-                                    <th>Defeito</th>
-                                    <th>Pedido</th>
-                                    <th>Data Compra</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in test_itens %}
-                                <tr>
-                                    <td>{{ COMP_LABELS.get(item.component, item.component) if item.component else '-' }}</td>
-                                    <td><code>{{ item.model or '-' }}</code></td>
-                                    {% if protocol.type in ('rma', 'servico') %}<td><code>{{ item.serial or '-' }}</code></td>{% endif %}
-                                    <td class="text-danger">{{ item.defeito or '-' }}</td>
-                                    <td><code>{{ item.pedido or '-' }}</code></td>
-                                    <td>{{ item.data_compra or '-' }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                    {% set ns_machines = [] %}
+                    {% for item in test_itens %}
+                        {% if item.machine and item.machine not in ns_machines %}
+                            {% if ns_machines.append(item.machine) %}{% endif %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if ns_machines|length > 1 %}
+                        {% for m in ns_machines %}
+                        <div class="mb-3">
+                            <strong class="text-info"><i class="bi bi-pc-display"></i> {{ m }}</strong>
+                            <div class="table-responsive mt-1">
+                                <table class="table table-dark table-sm mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Componente</th>
+                                            <th>Modelo</th>
+                                            {% if protocol.type in ('rma', 'servico') %}<th>NS</th>{% endif %}
+                                            <th>Defeito</th>
+                                            <th>Pedido</th>
+                                            <th>Data Compra</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in test_itens if item.machine == m %}
+                                        <tr>
+                                            <td>{{ COMP_LABELS.get(item.component, item.component) if item.component else '-' }}</td>
+                                            <td><code>{{ item.model or '-' }}</code></td>
+                                            {% if protocol.type in ('rma', 'servico') %}<td><code>{{ item.serial or '-' }}</code></td>{% endif %}
+                                            <td class="text-danger">{{ item.defeito or '-' }}</td>
+                                            <td><code>{{ item.pedido or '-' }}</code></td>
+                                            <td>{{ item.data_compra or '-' }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="table-responsive">
+                            <table class="table table-dark table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Componente</th>
+                                        <th>Modelo</th>
+                                        {% if protocol.type in ('rma', 'servico') %}<th>NS</th>{% endif %}
+                                        <th>Defeito</th>
+                                        <th>Pedido</th>
+                                        <th>Data Compra</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in test_itens %}
+                                    <tr>
+                                        <td>{{ COMP_LABELS.get(item.component, item.component) if item.component else '-' }}</td>
+                                        <td><code>{{ item.model or '-' }}</code></td>
+                                        {% if protocol.type in ('rma', 'servico') %}<td><code>{{ item.serial or '-' }}</code></td>{% endif %}
+                                        <td class="text-danger">{{ item.defeito or '-' }}</td>
+                                        <td><code>{{ item.pedido or '-' }}</code></td>
+                                        <td>{{ item.data_compra or '-' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endif %}
                 </div>
                 {% endif %}
                 {% endif %}
@@ -356,9 +455,7 @@
                             <thead>
                                 <tr>
                                     <th>Componente</th>
-                                    {% if protocol.type == 'ponta_entrega' %}
                                     <th>Máquina</th>
-                                    {% endif %}
                                     <th>Modelo</th>
                                     <th>Nº Série</th>
                                     <th>Defeito</th>
@@ -370,9 +467,7 @@
                                 {% for defect in protocol.defects %}
                                 <tr>
                                     <td>{{ defect.type_label() }}</td>
-                                    {% if protocol.type == 'ponta_entrega' %}
                                     <td><span class="badge bg-secondary">{{ defect.maquina or '-' }}</span></td>
-                                    {% endif %}
                                     <td><code>{{ defect.specification or '-' }}</code></td>
                                     <td><code>{{ defect.serial_number or '-' }}</code></td>
                                     <td class="text-danger">{{ defect.description or '-' }}</td>

@@ -108,6 +108,43 @@
 
 {% if rma_test %}
 {{ secao('Itens enviados ao laboratório (Teste de Mesa)') }}
+{% set comp_labels = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor', 'outro': 'Outro'} %}
+{% set status_labels = {'aguardando_peca': 'Aguardando peça', 'em_teste': 'Em teste', 'trocado': 'Trocado', 'devolvido': 'Devolvido ao cliente', 'concluido': 'Concluído'} %}
+{% set pdf_test_machines = [] %}
+{% for item in rma_test %}
+    {% if item.machine and item.machine not in pdf_test_machines %}
+        {% if pdf_test_machines.append(item.machine) %}{% endif %}
+    {% endif %}
+{% endfor %}
+{% if pdf_test_machines|length > 1 %}
+    {% for m in pdf_test_machines %}
+    <p style="margin:8px 0 4px;font-weight:bold;color:#333;">{{ m }}</p>
+    <table class="data" cellspacing="0">
+        <tr>
+            <th>#</th>
+            <th>Componente</th>
+            <th>Pedido</th>
+            <th>Compra em</th>
+            <th>Nº Série</th>
+            <th>Defeito</th>
+            <th>Situação</th>
+        </tr>
+        {% set pdf_idx = [] %}
+        {% for item in rma_test if item.machine == m %}
+            {% if pdf_idx.append(1) %}{% endif %}
+        <tr{% if pdf_idx|length is even %} class="zebra"{% endif %}>
+            <td>{{ pdf_idx|length }}</td>
+            <td>{% if item.component and item.component != 'outro' and item.component.lower() not in (item.model or '').lower() %}{{ comp_labels.get(item.component, item.component) }} {% endif %}{{ item.model or '' }}</td>
+            <td>{{ item.pedido or 'NTB' }}</td>
+            <td>{{ item.data_compra or '—' }}</td>
+            <td>{{ item.serial or 'sem NS' }}</td>
+            <td>{{ item.defeito or '—' }}</td>
+            <td>{{ status_labels.get(item.status, item.status or 'Em análise') }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endfor %}
+{% else %}
 <table class="data" cellspacing="0">
     <tr>
         <th>#</th>
@@ -118,8 +155,6 @@
         <th>Defeito</th>
         <th>Situação</th>
     </tr>
-    {% set comp_labels = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor', 'outro': 'Outro'} %}
-    {% set status_labels = {'aguardando_peca': 'Aguardando peça', 'em_teste': 'Em teste', 'trocado': 'Trocado', 'devolvido': 'Devolvido ao cliente', 'concluido': 'Concluído'} %}
     {% for item in rma_test %}
     <tr{% if loop.index is even %} class="zebra"{% endif %}>
         <td>{{ loop.index }}</td>
@@ -132,6 +167,7 @@
     </tr>
     {% endfor %}
 </table>
+{% endif %}
 {% endif %}
 
 {% if passagens %}
@@ -180,7 +216,7 @@
 <table class="data" cellspacing="0">
     <tr>
         <th>Componente</th>
-        {% if protocol.type == 'ponta_entrega' %}<th>Máquina</th>{% endif %}
+        <th>Máquina</th>
         <th>Modelo</th>
         <th>Nº Série</th>
         <th>Defeito</th>
@@ -192,7 +228,7 @@
     {% for defect in protocol.defects %}
     <tr{% if loop.index is even %} class="zebra"{% endif %}>
         <td>{{ defect.type_label() }}</td>
-        {% if protocol.type == 'ponta_entrega' %}<td>{{ defect.maquina or '—' }}</td>{% endif %}
+        <td>{{ defect.maquina or '—' }}</td>
         <td>{{ defect.specification or '—' }}</td>
         <td>{{ defect.serial_number or '—' }}</td>
         <td>{{ defect.description or '—' }}</td>

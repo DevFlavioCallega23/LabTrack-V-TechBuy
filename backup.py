@@ -1,4 +1,5 @@
 import os
+import json
 import shutil
 import zipfile
 import sys
@@ -6,9 +7,47 @@ from datetime import datetime
 
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
 DB_PATH = os.path.join(BASEDIR, 'labtrack.db')
-ONE_DRIVE_DIR = r'C:\Users\BigBossTechBuy\OneDrive'
+CONFIG_PATH = os.path.join(BASEDIR, 'backup_config.json')
 ZIP_PREFIX = 'labtrack_backup_'
 RETENCAO = 7
+
+
+def _detect_one_drive():
+    home = os.path.expanduser('~')
+    for candidate in [
+        os.path.join(home, 'OneDrive'),
+        os.path.join(home, 'OneDrive - BigBossTechBuy'),
+    ]:
+        if os.path.isdir(candidate):
+            return candidate
+    fallback = os.path.join(BASEDIR, 'backups')
+    os.makedirs(fallback, exist_ok=True)
+    return fallback
+
+
+def get_backup_dir():
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+                cfg = json.load(f)
+            path = cfg.get('backup_dir', '')
+            if path and os.path.isabs(path):
+                return path
+        except (json.JSONDecodeError, OSError):
+            pass
+    return _detect_one_drive()
+
+
+def set_backup_dir(path):
+    path = os.path.abspath(path)
+    os.makedirs(path, exist_ok=True)
+    with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+        json.dump({'backup_dir': path}, f, indent=2)
+    return path
+
+
+ONE_DRIVE_DIR = get_backup_dir()
+
 
 def fazer_backup_one_drive(destino=None):
     if not os.path.exists(DB_PATH):

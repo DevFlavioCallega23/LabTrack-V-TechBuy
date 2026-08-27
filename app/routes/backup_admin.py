@@ -12,11 +12,12 @@ backup_bp = Blueprint('backup_admin', __name__)
 def _listar():
     import backup
     itens = []
-    if os.path.isdir(backup.ONE_DRIVE_DIR):
-        for f in os.listdir(backup.ONE_DRIVE_DIR):
+    destino = backup.get_backup_dir()
+    if os.path.isdir(destino):
+        for f in os.listdir(destino):
             low = f.lower()
             if low.startswith('labtrack_backup') and low.endswith('.zip'):
-                p = os.path.join(backup.ONE_DRIVE_DIR, f)
+                p = os.path.join(destino, f)
                 itens.append({
                     'nome': f,
                     'tamanho': os.path.getsize(p),
@@ -32,7 +33,27 @@ def index():
     if not current_user.is_master():
         flash('Apenas o Master acessa backups.', 'danger')
         return redirect(url_for('main.dashboard'))
-    return render_template('admin/backup.html', backups=_listar())
+    import backup
+    return render_template('admin/backup.html', backups=_listar(), backup_dir=backup.get_backup_dir())
+
+
+@backup_bp.route('/admin/backup/config', methods=['POST'])
+@login_required
+def salvar_config():
+    if not current_user.is_master():
+        flash('Apenas o Master acessa backups.', 'danger')
+        return redirect(url_for('main.dashboard'))
+    import backup
+    novo_caminho = request.form.get('backup_dir', '').strip()
+    if not novo_caminho:
+        flash('Informe um caminho válido.', 'warning')
+        return redirect(url_for('backup_admin.index'))
+    try:
+        backup.set_backup_dir(novo_caminho)
+        flash(f'Localização dos backups atualizada para: {novo_caminho}', 'success')
+    except OSError as e:
+        flash(f'Erro ao criar diretório: {e}', 'danger')
+    return redirect(url_for('backup_admin.index'))
 
 
 @backup_bp.route('/admin/backup/criar', methods=['POST'])
@@ -59,7 +80,7 @@ def baixar(nome):
     import backup
     if nome not in {i['nome'] for i in _listar()}:
         abort(404)
-    return send_file(os.path.join(backup.ONE_DRIVE_DIR, nome), as_attachment=True)
+    return send_file(os.path.join(backup.get_backup_dir(), nome), as_attachment=True)
 
 
 @backup_bp.route('/admin/backup/restaurar', methods=['POST'])
@@ -90,7 +111,7 @@ def restaurar():
             if nome not in {i['nome'] for i in _listar()}:
                 flash('Backup selecionado não existe mais.', 'danger')
                 return redirect(url_for('backup_admin.index'))
-            zip_path = os.path.join(backup.ONE_DRIVE_DIR, nome)
+            zip_path = os.path.join(backup.get_backup_dir(), nome)
 
         with zipfile.ZipFile(zip_path) as zf:
             alvo = None
@@ -106,18 +127,15 @@ def restaurar():
             if os.path.exists(backup.DB_PATH):
                 ts = datetime.now().strftime('%Y-%m-%d_%H%M%S')
                 snap_nome = f'labtrack_backup_pre-restore_{ts}.zip'
-                snap_path = os.path.join(backup.ONE_DRIVE_DIR, snap_nome)
+                os.makedirs(backup.get_backup_dir(), exist_ok=True)
+                snap_path = os.path.join(backup.get_backup_dir(), snap_nome)
                 with zipfile.ZipFile(snap_path, 'w', zipfile.ZIP_DEFLATED) as zs:
                     zs.write(backup.DB_PATH, arcname='labtrack.db')
 
-            fd2, tmp_db = tempfile.mkstemp(suffix='.db')
-            os.close(fd2)
-            with open(tmp_db, 'wb') as out:
-                out.write(zf.read(alvo))
+            novo_db = zf.read(alvo)
 
         db.session.remove()
         db.engine.dispose()
-        os.replace(tmp_db, backup.DB_PATH)
         for ext in ('-wal', '-shm'):
             p = backup.DB_PATH + ext
             try:
@@ -125,6 +143,8 @@ def restaurar():
                     os.remove(p)
             except OSError:
                 pass
+        with open(backup.DB_PATH, 'wb') as out:
+            out.write(novo_db)
 
         msg = 'Banco restaurado com sucesso.'
         if snap_nome:

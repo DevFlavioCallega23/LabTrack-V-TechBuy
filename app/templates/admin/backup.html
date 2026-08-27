@@ -7,15 +7,35 @@
     </form>
 </div>
 
+<div class="card mb-4 border-info">
+    <div class="card-header"><i class="bi bi-folder gear"></i> Localização dos Backups</div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('backup_admin.salvar_config') }}" autocomplete="off" class="d-flex gap-2 align-items-end">
+            <div class="flex-grow-1">
+                <label class="form-label">Pasta onde os backups são salvos</label>
+                <input type="text" name="backup_dir" class="form-control font-monospace" value="{{ backup_dir }}">
+            </div>
+            <button type="submit" class="btn btn-info"><i class="bi bi-check-lg"></i> Salvar</button>
+        </form>
+        <div class="form-text">Caminho atual: <code>{{ backup_dir }}</code>. Funciona com OneDrive, pendrive, rede local ou qualquer pasta.</div>
+    </div>
+</div>
+
+<div class="alert alert-info mb-4">
+    <i class="bi bi-info-circle"></i>
+    <strong>Backup agora:</strong> cria um arquivo <code>.zip</code> com o banco de dados atual e salva na pasta configurada acima.
+    Recomendação: faça um backup antes de qualquer restauração ou alteração importante.
+</div>
+
 <div class="alert alert-warning">
     <i class="bi bi-exclamation-triangle"></i>
     <strong>Atenção na restauração:</strong> restaurar um backup <strong>substitui todo o banco atual</strong> pelos dados do arquivo.
     Antes de restaurar, o sistema salva automaticamente o estado atual como
-    <code>labtrack_backup_pre-restore_...</code> no OneDrive, então dá para voltar atrás se precisar.
+    <code>labtrack_backup_pre-restore_...</code> na pasta configurada, então dá para voltar atrás se precisar.
 </div>
 
 <div class="card mb-4">
-    <div class="card-header"><i class="bi bi-folder2-open"></i> Backups no OneDrive</div>
+    <div class="card-header"><i class="bi bi-folder2-open"></i> Backups salvos</div>
     <div class="card-body">
         {% if backups %}
         <div class="table-responsive">
@@ -77,6 +97,12 @@
                         <i class="bi bi-arrow-counterclockwise"></i> Restaurar banco
                     </button>
                 </form>
+                <div class="alert alert-warning mt-3 mb-0">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Atenção:</strong> esta ação <strong>substitui todo o banco atual</strong> pelo backup selecionado.
+                    Todos os dados criados após a data do backup serão <strong>perdidos</strong>.
+                    O estado atual é salvo automaticamente como <code>labtrack_backup_pre-restore_...</code> na pasta configurada antes da restauração.
+                </div>
             </div>
         </div>
     </div>
@@ -98,6 +124,12 @@
                         <i class="bi bi-upload"></i> Enviar e restaurar
                     </button>
                 </form>
+                <div class="alert alert-warning mt-3 mb-0">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Atenção:</strong> o arquivo enviado deve ser um <code>.zip</code> contendo o <code>labtrack.db</code>.
+                    Esta ação <strong>substitui todo o banco atual</strong> — todos os dados não salvos em outro backup serão <strong>perdidos</strong>.
+                    O estado atual é salvo automaticamente como <code>labtrack_backup_pre-restore_...</code> na pasta configurada antes da restauração.
+                </div>
             </div>
         </div>
     </div>

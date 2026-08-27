@@ -139,6 +139,7 @@ def parse_rma_test_items(request_form):
 
 def build_rma_test_data_from_form(request_form):
     """Build RMA test items from submitted form data for preserving on validation error."""
+    machines = request_form.getlist('rma_test_machine[]')
     comps = request_form.getlist('rma_test_comp[]')
     models = request_form.getlist('rma_test_model[]')
     serials = request_form.getlist('rma_test_serial[]')
@@ -150,6 +151,7 @@ def build_rma_test_data_from_form(request_form):
     for i in range(len(comps)):
         if comps[i].strip():
             items.append({
+                'machine': machines[i].strip() if i < len(machines) else '',
                 'component': comps[i].strip(),
                 'model': models[i].strip() if i < len(models) else '',
                 'serial': serials[i].strip() if i < len(serials) else '',
@@ -887,7 +889,7 @@ def build_defeitos_agrupados():
                         'desc': item.get('defeito', ''),
                         'responsavel': 'loja' if situacao == 'rma_garantia' else ('cliente' if situacao == 'rma_fora' else ''),
                         'status': item.get('status', ''),
-                        'maquina': '',
+                        'maquina': item.get('machine', ''),
                         'protocolo': p.protocol_number,
                         'cliente': p.client_name or '',
                         'data': p.entry_date,

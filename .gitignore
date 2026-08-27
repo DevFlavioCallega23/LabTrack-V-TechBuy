@@ -13,3 +13,4 @@ check_db.py
 .tmp.driveupload/
 
 _dev/
+backup_config.json
