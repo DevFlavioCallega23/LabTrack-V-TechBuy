@@ -211,6 +211,29 @@
 {% endif %}
 {% endif %}
 
+{% if protocol.components and protocol.type not in ('rma', 'servico', 'nao_comprado') %}
+{{ secao('Componentes / NS por Máquina') }}
+{% set pdf_comps_by_unit = protocol.components|sort(attribute='sort_order')|groupby('unit') %}
+{% for unit_group in pdf_comps_by_unit %}
+{% set first = unit_group.list[0] %}
+<p style="margin:8px 0 4px;font-weight:bold;color:#333;">{{ first.machine_name or 'Máquina ' + unit_group.grouper }}{% if first.is_prebuilt %} (PE){% endif %}</p>
+<table class="data" cellspacing="0">
+    <tr>
+        <th>Componente</th>
+        <th>Modelo</th>
+        <th>Nº de Série</th>
+    </tr>
+    {% for comp in unit_group.list %}
+    <tr{% if loop.index is even %} class="zebra"{% endif %}>
+        <td>{{ comp.type_label() }}</td>
+        <td>{{ comp.specification or '—' }}</td>
+        <td>{{ comp.serial_number or '—' }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endfor %}
+{% endif %}
+
 {% if protocol.defects %}
 {{ secao('Defeitos encontrados') }}
 <table class="data" cellspacing="0">

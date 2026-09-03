@@ -67,6 +67,25 @@ def add_missing_columns():
             conn.execute(db.text('ALTER TABLE defect ADD COLUMN maquina VARCHAR(50)'))
         if 'ns_itens' not in tb_maquina_cols:
             conn.execute(db.text('ALTER TABLE tb_maquina ADD COLUMN ns_itens TEXT'))
+        if 'estoque_uso_id' not in defect_cols:
+            conn.execute(db.text('ALTER TABLE defect ADD COLUMN estoque_uso_id INTEGER REFERENCES estoque_uso(id)'))
+        if 'vindo_estoque' not in defect_cols:
+            conn.execute(db.text('ALTER TABLE defect ADD COLUMN vindo_estoque BOOLEAN DEFAULT 0'))
+
+        tables = [r[0] for r in conn.execute(db.text("SELECT name FROM sqlite_master WHERE type='table'")).fetchall()]
+        if 'estoque_uso' not in tables:
+            conn.execute(db.text('''CREATE TABLE estoque_uso (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                data_entrada VARCHAR(10),
+                equipamento VARCHAR(100) NOT NULL,
+                ns VARCHAR(100),
+                uso VARCHAR(200),
+                data_saida VARCHAR(10),
+                laudo VARCHAR(200),
+                obs TEXT,
+                created_at DATETIME
+            )'''))
+
         conn.commit()
 
 def create_app():
@@ -107,12 +126,14 @@ def create_app():
     from app.routes.protocols import protocols_bp
     from app.routes.maquinas import maquinas_bp
     from app.routes.backup_admin import backup_bp
+    from app.routes.estoque import estoque_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(protocols_bp)
     app.register_blueprint(maquinas_bp)
     app.register_blueprint(backup_bp)
+    app.register_blueprint(estoque_bp)
 
     with app.app_context():
         db.create_all()

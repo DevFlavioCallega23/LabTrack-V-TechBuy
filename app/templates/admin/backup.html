@@ -10,16 +10,63 @@
 <div class="card mb-4 border-info">
     <div class="card-header"><i class="bi bi-folder gear"></i> Localização dos Backups</div>
     <div class="card-body">
-        <form method="POST" action="{{ url_for('backup_admin.salvar_config') }}" autocomplete="off" class="d-flex gap-2 align-items-end">
-            <div class="flex-grow-1">
+        <form method="POST" action="{{ url_for('backup_admin.salvar_config') }}" autocomplete="off" id="backupDirForm">
+            <div class="mb-3">
                 <label class="form-label">Pasta onde os backups são salvos</label>
-                <input type="text" name="backup_dir" class="form-control font-monospace" value="{{ backup_dir }}">
+                <div class="input-group">
+                    <input type="text" name="backup_dir" id="backupDirInput" class="form-control font-monospace" value="{{ backup_dir }}" readonly>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalPickDir">
+                        <i class="bi bi-folder2-open"></i> Escolher pasta
+                    </button>
+                    <button type="submit" class="btn btn-info"><i class="bi bi-check-lg"></i> Salvar</button>
+                </div>
             </div>
-            <button type="submit" class="btn btn-info"><i class="bi bi-check-lg"></i> Salvar</button>
         </form>
         <div class="form-text">Caminho atual: <code>{{ backup_dir }}</code>. Funciona com OneDrive, pendrive, rede local ou qualquer pasta.</div>
     </div>
 </div>
+
+<div class="modal fade" id="modalPickDir" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-folder2-open"></i> Escolher pasta de backup</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Cole o caminho da pasta aqui:</label>
+                    <input type="text" id="modalDirInput" class="form-control font-monospace" value="{{ backup_dir }}">
+                </div>
+                <div class="alert alert-secondary mb-0">
+                    <strong>Como copiar o caminho:</strong>
+                    <ol class="mb-0 mt-1">
+                        <li>Abra o <strong>Explorador de Arquivos</strong> e navegue até a pasta desejada</li>
+                        <li>Clique na <strong>barra de endereços</strong> no topo (onde aparece o caminho)</li>
+                        <li>O caminho completo fica selecionado — pressione <strong>Ctrl+C</strong> para copiar</li>
+                        <li>Cole aqui em cima com <strong>Ctrl+V</strong></li>
+                    </ol>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-info" id="btnApplyDir">
+                    <i class="bi bi-check-lg"></i> Aplicar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('btnApplyDir').addEventListener('click', function() {
+    var val = document.getElementById('modalDirInput').value.trim();
+    if (!val) { alert('Digite um caminho válido.'); return; }
+    document.getElementById('backupDirInput').value = val;
+    bootstrap.Modal.getInstance(document.getElementById('modalPickDir')).hide();
+    document.getElementById('backupDirForm').submit();
+});
+</script>
 
 <div class="alert alert-info mb-4">
     <i class="bi bi-info-circle"></i>

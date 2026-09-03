@@ -13,6 +13,7 @@ def test_backup_fluxo_completo(logged_client, app, monkeypatch):
     tmp_db = os.path.join(tmp, 'labtrack.db')
     shutil.copy2(backup_mod.DB_PATH, tmp_db)
     monkeypatch.setattr(backup_mod, 'ONE_DRIVE_DIR', fake_od)
+    monkeypatch.setattr(backup_mod, 'get_backup_dir', lambda: fake_od)
     monkeypatch.setattr(backup_mod, 'DB_PATH', tmp_db)
 
     r = logged_client.get('/admin/backup')

@@ -164,7 +164,8 @@ class Component(db.Model):
 
 class Defect(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    protocol_id = db.Column(db.Integer, db.ForeignKey('protocol.id'), nullable=False)
+    protocol_id = db.Column(db.Integer, db.ForeignKey('protocol.id'), nullable=True)
+    estoque_uso_id = db.Column(db.Integer, db.ForeignKey('estoque_uso.id'), nullable=True)
     component_type = db.Column(db.String(50), nullable=False)
     specification = db.Column(db.String(200))
     serial_number = db.Column(db.String(100))
@@ -172,6 +173,7 @@ class Defect(db.Model):
     responsavel = db.Column(db.String(20))
     defeito_status = db.Column(db.String(30))
     maquina = db.Column(db.String(50))
+    vindo_estoque = db.Column(db.Boolean, default=False)
     sort_order = db.Column(db.Integer, default=0)
 
     TYPE_LABELS = {
@@ -267,3 +269,21 @@ class TBPassagem(db.Model):
 
     def __repr__(self):
         return f'<TBPassagem {self.produto} {self.ns}>'
+
+class EstoqueUso(db.Model):
+    __tablename__ = 'estoque_uso'
+    id = db.Column(db.Integer, primary_key=True)
+    data_entrada = db.Column(db.String(10))
+    equipamento = db.Column(db.String(100), nullable=False)
+    ns = db.Column(db.String(100))
+    uso = db.Column(db.String(200))
+    data_saida = db.Column(db.String(10))
+    laudo = db.Column(db.String(200))
+    obs = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    defeitos = db.relationship('Defect', backref='estoque_uso', lazy=True,
+                               order_by='Defect.sort_order',
+                               cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<EstoqueUso {self.equipamento} {self.ns}>'

@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+{% set COMP_LABELS = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor', 'outro': 'Outro'} %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-box-seam"></i> {{ 'Editar' if item else 'Novo' }} Registro de Uso</h3>
+    <a href="{{ url_for('estoque.index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Voltar
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" autocomplete="off">
+            <h6 class="text-secondary border-bottom pb-2 mb-3"><i class="bi bi-info-circle"></i> Dados do Uso</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <label class="form-label">Data de Entrada</label>
+                    <input type="text" name="data_entrada" class="form-control date-mask" placeholder="DD/MM/AA" value="{{ item.data_entrada if item else '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Equipamento *</label>
+                    <input type="text" name="equipamento" class="form-control" placeholder="Ex: SSD 120, I5-6300HQ" value="{{ item.equipamento if item else '' }}" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Nº de Série</label>
+                    <input type="text" name="ns" class="form-control" placeholder="NS do item" value="{{ item.ns if item else '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Uso</label>
+                    <input type="text" name="uso" class="form-control" placeholder="Ex: Teste SO, teste RMA" value="{{ item.uso if item else '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Data de Saída</label>
+                    <input type="text" name="data_saida" class="form-control date-mask" placeholder="DD/MM/AA" value="{{ item.data_saida if item else '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Laudo</label>
+                    <input type="text" name="laudo" class="form-control" placeholder="Ex: Baixa, Devolvido" value="{{ item.laudo if item else '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Observações</label>
+                    <input type="text" name="obs" class="form-control" placeholder="Observações gerais" value="{{ item.obs if item else '' }}">
+                </div>
+            </div>
+
+            <h6 class="text-secondary border-bottom pb-2 mb-3"><i class="bi bi-exclamation-triangle"></i> Defeitos Encontrados (opcional)</h6>
+            <div class="table-responsive mb-3">
+                <table class="table table-dark table-sm" id="defectTable">
+                    <thead>
+                        <tr>
+                            <th style="width:13%">Componente</th>
+                            <th style="width:18%">Modelo</th>
+                            <th style="width:13%">NS</th>
+                            <th style="width:22%">Defeito</th>
+                            <th style="width:13%">Máquina</th>
+                            <th style="width:10%">Estoque</th>
+                            <th style="width:4%"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if item and item.defeitos %}
+                            {% for d in item.defeitos %}
+                            <tr class="defect-row">
+                                <td>
+                                    <select name="defect_type[]" class="form-select form-select-sm">
+                                        <option value="">-- Selecione --</option>
+                                        {% for k, v in COMP_LABELS.items() %}
+                                        <option value="{{ k }}" {{ 'selected' if d.component_type == k }}>{{ v }}</option>
+                                        {% endfor %}
+                                        <option value="outro" {{ 'selected' if d.component_type == 'outro' }}>Outro</option>
+                                    </select>
+                                </td>
+                                <td><input type="text" name="defect_model[]" class="form-control form-control-sm" value="{{ d.specification or '' }}" placeholder="Ex: I5-2400, 8GB..."></td>
+                                <td><input type="text" name="defect_serial[]" class="form-control form-control-sm" value="{{ d.serial_number or '' }}" placeholder="NS do componente"></td>
+                                <td><input type="text" name="defect_desc[]" class="form-control form-control-sm" value="{{ d.description or '' }}" placeholder="Ex: Não liga, não dá vídeo..."></td>
+                                <td><input type="text" name="defect_maquina[]" class="form-control form-control-sm" value="{{ d.maquina or '' }}" placeholder="Ex: Computador 01"></td>
+                                <td class="text-center"><input type="checkbox" name="defect_vindo_estoque[]" value="1" class="form-check-input" {{ 'checked' if d.vindo_estoque }}></td>
+                                <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr class="defect-row">
+                                <td>
+                                    <select name="defect_type[]" class="form-select form-select-sm">
+                                        <option value="">-- Selecione --</option>
+                                        {% for k, v in COMP_LABELS.items() %}
+                                        <option value="{{ k }}">{{ v }}</option>
+                                        {% endfor %}
+                                        <option value="outro">Outro</option>
+                                    </select>
+                                </td>
+                                <td><input type="text" name="defect_model[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..."></td>
+                                <td><input type="text" name="defect_serial[]" class="form-control form-control-sm" placeholder="NS do componente"></td>
+                                <td><input type="text" name="defect_desc[]" class="form-control form-control-sm" placeholder="Ex: Não liga, não dá vídeo..."></td>
+                                <td><input type="text" name="defect_maquina[]" class="form-control form-control-sm" placeholder="Ex: Computador 01"></td>
+                                <td class="text-center"><input type="checkbox" name="defect_vindo_estoque[]" value="1" class="form-check-input"></td>
+                                <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary mb-3" onclick="addDefectRow()">
+                <i class="bi bi-plus"></i> Adicionar defeito
+            </button>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-info">
+                    <i class="bi bi-check-lg"></i> {{ 'Atualizar' if item else 'Salvar' }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function addDefectRow() {
+    var tbody = document.querySelector('#defectTable tbody');
+    var opts = '<option value="">-- Selecione --</option>' +
+        {% for k, v in COMP_LABELS.items() %}
+        '<option value="{{ k }}">{{ v }}</option>' +
+        {% endfor %}
+        '<option value="outro">Outro</option>';
+    var tr = document.createElement('tr');
+    tr.className = 'defect-row';
+    tr.innerHTML =
+        '<td><select name="defect_type[]" class="form-select form-select-sm">' + opts + '</select></td>' +
+        '<td><input type="text" name="defect_model[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..."></td>' +
+        '<td><input type="text" name="defect_serial[]" class="form-control form-control-sm" placeholder="NS do componente"></td>' +
+        '<td><input type="text" name="defect_desc[]" class="form-control form-control-sm" placeholder="Ex: Não liga, não dá vídeo..."></td>' +
+        '<td><input type="text" name="defect_maquina[]" class="form-control form-control-sm" placeholder="Ex: Computador 01"></td>' +
+        '<td class="text-center"><input type="checkbox" name="defect_vindo_estoque[]" value="1" class="form-check-input"></td>' +
+        '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()"><i class="bi bi-x"></i></button></td>';
+    tbody.appendChild(tr);
+}
+</script>
+{% endblock %}

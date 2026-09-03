@@ -47,6 +47,11 @@
                             <i class="bi bi-pc-display"></i> Máquinas TechBuy
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('estoque.index') }}">
+                            <i class="bi bi-box-seam"></i> Uso do Estoque
+                        </a>
+                    </li>
                     {% endif %}
                     {% if current_user.is_master() %}
                     <li class="nav-item dropdown">

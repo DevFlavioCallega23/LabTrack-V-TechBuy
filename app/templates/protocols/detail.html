@@ -161,6 +161,19 @@
                 {% endfor %}
             {% endif %}
         {% endif %}
+        {% if protocol.type not in ('rma', 'servico', 'nao_comprado') and protocol.components %}
+            {% set _ = wa_parts.append('') %}
+            {% set _ = wa_parts.append('*Componentes / NS:*') %}
+            {% set comps_by_unit = protocol.components|sort(attribute='sort_order')|groupby('unit') %}
+            {% for unit_group in comps_by_unit %}
+                {% set first = unit_group.list[0] %}
+                {% set _ = wa_parts.append('*' + (first.machine_name or 'Máquina ' + unit_group.grouper) + ':*') %}
+                {% for comp in unit_group.list %}
+                    {% set cl = COMP_LABELS.get(comp.component_type, comp.component_type or '') %}
+                    {% set _ = wa_parts.append('- ' + cl + ' ' + (comp.specification or '') + ' | NS: ' + (comp.serial_number or 'sem NS')) %}
+                {% endfor %}
+            {% endfor %}
+        {% endif %}
         {% if protocol.type not in ('rma', 'servico', 'nao_comprado') and protocol.defects %}
             {% set _ = wa_parts.append('') %}
             {% set _ = wa_parts.append('*Defeitos encontrados:*') %}

@@ -898,6 +898,35 @@ def build_defeitos_agrupados():
                     })
             except (json.JSONDecodeError, TypeError):
                 pass
+
+    from app.models import EstoqueUso
+    estoque_itens = EstoqueUso.query.order_by(EstoqueUso.created_at.desc()).all()
+    for eu in estoque_itens:
+        for d in eu.defeitos:
+            grupos['venda'].append({
+                'fonte': 'estoque',
+                'defect_id': d.id,
+                'component': d.component_type,
+                'model': d.specification or '',
+                'serial': d.serial_number or '',
+                'desc': d.description or '',
+                'responsavel': '',
+                'status': '',
+                'maquina': d.maquina or '',
+                'protocolo': f'Estoque #{eu.id}',
+                'protocolo_id': None,
+                'protocolo_status': '',
+                'cliente': '',
+                'data': eu.created_at,
+                'tipo': 'estoque',
+                'venda_pe': False,
+                'garantia': None,
+                'vindo_estoque': d.vindo_estoque,
+                'equipamento': eu.equipamento or '',
+                'ns_estoque': eu.ns or '',
+                'uso': eu.uso or '',
+                'laudo': eu.laudo or '',
+            })
     return grupos
 
 @protocols_bp.route('/defeitos')
@@ -911,7 +940,8 @@ def defeitos():
         def filtro(item):
             if q:
                 alvo = ' '.join(str(item.get(k, '') or '') for k in (
-                    'component', 'model', 'serial', 'desc', 'protocolo', 'cliente', 'maquina')).lower()
+                    'component', 'model', 'serial', 'desc', 'protocolo', 'cliente', 'maquina',
+                    'equipamento', 'ns_estoque', 'uso', 'laudo')).lower()
                 if q not in alvo:
                     return False
             if f_status and item.get('status', '') != f_status:

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block content %}
+{% set COMP_LABELS = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor', 'outro': 'Outro'} %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-box-seam"></i> Registro de Uso #{{ item.id }}</h3>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('estoque.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Voltar
+        </a>
+        <a href="{{ url_for('estoque.editar', id=item.id) }}" class="btn btn-warning">
+            <i class="bi bi-pencil"></i> Editar
+        </a>
+        <form method="POST" action="{{ url_for('estoque.excluir', id=item.id) }}" onsubmit="return confirm('Excluir este registro?')">
+            <button type="submit" class="btn btn-danger">
+                <i class="bi bi-trash"></i> Excluir
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-info-circle"></i> Dados do Uso</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="text-secondary small d-block">Data de Entrada</label>
+                        <strong>{{ item.data_entrada or '-' }}</strong>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="text-secondary small d-block">Equipamento</label>
+                        <strong>{{ item.equipamento }}</strong>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-secondary small d-block">Nº de Série</label>
+                        <strong><code>{{ item.ns or '-' }}</code></strong>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-secondary small d-block">Uso</label>
+                        <strong>{{ item.uso or '-' }}</strong>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-secondary small d-block">Data de Saída</label>
+                        <strong>{{ item.data_saida or '-' }}</strong>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-secondary small d-block">Laudo</label>
+                        {% if item.laudo %}
+                        <span class="badge bg-info fs-6">{{ item.laudo }}</span>
+                        {% else %}
+                        <strong class="text-secondary">-</strong>
+                        {% endif %}
+                    </div>
+                    {% if item.obs %}
+                    <div class="col-12">
+                        <label class="text-secondary small d-block">Observações</label>
+                        <div class="p-2 bg-dark rounded">{{ item.obs }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-clock-history"></i> Registro</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <label class="text-secondary small d-block">Criado em</label>
+                    <strong>{{ item.created_at.strftime('%d/%m/%Y %H:%M') if item.created_at else '-' }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if item.defeitos %}
+<div class="card mt-3 border-warning">
+    <div class="card-header"><i class="bi bi-exclamation-triangle text-warning"></i> Defeitos Encontrados</div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-dark table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Componente</th>
+                        <th>Modelo</th>
+                        <th>NS</th>
+                        <th>Defeito</th>
+                        <th>Máquina</th>
+                        <th>Estoque</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in item.defeitos %}
+                    <tr>
+                        <td>{{ COMP_LABELS.get(d.component_type, d.component_type) }}</td>
+                        <td><code>{{ d.specification or '-' }}</code></td>
+                        <td><code>{{ d.serial_number or '-' }}</code></td>
+                        <td class="text-danger">{{ d.description or '-' }}</td>
+                        <td><span class="badge bg-secondary">{{ d.maquina or '-' }}</span></td>
+                        <td>{% if d.vindo_estoque %}<span class="badge bg-warning text-dark">Estoque</span>{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

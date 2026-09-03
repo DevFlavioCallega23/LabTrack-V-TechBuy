@@ -467,7 +467,18 @@ const COMP_LABELS = {
 };
 const EXTRA_OPTS = '<option value="">-- Selecione --</option>' +
     Object.entries(COMP_LABELS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
-const MACHINES = [{% for m in machines %}'{{ m }}',{% endfor %}];
+const MACHINES_FROM_COMPONENTS = [{% for m in machines %}'{{ m }}',{% endfor %}];
+var MACHINES_FROM_TEST = [];
+{% if rma_test_data is defined and rma_test_data %}
+    {% set _test_items = rma_test_data|safe|default('[]', true) %}
+    try {
+        var _parsed = JSON.parse({{ rma_test_data|safe|default('[]', true) }});
+        _parsed.forEach(function(it) {
+            if (it.machine && MACHINES_FROM_TEST.indexOf(it.machine) === -1) MACHINES_FROM_TEST.push(it.machine);
+        });
+    } catch(e) {}
+{% endif %}
+const MACHINES = MACHINES_FROM_COMPONENTS.concat(MACHINES_FROM_TEST.filter(function(m) { return MACHINES_FROM_COMPONENTS.indexOf(m) === -1; }));
 const MACHINE_OPTS = '<option value="">--</option>' +
     MACHINES.map(m => `<option value="${m}">${m}</option>`).join('');
 

@@ -79,7 +79,7 @@
                 <td class="text-danger">{{ d.desc or '-' }}</td>
                 <td>{{ tipo_badge(d.tipo, d.venda_pe) }}</td>
                 <td>{{ resp_badge(d.responsavel) }}</td>
-                <td>
+                <td style="white-space:nowrap">
                     {% if d.protocolo_status == 'pendente' %}<span class="badge bg-warning text-dark">Pendente</span>
                     {% elif d.protocolo_status == 'andamento' %}<span class="badge bg-dark">Em Andamento</span>
                     {% elif d.protocolo_status == 'concluido' %}<span class="badge bg-info text-dark">Concluído</span>
@@ -87,7 +87,18 @@
                     {% else %}<span class="text-secondary">-</span>{% endif %}
                 </td>
                 <td>{{ d.cliente or '-' }}</td>
-                <td><a href="{{ url_for('protocols.detail_protocol', id=d.protocolo_id) }}">{{ d.protocolo }}</a></td>
+                <td>
+                    {% if d.fonte == 'estoque' %}
+                        <a href="{{ url_for('estoque.detail', id=d.defect_id) }}" class="text-info">
+                            <i class="bi bi-box-seam"></i> Estoque #{{ d.protocolo.split('#')[1] }}
+                        </a>
+                        {% if d.vindo_estoque %}<span class="badge bg-warning text-dark ms-1">Estoque</span>{% endif %}
+                    {% elif d.protocolo_id %}
+                        <a href="{{ url_for('protocols.detail_protocol', id=d.protocolo_id) }}">{{ d.protocolo }}</a>
+                    {% else %}
+                        {{ d.protocolo }}
+                    {% endif %}
+                </td>
                 <td>{{ d.data.strftime('%d/%m/%Y') if d.data else '-' }}</td>
             </tr>
             {% else %}
