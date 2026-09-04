@@ -955,6 +955,100 @@ def defeitos():
         resp_labels=RESP_LABELS, status_labels=DEFEITO_STATUS_LABELS,
         q_filter=q, status_filtro=f_status, resp_filtro=f_resp)
 
+@protocols_bp.route('/defeitos/exportar')
+@login_required
+def exportar_defeitos_excel():
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from app.models import EstoqueUso
+
+    grupos = build_defeitos_agrupados()
+    all_items = []
+    for itens in grupos.values():
+        all_items.extend(itens)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Defeitos'
+
+    header_font = Font(bold=True, color='FFFFFF')
+    header_fill = PatternFill(start_color='2C3E50', end_color='2C3E50', fill_type='solid')
+    header_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+
+    headers = ['Componente', 'Máquina', 'Modelo', 'NS', 'Defeito', 'Tipo',
+               'Responsável', 'Status', 'Cliente', 'Protocolo', 'Data Entrada', 'Fonte']
+    ws.append(headers)
+
+    for col_idx, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = thin_border
+
+    comp_labels = {
+        'placa Mae': 'Placa Mãe', 'processador': 'Processador', 'memoria ram': 'Memória RAM',
+        'hd': 'HD', 'ssd': 'SSD', 'fonte': 'Fonte', 'placa de video': 'Placa de Vídeo',
+        'gabinete': 'Gabinete', 'cooling': 'Cooler', 'monitor': 'Monitor',
+        'mouse': 'Mouse', 'teclado': 'Teclado', 'mouse_teclado': 'Mouse + Teclado',
+        'webcam': 'Webcam', 'headset': 'Headset', 'fone': 'Fone', 'no_break': 'No-Break',
+        'cabo de rede': 'Cabo de Rede', 'cabo hdmi': 'Cabo HDMI', 'cabo displayport': 'Cabo DP',
+        'ssd notebook': 'SSD Notebook', 'SSD Notebook': 'SSD Notebook',
+        'placa Mae notebook': 'Placa Mãe Notebook', 'Placa Mae Notebook': 'Placa Mãe Notebook',
+        'memoria ram notebook': 'Memória RAM Notebook', 'memoria ram note': 'Memória RAM Notebook',
+    }
+
+    tipo_map = {'rma': 'RMA', 'servico': 'Serviço', 'venda': 'Venda',
+                'ponta_entrega': 'Pronta-Entrega', 'nao_comprado': 'NTB', 'estoque': 'Estoque'}
+
+    for item in all_items:
+        comp = comp_labels.get(item.get('component', ''), item.get('component', ''))
+        tipo = tipo_map.get(item.get('tipo', ''), item.get('tipo', ''))
+        data_val = item.get('data')
+        data_str = data_val.strftime('%d/%m/%Y') if data_val else ''
+        fonte = item.get('fonte', '')
+        if fonte == 'estoque':
+            protocolo = f"Estoque #{item.get('protocolo', '').split('#')[-1]}"
+        else:
+            protocolo = item.get('protocolo', '')
+
+        row = [
+            comp,
+            item.get('maquina', ''),
+            item.get('model', ''),
+            item.get('serial', ''),
+            item.get('desc', ''),
+            tipo,
+            item.get('responsavel', ''),
+            item.get('status', ''),
+            item.get('cliente', ''),
+            protocolo,
+            data_str,
+            fonte.capitalize()
+        ]
+        ws.append(row)
+        for col_idx in range(1, len(row) + 1):
+            ws.cell(row=len(ws['A']), column=col_idx).border = thin_border
+
+    col_widths = [18, 14, 18, 20, 25, 16, 14, 14, 18, 20, 14, 12]
+    for i, w in enumerate(col_widths, 1):
+        ws.column_dimensions[chr(64 + i)].width = w
+
+    ws.auto_filter.ref = ws.dimensions
+    ws.freeze_panes = 'A2'
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    filename = f'defeitos_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name=filename)
+
 def _ns_ocorrencias_protocolo(p, termo=None):
     """Collect every NS occurrence in a protocol. If termo is None, return all."""
     def casa(valor):

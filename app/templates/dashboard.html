@@ -9,6 +9,37 @@
     {% endif %}
 </div>
 
+<div class="card mb-4">
+    <div class="card-body py-2">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label mb-0 small">Ano</label>
+                <select name="ano" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    {% for a in anos_disponiveis %}
+                    <option value="{{ a }}" {% if f_ano == a|string %}selected{% endif %}>{{ a }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label mb-0 small">Mês</label>
+                <select name="mes" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    {% for m in range(1, 13) %}
+                    <option value="{{ m }}" {% if f_mes == m|string %}selected{% endif %}>{{ '%02d'|format(m) }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i> Filtrar</button>
+                {% if f_ano or f_mes %}
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-sm btn-outline-secondary">Limpar</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="row g-3 mb-4">
     <div class="col-md-4">
         <a href="{{ url_for('protocols.list_protocols') }}" class="text-decoration-none d-block h-100">
