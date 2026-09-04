@@ -707,7 +707,11 @@ function replicateMachine(btn) {
                     <button type="button" class="btn btn-sm btn-outline-danger remove-ref-btn py-0 px-1" onclick="removeRefSerial(this)" title="Remover NS" style="display:none"><i class="bi bi-x"></i></button>
                 </div>
             </td>
-            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+            <td class="text-nowrap">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="moveCompRow(this, -1)" title="Mover pra cima"><i class="bi bi-arrow-up"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="moveCompRow(this, 1)" title="Mover pra baixo"><i class="bi bi-arrow-down"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="this.closest('tr').remove()" title="Remover"><i class="bi bi-x"></i></button>
+            </td>
         `;
         const select = tr.querySelector('select');
         select.value = srcSelect ? srcSelect.value : '';
@@ -1056,7 +1060,11 @@ function addCompRow(btn) {
                 <button type="button" class="btn btn-sm btn-outline-danger remove-ref-btn py-0 px-1" onclick="removeRefSerial(this)" title="Remover NS" style="display:none"><i class="bi bi-x"></i></button>
             </div>
         </td>
-        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+        <td class="text-nowrap">
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="moveCompRow(this, -1)" title="Mover pra cima"><i class="bi bi-arrow-up"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="moveCompRow(this, 1)" title="Mover pra baixo"><i class="bi bi-arrow-down"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="this.closest('tr').remove()" title="Remover"><i class="bi bi-x"></i></button>
+        </td>
     `;
     tbody.appendChild(tr);
     if (!isComum && produtosCatalogo.length > 0) {
@@ -1064,6 +1072,18 @@ function addCompRow(btn) {
         const modelInput = tr.querySelector('input[name^="comp_model_"]');
         const produtoIdInput = tr.querySelector('input[name^="comp_product_id_"]');
         loadCatalogSelect(typeSelect, modelInput, produtoIdInput);
+    }
+}
+
+function moveCompRow(btn, direction) {
+    const tr = btn.closest('tr');
+    const tbody = tr.closest('tbody');
+    const rows = Array.from(tbody.querySelectorAll('.comp-row'));
+    const idx = rows.indexOf(tr);
+    if (direction === -1 && idx > 0) {
+        tbody.insertBefore(tr, rows[idx - 1]);
+    } else if (direction === 1 && idx < rows.length - 1) {
+        tbody.insertBefore(rows[idx + 1], tr);
     }
 }
 
@@ -1108,7 +1128,11 @@ function loadMachines(data) {
                         <button type="button" class="btn btn-sm btn-outline-danger remove-ref-btn py-0 px-1" onclick="removeRefSerial(this)" title="Remover NS" style="display:none"><i class="bi bi-x"></i></button>
                     </div>
                 </td>
-                <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+                <td class="text-nowrap">
+                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="moveCompRow(this, -1)" title="Mover pra cima"><i class="bi bi-arrow-up"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="moveCompRow(this, 1)" title="Mover pra baixo"><i class="bi bi-arrow-down"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="this.closest('tr').remove()" title="Remover"><i class="bi bi-x"></i></button>
+                </td>
             `;
             const select = tr.querySelector('select');
             select.value = item.type || '';
