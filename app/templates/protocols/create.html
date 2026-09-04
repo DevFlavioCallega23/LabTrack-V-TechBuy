@@ -466,11 +466,13 @@
 
 <script>
 const COMP_LABELS = {
-    'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM',
-    'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor', 'outro': 'Outro'
+    'processador': 'Processador', 'placa_mae': 'Placa-Mãe', 'ram': 'Memória RAM',
+    'ssd': 'SSD', 'fonte': 'Fonte', 'placa_de_video': 'Placa de Vídeo',
+    'monitor': 'Monitor', 'hdmi': 'HDMI'
 };
+const COMP_ORDER = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'monitor', 'hdmi'];
 const EXTRA_OPTS = '<option value="">-- Selecione --</option>' +
-    Object.entries(COMP_LABELS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+    COMP_ORDER.map(k => `<option value="${k}">${COMP_LABELS[k]}</option>`).join('');
 const MACHINES_FROM_COMPONENTS = [{% for m in machines %}'{{ m }}',{% endfor %}];
 var MACHINES_FROM_TEST = [];
 {% if rma_test_data is defined and rma_test_data %}
@@ -512,7 +514,8 @@ function toggleMaterialComum() {
 function loadCatalogSelect(typeSelect, modelInput, produtoIdInput) {
     if (!typeSelect) return;
     const currentType = typeSelect.value;
-    const tipos = [...new Set(produtosCatalogo.map(p => p.component_type))];
+    const tiposCatalogo = [...new Set(produtosCatalogo.map(p => p.component_type))];
+    const tipos = COMP_ORDER.filter(t => tiposCatalogo.includes(t));
     typeSelect.innerHTML = '<option value="">-- Selecione --</option>' +
         tipos.map(t => `<option value="${t}">${COMP_LABELS[t] || t}</option>`).join('');
     if (currentType) typeSelect.value = currentType;

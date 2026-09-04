@@ -302,24 +302,15 @@ class Produto(db.Model):
     TYPE_LABELS = {
         'processador': 'Processador',
         'placa_mae': 'Placa-Mãe',
-        'ram': 'RAM',
+        'ram': 'Memória RAM',
         'ssd': 'SSD',
         'fonte': 'Fonte',
+        'placa_de_video': 'Placa de Vídeo',
         'monitor': 'Monitor',
-        'gabinete': 'Gabinete',
-        'cooling': 'Cooler',
-        'mouse': 'Mouse',
-        'teclado': 'Teclado',
-        'mouse_teclado': 'Mouse + Teclado',
-        'webcam': 'Webcam',
-        'headset': 'Headset',
-        'fone': 'Fone',
-        'no_break': 'No-Break',
-        'cabo_de_rede': 'Cabo de Rede',
-        'cabo_hdmi': 'Cabo HDMI',
-        'cabo_displayport': 'Cabo DP',
-        'outro': 'Outro'
+        'hdmi': 'HDMI'
     }
+
+    TYPE_ORDER = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'monitor', 'hdmi']
 
     def type_label(self):
         return self.TYPE_LABELS.get(self.component_type, self.component_type)
