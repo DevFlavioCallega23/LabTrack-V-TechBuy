@@ -136,6 +136,7 @@ class Protocol(db.Model):
 class Component(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     protocol_id = db.Column(db.Integer, db.ForeignKey('protocol.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('produto.id'), nullable=True)
     component_type = db.Column(db.String(50), nullable=False)
     specification = db.Column(db.String(200))
     serial_number = db.Column(db.String(100))
@@ -144,6 +145,9 @@ class Component(db.Model):
     sort_order = db.Column(db.Integer, default=0)
     is_prebuilt = db.Column(db.Boolean, default=False)
     machine_ref_ns = db.Column(db.String(100))
+    material_comum = db.Column(db.Boolean, default=False)
+
+    product = db.relationship('Produto', backref='components', lazy=True)
 
     FIXED_TYPES = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'monitor']
 
@@ -287,3 +291,38 @@ class EstoqueUso(db.Model):
 
     def __repr__(self):
         return f'<EstoqueUso {self.equipamento} {self.ns}>'
+
+class Produto(db.Model):
+    __tablename__ = 'produto'
+    id = db.Column(db.Integer, primary_key=True)
+    component_type = db.Column(db.String(50), nullable=False)
+    model_name = db.Column(db.String(200), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    TYPE_LABELS = {
+        'processador': 'Processador',
+        'placa_mae': 'Placa-Mãe',
+        'ram': 'RAM',
+        'ssd': 'SSD',
+        'fonte': 'Fonte',
+        'monitor': 'Monitor',
+        'gabinete': 'Gabinete',
+        'cooling': 'Cooler',
+        'mouse': 'Mouse',
+        'teclado': 'Teclado',
+        'mouse_teclado': 'Mouse + Teclado',
+        'webcam': 'Webcam',
+        'headset': 'Headset',
+        'fone': 'Fone',
+        'no_break': 'No-Break',
+        'cabo_de_rede': 'Cabo de Rede',
+        'cabo_hdmi': 'Cabo HDMI',
+        'cabo_displayport': 'Cabo DP',
+        'outro': 'Outro'
+    }
+
+    def type_label(self):
+        return self.TYPE_LABELS.get(self.component_type, self.component_type)
+
+    def __repr__(self):
+        return f'<Produto {self.component_type}: {self.model_name}>'

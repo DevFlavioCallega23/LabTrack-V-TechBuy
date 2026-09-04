@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-box-seam"></i> {{ 'Editar Produto' if produto else 'Novo Produto' }}</h3>
+    <a href="{{ url_for('produtos.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" autocomplete="off">
+                    <div class="mb-3">
+                        <label class="form-label">Componente *</label>
+                        <select name="component_type" class="form-select" required>
+                            <option value="">Selecione...</option>
+                            {% set tipos = [
+                                ('processador', 'Processador'),
+                                ('placa_mae', 'Placa-Mãe'),
+                                ('ram', 'RAM'),
+                                ('ssd', 'SSD'),
+                                ('fonte', 'Fonte'),
+                                ('monitor', 'Monitor'),
+                                ('gabinete', 'Gabinete'),
+                                ('cooling', 'Cooler'),
+                                ('mouse', 'Mouse'),
+                                ('teclado', 'Teclado'),
+                                ('mouse_teclado', 'Mouse + Teclado'),
+                                ('webcam', 'Webcam'),
+                                ('headset', 'Headset'),
+                                ('fone', 'Fone'),
+                                ('no_break', 'No-Break'),
+                                ('cabo_de_rede', 'Cabo de Rede'),
+                                ('cabo_hdmi', 'Cabo HDMI'),
+                                ('cabo_displayport', 'Cabo DP'),
+                                ('outro', 'Outro')
+                            ] %}
+                            {% for val, label in tipos %}
+                            <option value="{{ val }}" {% if produto and produto.component_type == val %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Modelo *</label>
+                        <input type="text" name="model_name" class="form-control" required
+                               placeholder="Ex: 8GB DDR3 Kingston, SSD 480GB A400..."
+                               value="{{ produto.model_name if produto else '' }}">
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> {{ 'Salvar' if produto else 'Cadastrar' }}</button>
+                        <a href="{{ url_for('produtos.index') }}" class="btn btn-outline-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

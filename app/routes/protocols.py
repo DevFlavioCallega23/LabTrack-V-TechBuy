@@ -6,7 +6,7 @@ from datetime import datetime, date, timedelta
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file, current_app
 from flask_login import login_required, current_user
 from app import db
-from app.models import Protocol, Component, Defect, User, WindowsKey
+from app.models import Protocol, Component, Defect, User, WindowsKey, Produto
 from app.models import TBRegistro, TBMaquina, TBTroca, TBDefeito, TBPassagem
 from app.forms import ProtocolForm, UserForm, CreateUserForm, MasterUserForm, MasterCreateUserForm, ChangePasswordForm
 from sqlalchemy import func
@@ -48,6 +48,7 @@ def parse_int_or_none(val):
 def parse_components(request_form):
     components = []
     seen_units = set()
+    material_comum = request_form.get('material_comum') == 'on'
     for key in request_form.keys():
         if key.startswith('comp_type_') and key.endswith('[]'):
             unit = key[len('comp_type_'):-2]
@@ -56,6 +57,7 @@ def parse_components(request_form):
         types = request_form.getlist(f'comp_type_{unit}[]')
         models = request_form.getlist(f'comp_model_{unit}[]')
         serials = request_form.getlist(f'comp_serial_{unit}[]')
+        product_ids = request_form.getlist(f'comp_product_id_{unit}[]')
         machine_name = request_form.get(f'machine_name_{unit}', '').strip() or f'Máquina {unit}'
         is_prebuilt = request_form.get(f'pe_switch_{unit}') == 'on'
         for i in range(len(types)):
@@ -69,6 +71,11 @@ def parse_components(request_form):
                         flash(f'Nº de série deve ter no mínimo 6 caracteres.', 'danger')
                         return None
                 model = models[i].strip() if i < len(models) else ''
+                product_id = None
+                if not material_comum and product_ids:
+                    pid = product_ids[i].strip() if i < len(product_ids) else ''
+                    if pid and pid.isdigit():
+                        product_id = int(pid)
                 components.append(Component(
                     component_type=ct,
                     specification=model,
@@ -76,7 +83,9 @@ def parse_components(request_form):
                     unit=unit,
                     machine_name=machine_name,
                     sort_order=int(unit) * 100 + i,
-                    is_prebuilt=is_prebuilt
+                    is_prebuilt=is_prebuilt,
+                    product_id=product_id,
+                    material_comum=material_comum
                 ))
     return components
 
@@ -341,7 +350,8 @@ def create_protocol():
             win_keys_data = build_windows_key_data_from_form(request.form)
             return render_template('protocols/create.html', form=form, editing=False, comp_data=comp_data,
                 rma_comp_data=rma_comp_data, rma_test_data=rma_test_data, rma_trocados_data=rma_trocados_data,
-                defect_data=defect_data, win_keys_data=win_keys_data, machines=build_machine_names(comp_data))
+                defect_data=defect_data, win_keys_data=win_keys_data, machines=build_machine_names(comp_data),
+                produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]))
 
         protocol_number = gerar_numero_protocolo()
 
@@ -415,7 +425,8 @@ def create_protocol():
     return render_template('protocols/create.html', form=form, editing=False,
         comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
         rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data,
-        machines=build_machine_names(comp_data))
+        machines=build_machine_names(comp_data),
+        produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]))
 
 @protocols_bp.route('/<int:id>')
 @login_required
@@ -452,7 +463,7 @@ def protocol_pdf(id):
                      download_name=f'{protocol.protocol_number}.pdf')
 
 def build_component_data(protocol):
-    """Build {unit: {name: str, components: [{type, serial, model}], is_prebuilt}} dict for editing."""
+    """Build {unit: {name: str, components: [{type, serial, model, product_id, material_comum}], is_prebuilt}} dict for editing."""
     data = {}
     for c in protocol.components:
         u = c.unit or '01'
@@ -465,13 +476,16 @@ def build_component_data(protocol):
         data[u]['components'].append({
             'type': c.component_type,
             'serial': c.serial_number or '',
-            'model': c.specification or ''
+            'model': c.specification or '',
+            'product_id': c.product_id or '',
+            'material_comum': c.material_comum or False
         })
     return json.dumps(data)
 
 def build_comp_data_from_form(request_form):
     """Build {unit: {name, components, is_prebuilt}} JSON from submitted form data (for preserving input on validation error)."""
     data = {}
+    material_comum = request_form.get('material_comum') == 'on'
     for key in request_form.keys():
         if key.startswith('comp_type_') and key.endswith('[]'):
             unit = key[len('comp_type_'):-2]
@@ -480,15 +494,19 @@ def build_comp_data_from_form(request_form):
             types = request_form.getlist(f'comp_type_{unit}[]')
             models = request_form.getlist(f'comp_model_{unit}[]')
             serials = request_form.getlist(f'comp_serial_{unit}[]')
+            product_ids = request_form.getlist(f'comp_product_id_{unit}[]')
             machine_name = request_form.get(f'machine_name_{unit}', '').strip() or f'Máquina {unit}'
             is_prebuilt = request_form.get(f'pe_switch_{unit}') == 'on'
             comps = []
             for i in range(len(types)):
                 if types[i].strip():
+                    pid = product_ids[i].strip() if i < len(product_ids) else ''
                     comps.append({
                         'type': types[i].strip(),
                         'model': models[i].strip() if i < len(models) else '',
-                        'serial': serials[i].strip() if i < len(serials) else ''
+                        'serial': serials[i].strip() if i < len(serials) else '',
+                        'product_id': pid if pid else '',
+                        'material_comum': material_comum
                     })
             data[unit] = {'name': machine_name, 'components': comps, 'is_prebuilt': is_prebuilt}
     return json.dumps(data)
@@ -557,7 +575,8 @@ def edit_protocol(id):
             return render_template('protocols/create.html', form=form, editing=True, protocol=protocol,
                 comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
                 rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data,
-                machines=build_machine_names(comp_data))
+                machines=build_machine_names(comp_data),
+                produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]))
 
         form.populate_obj(protocol)
         protocol.venda_pe = bool(form.venda_pe.data) if form.type.data == 'venda' else False
@@ -614,7 +633,8 @@ def edit_protocol(id):
     return render_template('protocols/create.html', form=form, editing=True, protocol=protocol,
         comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
         rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data,
-        machines=build_machine_names(comp_data))
+        machines=build_machine_names(comp_data),
+        produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]))
 
 @protocols_bp.route('/<int:id>/excluir', methods=['POST'])
 @login_required

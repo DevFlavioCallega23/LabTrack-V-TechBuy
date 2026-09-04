@@ -72,6 +72,11 @@ def add_missing_columns():
         if 'vindo_estoque' not in defect_cols:
             conn.execute(db.text('ALTER TABLE defect ADD COLUMN vindo_estoque BOOLEAN DEFAULT 0'))
 
+        if 'product_id' not in component_cols:
+            conn.execute(db.text('ALTER TABLE component ADD COLUMN product_id INTEGER REFERENCES produto(id)'))
+        if 'material_comum' not in component_cols:
+            conn.execute(db.text('ALTER TABLE component ADD COLUMN material_comum BOOLEAN DEFAULT 0'))
+
         tables = [r[0] for r in conn.execute(db.text("SELECT name FROM sqlite_master WHERE type='table'")).fetchall()]
         if 'estoque_uso' not in tables:
             conn.execute(db.text('''CREATE TABLE estoque_uso (
@@ -83,6 +88,14 @@ def add_missing_columns():
                 data_saida VARCHAR(10),
                 laudo VARCHAR(200),
                 obs TEXT,
+                created_at DATETIME
+            )'''))
+
+        if 'produto' not in tables:
+            conn.execute(db.text('''CREATE TABLE produto (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                component_type VARCHAR(50) NOT NULL,
+                model_name VARCHAR(200) NOT NULL,
                 created_at DATETIME
             )'''))
 
@@ -127,6 +140,7 @@ def create_app():
     from app.routes.maquinas import maquinas_bp
     from app.routes.backup_admin import backup_bp
     from app.routes.estoque import estoque_bp
+    from app.routes.produtos import produtos_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -134,6 +148,7 @@ def create_app():
     app.register_blueprint(maquinas_bp)
     app.register_blueprint(backup_bp)
     app.register_blueprint(estoque_bp)
+    app.register_blueprint(produtos_bp)
 
     with app.app_context():
         db.create_all()

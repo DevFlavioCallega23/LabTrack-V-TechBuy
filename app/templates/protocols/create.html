@@ -213,6 +213,10 @@
                 <div class="col-12">
                     <h6 class="text-secondary border-bottom pb-2">
                         <i class="bi bi-upc-scan"></i> Números de Série
+                        <div class="form-check form-switch d-inline-block ms-3">
+                            <input class="form-check-input" type="checkbox" id="materialComum" name="material_comum" onchange="toggleMaterialComum()">
+                            <label class="form-check-label small" for="materialComum">Material comum da casa</label>
+                        </div>
                         <button type="button" class="btn btn-sm btn-outline-success ms-2" onclick="addMachine()">
                             <i class="bi bi-plus-lg"></i> Adicionar Máquina
                         </button>
@@ -481,6 +485,70 @@ var MACHINES_FROM_TEST = [];
 const MACHINES = MACHINES_FROM_COMPONENTS.concat(MACHINES_FROM_TEST.filter(function(m) { return MACHINES_FROM_COMPONENTS.indexOf(m) === -1; }));
 const MACHINE_OPTS = '<option value="">--</option>' +
     MACHINES.map(m => `<option value="${m}">${m}</option>`).join('');
+
+let produtosCatalogo = [];
+{% if produtos_catalogo is defined %}
+    produtosCatalogo = {{ produtos_catalogo|safe }};
+{% endif %}
+
+function toggleMaterialComum() {
+    const isComum = document.getElementById('materialComum').checked;
+    document.querySelectorAll('.comp-row').forEach(function(row) {
+        const typeSelect = row.querySelector('select[name^="comp_type_"]');
+        const modelInput = row.querySelector('input[name^="comp_model_"]');
+        const produtoIdInput = row.querySelector('input[name^="comp_product_id_"]');
+        if (isComum) {
+            if (typeSelect && !typeSelect.querySelector('option[value="outro"]')) {
+                typeSelect.innerHTML = EXTRA_OPTS;
+            }
+            if (modelInput) modelInput.placeholder = 'Ex: I5-2400, 8GB...';
+            if (produtoIdInput) produtoIdInput.value = '';
+        } else {
+            loadCatalogSelect(typeSelect, modelInput, produtoIdInput);
+        }
+    });
+}
+
+function loadCatalogSelect(typeSelect, modelInput, produtoIdInput) {
+    if (!typeSelect) return;
+    const currentType = typeSelect.value;
+    const tipos = [...new Set(produtosCatalogo.map(p => p.component_type))];
+    typeSelect.innerHTML = '<option value="">-- Selecione --</option>' +
+        tipos.map(t => `<option value="${t}">${COMP_LABELS[t] || t}</option>`).join('');
+    if (currentType) typeSelect.value = currentType;
+    typeSelect.onchange = function() {
+        updateModelOptions(typeSelect, modelInput, produtoIdInput);
+    };
+    if (currentType) updateModelOptions(typeSelect, modelInput, produtoIdInput);
+}
+
+function updateModelOptions(typeSelect, modelInput, produtoIdInput) {
+    if (!modelInput || !typeSelect) return;
+    const tipo = typeSelect.value;
+    const produtos = produtosCatalogo.filter(p => p.component_type === tipo);
+    if (produtos.length === 0) {
+        modelInput.placeholder = 'Modelo não encontrado no catálogo';
+        modelInput.value = '';
+        if (produtoIdInput) produtoIdInput.value = '';
+        return;
+    }
+    const datalistId = 'datalist_' + typeSelect.name + '_' + Math.random().toString(36).substr(2, 9);
+    let datalist = document.getElementById(datalistId);
+    if (!datalist) {
+        datalist = document.createElement('datalist');
+        datalist.id = datalistId;
+        document.body.appendChild(datalist);
+    }
+    datalist.innerHTML = produtos.map(p => `<option value="${p.model_name}" data-id="${p.id}">${p.model_name}</option>`).join('');
+    modelInput.setAttribute('list', datalistId);
+    modelInput.placeholder = 'Selecione ou digite...';
+    modelInput.oninput = function() {
+        const match = produtos.find(p => p.model_name.toLowerCase() === modelInput.value.toLowerCase());
+        if (produtoIdInput) produtoIdInput.value = match ? match.id : '';
+    };
+    const match = produtos.find(p => p.model_name.toLowerCase() === modelInput.value.toLowerCase());
+    if (produtoIdInput) produtoIdInput.value = match ? match.id : '';
+}
 
 function syncDefectMachines() {
     const entries = [];
@@ -967,12 +1035,16 @@ function addCompRow(btn) {
     const machine = machineBlock.dataset.machine;
     const tbody = machineBlock.querySelector('.machine-body');
     const isPE = machineBlock.querySelector('.form-check-input').checked;
+    const isComum = document.getElementById('materialComum') && document.getElementById('materialComum').checked;
     const tr = document.createElement('tr');
     tr.className = 'comp-row';
     const showBtn = isPE ? '' : 'style="display:none"';
     const showInput = isPE ? 'style="display:none"' : '';
     tr.innerHTML = `
-        <td><select name="comp_type_${machine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
+        <td>
+            <select name="comp_type_${machine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select>
+            <input type="hidden" name="comp_product_id_${machine}[]" value="">
+        </td>
         <td><input type="text" name="comp_model_${machine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..."></td>
         <td>
             <div class="d-flex align-items-center gap-1">
@@ -984,6 +1056,12 @@ function addCompRow(btn) {
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
     `;
     tbody.appendChild(tr);
+    if (!isComum && produtosCatalogo.length > 0) {
+        const typeSelect = tr.querySelector('select');
+        const modelInput = tr.querySelector('input[name^="comp_model_"]');
+        const produtoIdInput = tr.querySelector('input[name^="comp_product_id_"]');
+        loadCatalogSelect(typeSelect, modelInput, produtoIdInput);
+    }
 }
 
 function loadMachines(data) {
@@ -995,11 +1073,11 @@ function loadMachines(data) {
     container.innerHTML = '';
     const machines = Object.keys(data).sort();
     let maxM = 0;
+    const isComum = document.getElementById('materialComum') && document.getElementById('materialComum').checked;
     machines.forEach(function(m) {
         const num = parseInt(m, 10);
         if (!isNaN(num) && num > maxM) maxM = num;
         const entry = data[m];
-        // entry can be {name, components} (new) or [components] (old)
         const machineName = entry.name || null;
         const comps = entry.components || entry || [];
         const isPE = entry.is_prebuilt || false;
@@ -1015,7 +1093,10 @@ function loadMachines(data) {
             const showBtn = (isPE && !hasSerial) ? '' : 'style="display:none"';
             const showInput = (!isPE || hasSerial) ? '' : 'style="display:none"';
             tr.innerHTML = `
-                <td><select name="comp_type_${m}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
+                <td>
+                    <select name="comp_type_${m}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select>
+                    <input type="hidden" name="comp_product_id_${m}[]" value="${item.product_id || ''}">
+                </td>
                 <td><input type="text" name="comp_model_${m}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${item.model || ''}"></td>
                 <td>
                     <div class="d-flex align-items-center gap-1">
@@ -1028,6 +1109,15 @@ function loadMachines(data) {
             `;
             const select = tr.querySelector('select');
             select.value = item.type || '';
+            if (!isComum && produtosCatalogo.length > 0) {
+                const typeSelect = tr.querySelector('select');
+                const modelInput = tr.querySelector('input[name^="comp_model_"]');
+                const produtoIdInput = tr.querySelector('input[name^="comp_product_id_"]');
+                loadCatalogSelect(typeSelect, modelInput, produtoIdInput);
+                if (item.product_id && produtoIdInput) {
+                    produtoIdInput.value = item.product_id;
+                }
+            }
             tbody.appendChild(tr);
         });
     });
