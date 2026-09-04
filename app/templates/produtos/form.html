@@ -21,8 +21,7 @@
                                 ('ssd', 'SSD'),
                                 ('fonte', 'Fonte'),
                                 ('placa_de_video', 'Placa de Vídeo'),
-                                ('monitor', 'Monitor'),
-                                ('hdmi', 'HDMI')
+                                ('monitor', 'Monitor')
                             ] %}
                             {% for val, label in tipos %}
                             <option value="{{ val }}" {% if produto and produto.component_type == val %}selected{% endif %}>{{ label }}</option>

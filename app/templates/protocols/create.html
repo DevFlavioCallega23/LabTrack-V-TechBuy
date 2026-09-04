@@ -468,9 +468,9 @@
 const COMP_LABELS = {
     'processador': 'Processador', 'placa_mae': 'Placa-Mãe', 'ram': 'Memória RAM',
     'ssd': 'SSD', 'fonte': 'Fonte', 'placa_de_video': 'Placa de Vídeo',
-    'monitor': 'Monitor', 'hdmi': 'HDMI'
+    'monitor': 'Monitor'
 };
-const COMP_ORDER = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'monitor', 'hdmi'];
+const COMP_ORDER = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'monitor'];
 const EXTRA_OPTS = '<option value="">-- Selecione --</option>' +
     COMP_ORDER.map(k => `<option value="${k}">${COMP_LABELS[k]}</option>`).join('');
 const MACHINES_FROM_COMPONENTS = [{% for m in machines %}'{{ m }}',{% endfor %}];
