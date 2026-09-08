@@ -306,10 +306,12 @@ class Produto(db.Model):
         'ssd': 'SSD',
         'fonte': 'Fonte',
         'placa_de_video': 'Placa de Vídeo',
+        'gpu': 'GPU',
+        'gabinete': 'Gabinete',
         'monitor': 'Monitor'
     }
 
-    TYPE_ORDER = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'monitor']
+    TYPE_ORDER = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'gpu', 'gabinete', 'monitor']
 
     def type_label(self):
         return self.TYPE_LABELS.get(self.component_type, self.component_type)
