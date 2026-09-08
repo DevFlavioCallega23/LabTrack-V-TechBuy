@@ -351,7 +351,8 @@ def create_protocol():
             return render_template('protocols/create.html', form=form, editing=False, comp_data=comp_data,
                 rma_comp_data=rma_comp_data, rma_test_data=rma_test_data, rma_trocados_data=rma_trocados_data,
                 defect_data=defect_data, win_keys_data=win_keys_data, machines=build_machine_names(comp_data),
-                produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]))
+                produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]),
+                component_types=build_component_types())
 
         protocol_number = gerar_numero_protocolo()
 
@@ -426,7 +427,20 @@ def create_protocol():
         comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
         rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data,
         machines=build_machine_names(comp_data),
-        produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]))
+        produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]),
+        component_types=build_component_types())
+
+def build_component_types():
+    """Build component types list from Produto table for dynamic dropdowns."""
+    tipos_db = db.session.query(Produto.component_type).distinct().all()
+    tipos_existentes = {t[0] for t in tipos_db}
+    default_order = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'gpu', 'gabinete', 'monitor']
+    order = [t for t in default_order if t in tipos_existentes]
+    for t in tipos_existentes:
+        if t not in order:
+            order.append(t)
+    labels = Produto.TYPE_LABELS
+    return json.dumps([{'key': t, 'label': labels.get(t, t)} for t in order])
 
 @protocols_bp.route('/<int:id>')
 @login_required
@@ -576,7 +590,8 @@ def edit_protocol(id):
                 comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
                 rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data,
                 machines=build_machine_names(comp_data),
-                produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]))
+                produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]),
+                component_types=build_component_types())
 
         form.populate_obj(protocol)
         protocol.venda_pe = bool(form.venda_pe.data) if form.type.data == 'venda' else False
@@ -634,7 +649,8 @@ def edit_protocol(id):
         comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
         rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data,
         machines=build_machine_names(comp_data),
-        produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]))
+        produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]),
+        component_types=build_component_types())
 
 @protocols_bp.route('/<int:id>/excluir', methods=['POST'])
 @login_required

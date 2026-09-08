@@ -465,12 +465,16 @@
 </div>
 
 <script>
-const COMP_LABELS = {
-    'processador': 'Processador', 'placa_mae': 'Placa-Mãe', 'ram': 'Memória RAM',
-    'ssd': 'SSD', 'fonte': 'Fonte', 'placa_de_video': 'Placa de Vídeo',
-    'monitor': 'Monitor', 'gpu': 'GPU', 'gabinete': 'Gabinete'
-};
-const COMP_ORDER = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'gpu', 'gabinete', 'monitor'];
+let COMP_TYPES_DB = [];
+{% if component_types is defined and component_types %}
+    COMP_TYPES_DB = {{ component_types|safe }};
+{% endif %}
+const COMP_LABELS = {};
+const COMP_ORDER = [];
+COMP_TYPES_DB.forEach(function(t) {
+    COMP_LABELS[t.key] = t.label;
+    COMP_ORDER.push(t.key);
+});
 const EXTRA_OPTS = '<option value="">-- Selecione --</option>' +
     COMP_ORDER.map(k => `<option value="${k}">${COMP_LABELS[k]}</option>`).join('');
 const MACHINES_FROM_COMPONENTS = [{% for m in machines %}'{{ m }}',{% endfor %}];
