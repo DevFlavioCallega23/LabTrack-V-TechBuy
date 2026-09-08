@@ -12,21 +12,17 @@
                 <form method="POST" autocomplete="off">
                     <div class="mb-3">
                         <label class="form-label">Componente *</label>
-                        <select name="component_type" class="form-select" required>
-                            <option value="">Selecione...</option>
-                            {% set tipos = [
-                                ('processador', 'Processador'),
-                                ('placa_mae', 'Placa-Mãe'),
-                                ('ram', 'Memória RAM'),
-                                ('ssd', 'SSD'),
-                                ('fonte', 'Fonte'),
-                                ('placa_de_video', 'Placa de Vídeo'),
-                                ('monitor', 'Monitor')
-                            ] %}
-                            {% for val, label in tipos %}
-                            <option value="{{ val }}" {% if produto and produto.component_type == val %}selected{% endif %}>{{ label }}</option>
-                            {% endfor %}
-                        </select>
+                        <div class="input-group">
+                            <select name="component_type" id="componentType" class="form-select" required>
+                                <option value="">Selecione...</option>
+                                {% for val, label in tipos %}
+                                <option value="{{ val }}" {% if produto and produto.component_type == val %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#novoTipoModal" title="Adicionar novo tipo">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Modelo *</label>
@@ -43,4 +39,60 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="novoTipoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Novo Tipo de Componente</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Nome do Tipo *</label>
+                    <input type="text" id="novoTipoLabel" class="form-control" placeholder="Ex: Gabinete, Cooler, Mouse...">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Chave (automático)</label>
+                    <input type="text" id="novoTipoKey" class="form-control bg-secondary" readonly>
+                    <small class="text-secondary">Gerada automaticamente a partir do nome.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="adicionarNovoTipo()"><i class="bi bi-check-lg"></i> Adicionar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('novoTipoLabel').addEventListener('input', function() {
+    const key = this.value.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '');
+    document.getElementById('novoTipoKey').value = key;
+});
+
+function adicionarNovoTipo() {
+    const label = document.getElementById('novoTipoLabel').value.trim();
+    const key = document.getElementById('novoTipoKey').value.trim();
+    if (!label || !key) {
+        alert('Preencha o nome do tipo.');
+        return;
+    }
+    const select = document.getElementById('componentType');
+    const exists = Array.from(select.options).some(o => o.value === key);
+    if (exists) {
+        alert('Este tipo já existe.');
+        return;
+    }
+    const option = new Option(label, key, true, true);
+    select.add(option);
+    bootstrap.Modal.getInstance(document.getElementById('novoTipoModal')).hide();
+    document.getElementById('novoTipoLabel').value = '';
+    document.getElementById('novoTipoKey').value = '';
+}
+</script>
 {% endblock %}
