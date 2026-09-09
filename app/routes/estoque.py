@@ -13,6 +13,18 @@ def master_required():
     return None
 
 
+def normalize_date_br(text):
+    """Normaliza DD/MM/AA -> DD/MM/AAAA igual aos protocolos."""
+    if not text or not text.strip():
+        return None
+    text = text.strip()
+    parts = text.replace('-', '/').split('/')
+    if len(parts) == 3 and len(parts[2]) == 2 and parts[2].isdigit():
+        parts[2] = '20' + parts[2]
+        return '/'.join(parts)
+    return text
+
+
 def parse_estoque_defects(request_form):
     defects = []
     types = request_form.getlist('defect_type[]')
@@ -57,13 +69,12 @@ def novo():
             flash('Informe o equipamento.', 'warning')
             return render_template('estoque/form.html', item=None)
         item = EstoqueUso(
-            data_entrada=request.form.get('data_entrada', '').strip() or None,
+            data_entrada=normalize_date_br(request.form.get('data_entrada', '')),
             equipamento=equipamento,
             ns=request.form.get('ns', '').strip() or None,
             uso=request.form.get('uso', '').strip() or None,
-            data_saida=request.form.get('data_saida', '').strip() or None,
+            data_saida=normalize_date_br(request.form.get('data_saida', '')),
             laudo=request.form.get('laudo', '').strip() or None,
-            obs=request.form.get('obs', '').strip() or None,
         )
         db.session.add(item)
         db.session.flush()
@@ -97,12 +108,11 @@ def editar(id):
     item = EstoqueUso.query.get_or_404(id)
     if request.method == 'POST':
         item.equipamento = request.form.get('equipamento', '').strip() or item.equipamento
-        item.data_entrada = request.form.get('data_entrada', '').strip() or None
+        item.data_entrada = normalize_date_br(request.form.get('data_entrada', ''))
         item.ns = request.form.get('ns', '').strip() or None
         item.uso = request.form.get('uso', '').strip() or None
-        item.data_saida = request.form.get('data_saida', '').strip() or None
+        item.data_saida = normalize_date_br(request.form.get('data_saida', ''))
         item.laudo = request.form.get('laudo', '').strip() or None
-        item.obs = request.form.get('obs', '').strip() or None
 
         Defect.query.filter_by(estoque_uso_id=item.id).delete()
         defects = parse_estoque_defects(request.form)

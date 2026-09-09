@@ -35,11 +35,14 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Laudo</label>
-                    <input type="text" name="laudo" class="form-control" placeholder="Ex: Baixa, Devolvido" value="{{ item.laudo if item else '' }}">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Observações</label>
-                    <input type="text" name="obs" class="form-control" placeholder="Observações gerais" value="{{ item.obs if item else '' }}">
+                    <select name="laudo" class="form-select">
+                        <option value="">--</option>
+                        <option value="OK" {{ 'selected' if item and item.laudo == 'OK' }}>OK</option>
+                        <option value="Defeito" {{ 'selected' if item and item.laudo == 'Defeito' }}>Defeito</option>
+                        {% if item and item.laudo and item.laudo not in ('OK', 'Defeito') %}
+                        <option value="{{ item.laudo }}" selected>{{ item.laudo }} (antigo)</option>
+                        {% endif %}
+                    </select>
                 </div>
             </div>
 
