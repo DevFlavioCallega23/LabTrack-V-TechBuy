@@ -278,6 +278,7 @@ class EstoqueUso(db.Model):
     __tablename__ = 'estoque_uso'
     id = db.Column(db.Integer, primary_key=True)
     data_entrada = db.Column(db.String(10))
+    tipo_componente = db.Column(db.String(50))
     equipamento = db.Column(db.String(100), nullable=False)
     ns = db.Column(db.String(100))
     uso = db.Column(db.String(200))

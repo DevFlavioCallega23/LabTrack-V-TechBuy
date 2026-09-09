@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-{% set COMP_LABELS = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor', 'outro': 'Outro'} %}
+{% set COMP_LABELS = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'placa_de_video': 'Placa de Vídeo', 'gpu': 'GPU', 'gabinete': 'Gabinete', 'monitor': 'Monitor', 'outro': 'Outro'} %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3><i class="bi bi-box-seam"></i> Registro de Uso #{{ item.id }}</h3>
     <div class="d-flex gap-2">
@@ -28,8 +28,12 @@
                         <label class="text-secondary small d-block">Data de Entrada</label>
                         <strong>{{ item.data_entrada or '-' }}</strong>
                     </div>
+                    <div class="col-md-2">
+                        <label class="text-secondary small d-block">Componente</label>
+                        <strong>{{ COMP_LABELS.get(item.tipo_componente, item.tipo_componente) if item.tipo_componente else '-' }}</strong>
+                    </div>
                     <div class="col-md-4">
-                        <label class="text-secondary small d-block">Equipamento</label>
+                        <label class="text-secondary small d-block">Equipamento / Detalhe</label>
                         <strong>{{ item.equipamento }}</strong>
                     </div>
                     <div class="col-md-3">
@@ -55,7 +59,7 @@
                     {% if item.obs %}
                     <div class="col-12">
                         <label class="text-secondary small d-block">Observações</label>
-                        <div class="p-2 bg-dark rounded">{{ item.obs }}</div>
+                        <div class="p-2 bg-dark rounded">{{ item.obs | nl2br }}</div>
                     </div>
                     {% endif %}
                 </div>

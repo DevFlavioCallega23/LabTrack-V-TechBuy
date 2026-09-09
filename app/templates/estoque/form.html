@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-{% set COMP_LABELS = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor', 'outro': 'Outro'} %}
+{% set COMP_LABELS = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'placa_de_video': 'Placa de Vídeo', 'gpu': 'GPU', 'gabinete': 'Gabinete', 'monitor': 'Monitor', 'outro': 'Outro'} %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3><i class="bi bi-box-seam"></i> {{ 'Editar' if item else 'Novo' }} Registro de Uso</h3>
     <a href="{{ url_for('estoque.index') }}" class="btn btn-outline-secondary">
@@ -10,16 +10,42 @@
 
 <div class="card">
     <div class="card-body">
-        <form method="POST" autocomplete="off">
+        <form method="POST" autocomplete="off" id="estoqueForm">
+            <div class="sticky-top bg-dark py-2 mb-3 border-bottom border-secondary d-flex justify-content-between align-items-center" style="z-index:1020">
+                <span class="fw-bold text-light">
+                    {% if item %}
+                    <i class="bi bi-pencil"></i> Editando #{{ item.id }}
+                    {% else %}
+                    <i class="bi bi-plus-circle"></i> Novo Registro
+                    {% endif %}
+                </span>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('estoque.index') }}" class="btn btn-outline-secondary btn-sm">Cancelar</a>
+                    <button type="submit" class="btn btn-info btn-sm">
+                        <i class="bi bi-check-lg"></i> {{ 'Atualizar' if item else 'Salvar' }}
+                    </button>
+                </div>
+            </div>
             <h6 class="text-secondary border-bottom pb-2 mb-3"><i class="bi bi-info-circle"></i> Dados do Uso</h6>
             <div class="row g-3 mb-4">
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label">Data de Entrada</label>
                     <input type="text" name="data_entrada" class="form-control date-mask" placeholder="DD/MM/AA" value="{{ item.data_entrada if item else '' }}">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Equipamento *</label>
-                    <input type="text" name="equipamento" class="form-control" placeholder="Ex: SSD 120, I5-6300HQ" value="{{ item.equipamento if item else '' }}" required>
+                    <label class="form-label">Componente</label>
+                    <select name="tipo_componente" id="tipoComponente" class="form-select">
+                        <option value="">-- Selecione --</option>
+                        {% for k, v in COMP_LABELS.items() if k != 'outro' %}
+                        <option value="{{ k }}" {{ 'selected' if item and item.tipo_componente == k }}>{{ v }}</option>
+                        {% endfor %}
+                        <option value="outro" {{ 'selected' if item and item.tipo_componente == 'outro' }}>Outro</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Equipamento / Detalhe *</label>
+                    <input type="text" name="equipamento" id="equipamentoInput" list="equipamentoDatalist" class="form-control" placeholder="Ex: I5-9500, SSD 120..." value="{{ item.equipamento if item else '' }}" required>
+                    <datalist id="equipamentoDatalist"></datalist>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Nº de Série</label>
@@ -107,6 +133,11 @@
                 <i class="bi bi-plus"></i> Adicionar defeito
             </button>
 
+            <h6 class="text-secondary border-bottom pb-2 mb-3"><i class="bi bi-chat-dots"></i> Observações</h6>
+            <div class="mb-3">
+                <textarea name="obs" class="form-control" rows="3" placeholder="Observações adicionais (opcional)">{{ item.obs or '' if item else '' }}</textarea>
+            </div>
+
             <div class="mt-4">
                 <button type="submit" class="btn btn-info">
                     <i class="bi bi-check-lg"></i> {{ 'Atualizar' if item else 'Salvar' }}
@@ -117,7 +148,6 @@
 </div>
 
 <script>
-// Enter avança pro próximo campo em vez de salvar (igual aos protocolos)
 document.querySelector('form').addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
         e.preventDefault();
@@ -129,17 +159,128 @@ document.querySelector('form').addEventListener('keydown', function(e) {
     }
 });
 
+let COMP_TYPES_DB = [];
+{% if component_types is defined and component_types %}
+try { COMP_TYPES_DB = {{ component_types|safe }}; } catch(e) {}
+{% endif %}
+let produtosCatalogo = [];
+{% if produtos_catalogo is defined and produtos_catalogo %}
+try { produtosCatalogo = {{ produtos_catalogo|safe }}; } catch(e) {}
+{% endif %}
+const COMP_LABELS_JS = {};
+COMP_TYPES_DB.forEach(function(t) { COMP_LABELS_JS[t.key] = t.label; });
+{% for k, v in COMP_LABELS.items() %}
+if (!COMP_LABELS_JS['{{ k }}']) COMP_LABELS_JS['{{ k }}'] = '{{ v }}';
+{% endfor %}
+if (!COMP_LABELS_JS['outro']) COMP_LABELS_JS['outro'] = 'Outro';
+
+function buildTypeOpts(selected) {
+    var html = '<option value="">-- Selecione --</option>';
+    Object.keys(COMP_LABELS_JS).forEach(function(k) {
+        html += '<option value="' + k + '"' + (selected === k ? ' selected' : '') + '>' + COMP_LABELS_JS[k] + '</option>';
+    });
+    return html;
+}
+
+function wireModelAutocomplete(typeSelect, modelInput) {
+    if (!typeSelect || !modelInput) return;
+    typeSelect.addEventListener('change', function() { updateModelDatalist(typeSelect, modelInput); });
+    modelInput.addEventListener('focus', function() { updateModelDatalist(typeSelect, modelInput); });
+    updateModelDatalist(typeSelect, modelInput);
+}
+
+function updateModelDatalist(typeSelect, modelInput) {
+    var tipo = typeSelect ? typeSelect.value : '';
+    var produtos = tipo ? produtosCatalogo.filter(function(p) { return p.component_type === tipo; }) : produtosCatalogo;
+    var dlId = modelInput.getAttribute('list');
+    if (!dlId) {
+        dlId = 'dl_' + Math.random().toString(36).substr(2, 9);
+        modelInput.setAttribute('list', dlId);
+        var dl = document.createElement('datalist');
+        dl.id = dlId;
+        document.body.appendChild(dl);
+    }
+    var dl = document.getElementById(dlId);
+    if (!dl) return;
+    dl.innerHTML = produtos.map(function(p) { return '<option value="' + esc(p.model_name) + '"></option>'; }).join('');
+    modelInput.placeholder = 'Selecione ou digite... (livre)';
+    modelInput.removeAttribute('disabled');
+}
+
+function esc(s) { return String(s == null ? '' : s).replace(/"/g, '&quot;'); }
+
+function refreshTipoOptions() {
+    var tipoSel = document.getElementById('tipoComponente');
+    if (tipoSel) {
+        var cur = tipoSel.value;
+        tipoSel.innerHTML = buildTypeOpts(cur);
+        if (cur) tipoSel.value = cur;
+    }
+    document.querySelectorAll('#defectTable select[name="defect_type[]"]').forEach(function(sel) {
+        var c = sel.value;
+        sel.innerHTML = buildTypeOpts(c);
+        if (c) sel.value = c;
+    });
+}
+
+function updateEquipamentoDatalist() {
+    var tipoSel = document.getElementById('tipoComponente');
+    var equipInput = document.getElementById('equipamentoInput');
+    var dl = document.getElementById('equipamentoDatalist');
+    if (!tipoSel || !equipInput || !dl) return;
+    var tipo = tipoSel.value;
+    var produtos = produtosCatalogo.filter(function(p) { return p.component_type === tipo; });
+    var lista = produtos.length ? produtos : produtosCatalogo;
+    dl.innerHTML = lista.map(function(p) { return '<option value="' + esc(p.model_name) + '"></option>'; }).join('');
+    equipInput.placeholder = produtos.length ? 'Selecione ou digite... Ex: ' + produtos[0].model_name : 'Ex: I5-9500, SSD 120... (digite livre)';
+}
+(function() {
+    var tipoSel = document.getElementById('tipoComponente');
+    if (tipoSel) {
+        tipoSel.addEventListener('change', updateEquipamentoDatalist);
+        var equipInput = document.getElementById('equipamentoInput');
+        if (equipInput) {
+            equipInput.addEventListener('focus', updateEquipamentoDatalist);
+            equipInput.addEventListener('input', function() {});
+        }
+        updateEquipamentoDatalist();
+    }
+})();
+
+fetch('{{ url_for("produtos.api_listar") }}', {credentials: 'same-origin'})
+    .then(function(r) { return r.ok ? r.json() : []; })
+    .then(function(data) {
+        if (Array.isArray(data) && data.length) {
+            produtosCatalogo = data;
+            data.forEach(function(p) { if (p.component_type && !COMP_LABELS_JS[p.component_type]) COMP_LABELS_JS[p.component_type] = p.type_label || p.component_type; });
+            refreshTipoOptions();
+            updateEquipamentoDatalist();
+            document.querySelectorAll('#defectTable .defect-row').forEach(function(row) {
+                var sel = row.querySelector('select[name="defect_type[]"]');
+                var model = row.querySelector('input[name="defect_model[]"]');
+                if (sel && model) updateModelDatalist(sel, model);
+            });
+        }
+    })
+    .catch(function() {});
+
+document.querySelectorAll('#defectTable .defect-row').forEach(function(row) {
+    var sel = row.querySelector('select[name="defect_type[]"]');
+    var model = row.querySelector('input[name="defect_model[]"]');
+    if (sel) {
+        var cur = sel.value;
+        sel.innerHTML = buildTypeOpts(cur);
+        if (cur && sel.querySelector('option[value="' + cur + '"]')) sel.value = cur;
+    }
+    wireModelAutocomplete(sel, model);
+});
+
 function addDefectRow() {
     var tbody = document.querySelector('#defectTable tbody');
-    var opts = '<option value="">-- Selecione --</option>' +
-        {% for k, v in COMP_LABELS.items() %}
-        '<option value="{{ k }}">{{ v }}</option>' +
-        {% endfor %}
-        '<option value="outro">Outro</option>';
     var tr = document.createElement('tr');
     tr.className = 'defect-row';
     tr.innerHTML =
-        '<td><select name="defect_type[]" class="form-select form-select-sm">' + opts + '</select></td>' +
+        '<td><select name="defect_type[]" class="form-select form-select-sm">' + buildTypeOpts('') + '</select></td>' +
         '<td><input type="text" name="defect_model[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..."></td>' +
         '<td><input type="text" name="defect_serial[]" class="form-control form-control-sm" placeholder="NS do componente"></td>' +
         '<td><input type="text" name="defect_desc[]" class="form-control form-control-sm" placeholder="Ex: Não liga, não dá vídeo..."></td>' +
@@ -147,6 +288,7 @@ function addDefectRow() {
         '<td class="text-center"><input type="checkbox" name="defect_vindo_estoque[]" value="1" class="form-check-input"></td>' +
         '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()"><i class="bi bi-x"></i></button></td>';
     tbody.appendChild(tr);
+    wireModelAutocomplete(tr.querySelector('select[name="defect_type[]"]'), tr.querySelector('input[name="defect_model[]"]'));
 }
 </script>
 {% endblock %}

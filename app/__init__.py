@@ -71,6 +71,12 @@ def add_missing_columns():
             conn.execute(db.text('ALTER TABLE defect ADD COLUMN estoque_uso_id INTEGER REFERENCES estoque_uso(id)'))
         if 'vindo_estoque' not in defect_cols:
             conn.execute(db.text('ALTER TABLE defect ADD COLUMN vindo_estoque BOOLEAN DEFAULT 0'))
+        try:
+            estoque_cols = [c['name'] for c in inspector.get_columns('estoque_uso')]
+            if 'tipo_componente' not in estoque_cols:
+                conn.execute(db.text('ALTER TABLE estoque_uso ADD COLUMN tipo_componente VARCHAR(50)'))
+        except Exception:
+            pass
 
         if 'product_id' not in component_cols:
             conn.execute(db.text('ALTER TABLE component ADD COLUMN product_id INTEGER REFERENCES produto(id)'))
@@ -82,6 +88,7 @@ def add_missing_columns():
             conn.execute(db.text('''CREATE TABLE estoque_uso (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 data_entrada VARCHAR(10),
+                tipo_componente VARCHAR(50),
                 equipamento VARCHAR(100) NOT NULL,
                 ns VARCHAR(100),
                 uso VARCHAR(200),
