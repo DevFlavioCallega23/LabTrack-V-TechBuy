@@ -581,7 +581,34 @@ document.addEventListener('input', function(e) {
     if (e.target && e.target.name && e.target.name.indexOf('machine_name_') === 0) {
         syncDefectMachines();
     }
+    if (e.target && e.target.name && e.target.name.indexOf('rma_machine_name_') === 0) {
+        syncRmaTestMachines();
+    }
 });
+
+function syncRmaTestMachines() {
+    const entries = [];
+    document.querySelectorAll('input[name^="rma_machine_name_"]').forEach(function(inp) {
+        const m = inp.name.match(/^rma_machine_name_(.+)/);
+        const unit = m ? m[1] : '';
+        const v = inp.value.trim();
+        if (v) entries.push({ unit: unit, name: v });
+    });
+    const counts = {};
+    entries.forEach(function(e) { counts[e.name] = (counts[e.name] || 0) + 1; });
+    const names = entries.map(function(e) {
+        return counts[e.name] > 1 ? e.name + ' (unid. ' + e.unit + ')' : e.name;
+    });
+    MACHINES_FROM_TEST.forEach(function(m) {
+        if (names.indexOf(m) === -1) names.push(m);
+    });
+    document.querySelectorAll('select[name="rma_test_machine[]"]').forEach(function(sel) {
+        const cur = sel.value;
+        sel.innerHTML = '<option value="">--</option>' +
+            names.map(n => `<option value="${n}">${n}</option>`).join('');
+        if (cur) sel.value = cur;
+    });
+}
 
 let machineCount = 0;
 let rmaMachineCount = 0;
@@ -739,10 +766,12 @@ function addRmaMachine() {
     while (used.has(next)) next++;
     if (next > rmaMachineCount) rmaMachineCount = next;
     container.insertAdjacentHTML('beforeend', rmaMachineHTML(next));
+    syncRmaTestMachines();
 }
 
 function removeRmaMachine(btn) {
     btn.closest('.rma-machine-block').remove();
+    syncRmaTestMachines();
 }
 
 function addRmaCompRow(btn) {
@@ -838,6 +867,26 @@ function updateRmaTestNsColumns() {
     });
 }
 
+function currentRmaMachineOpts() {
+    const entries = [];
+    document.querySelectorAll('input[name^="rma_machine_name_"]').forEach(function(inp) {
+        const m = inp.name.match(/^rma_machine_name_(.+)/);
+        const unit = m ? m[1] : '';
+        const v = inp.value.trim();
+        if (v) entries.push({ unit: unit, name: v });
+    });
+    const counts = {};
+    entries.forEach(function(e) { counts[e.name] = (counts[e.name] || 0) + 1; });
+    const names = entries.map(function(e) {
+        return counts[e.name] > 1 ? e.name + ' (unid. ' + e.unit + ')' : e.name;
+    });
+    MACHINES_FROM_TEST.forEach(function(m) {
+        if (names.indexOf(m) === -1) names.push(m);
+    });
+    return '<option value="">--</option>' +
+        names.map(n => `<option value="${n}">${n}</option>`).join('');
+}
+
 function addRmaTestRow() {
     const tbody = document.querySelector('#rmaTestTable tbody');
     const opts = '<option value="">-- Selecione --</option>' +
@@ -845,7 +894,7 @@ function addRmaTestRow() {
     const tr = document.createElement('tr');
     tr.className = 'rma-test-row';
     tr.innerHTML = `
-        <td><select name="rma_test_machine[]" class="form-select form-select-sm">${MACHINE_OPTS}</select></td>
+        <td><select name="rma_test_machine[]" class="form-select form-select-sm">${currentRmaMachineOpts()}</select></td>
         <td><select name="rma_test_comp[]" class="form-select form-select-sm">${opts}</select></td>
         <td><input type="text" name="rma_test_model[]" class="form-control form-control-sm" placeholder="Ex: I5-2400"></td>
         <td class="rma-test-ns-cell" style="display:${rmaTestHasNs() ? '' : 'none'}"><input type="text" name="rma_test_serial[]" class="form-control form-control-sm" placeholder="Nº de Série"></td>
@@ -1408,6 +1457,7 @@ document.addEventListener('DOMContentLoaded', function() {
     {% if rma_test_data is defined %}
     loadRmaTestItems({{ rma_test_data|safe }});
     {% endif %}
+    syncRmaTestMachines();
 
     {% if rma_trocados_data is defined %}
     loadRmaTrocadosItems({{ rma_trocados_data|safe }});
