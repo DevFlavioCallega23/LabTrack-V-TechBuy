@@ -117,6 +117,18 @@
 </div>
 
 <script>
+// Enter avança pro próximo campo em vez de salvar (igual aos protocolos)
+document.querySelector('form').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        const formEls = Array.from(this.querySelectorAll('input, select, button:not([type="submit"])'));
+        const idx = formEls.indexOf(e.target);
+        if (idx >= 0 && idx < formEls.length - 1) {
+            formEls[idx + 1].focus();
+        }
+    }
+});
+
 function addDefectRow() {
     var tbody = document.querySelector('#defectTable tbody');
     var opts = '<option value="">-- Selecione --</option>' +
