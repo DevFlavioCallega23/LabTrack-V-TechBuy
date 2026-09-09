@@ -46,6 +46,8 @@
         {% elif protocol.type == 'nao_comprado' %}
             {% if protocol.entry_date %}{% set _ = wa_parts.append('_Data de entrada:_ ' + protocol.entry_date.strftime('%d/%m/%Y')) %}{% endif %}
             {% if protocol.exit_date %}{% set _ = wa_parts.append('_Saída:_ ' + protocol.exit_date.strftime('%d/%m/%Y')) %}{% endif %}
+        {% elif protocol.type in ('venda', 'ponta_entrega') %}
+            {% if protocol.order_number or protocol.original_order %}{% set _ = wa_parts.append('_Pedido:_ ' + (protocol.order_number or protocol.original_order)) %}{% endif %}
         {% endif %}
         {% if protocol.rma_test_result and protocol.type in ('rma', 'servico') %}
             {% set rma_test = protocol.rma_test_result|from_json %}
