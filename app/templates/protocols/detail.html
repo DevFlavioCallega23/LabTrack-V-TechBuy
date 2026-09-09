@@ -35,10 +35,11 @@
         {% set _ = wa_parts.append('*' + protocol.protocol_number + '* - *' + protocol.type_label() + '*') %}
         {% set _ = wa_parts.append('') %}
         {% set _ = wa_parts.append('_Cliente:_ ' + (protocol.client_name or '-')) %}
-        {% if protocol.seller %}{% set _ = wa_parts.append('_Vendedor:_ ' + protocol.seller) %}{% endif %}
+        {% if protocol.seller and protocol.seller != 'NIL' %}{% set _ = wa_parts.append('_Vendedor:_ ' + protocol.seller) %}{% endif %}
         {% set _ = wa_parts.append('_Status do protocolo:_ ' + (protocol.status_label() or '-')) %}
         {% if protocol.type in ('rma', 'servico') %}
             {% if protocol.rma_in_warranty is not none %}{% set _ = wa_parts.append('_Garantia:_ ' + ('Sim, coberto pela garantia' if protocol.rma_in_warranty else 'Não, fora da garantia')) %}{% endif %}
+            {% if protocol.original_order or protocol.order_number %}{% set _ = wa_parts.append('_Pedido:_ ' + (protocol.original_order or protocol.order_number)) %}{% endif %}
             {% if protocol.rma_entry_date %}{% set _ = wa_parts.append('_Entrada no laboratório:_ ' + protocol.rma_entry_date) %}{% endif %}
             {% if protocol.entry_date %}{% set _ = wa_parts.append('_Data da compra:_ ' + protocol.entry_date.strftime('%d/%m/%Y')) %}{% endif %}
             {% if protocol.exit_date %}{% set _ = wa_parts.append('_Saída:_ ' + protocol.exit_date.strftime('%d/%m/%Y')) %}{% endif %}
