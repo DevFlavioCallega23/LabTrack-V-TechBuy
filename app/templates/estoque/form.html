@@ -28,10 +28,6 @@
             </div>
             <h6 class="text-secondary border-bottom pb-2 mb-3"><i class="bi bi-info-circle"></i> Dados do Uso</h6>
             <div class="row g-3 mb-4">
-                <div class="col-md-2">
-                    <label class="form-label">Data de Entrada</label>
-                    <input type="text" name="data_entrada" class="form-control date-mask" placeholder="DD/MM/AA" value="{{ item.data_entrada if item else '' }}">
-                </div>
                 <div class="col-md-3">
                     <label class="form-label">Componente</label>
                     <select name="tipo_componente" id="tipoComponente" class="form-select">
@@ -52,14 +48,6 @@
                     <input type="text" name="ns" class="form-control" placeholder="NS do item" value="{{ item.ns if item else '' }}">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Uso</label>
-                    <input type="text" name="uso" class="form-control" placeholder="Ex: Teste SO, teste RMA" value="{{ item.uso if item else '' }}">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Data de Saída</label>
-                    <input type="text" name="data_saida" class="form-control date-mask" placeholder="DD/MM/AA" value="{{ item.data_saida if item else '' }}">
-                </div>
-                <div class="col-md-3">
                     <label class="form-label">Laudo</label>
                     <select name="laudo" class="form-select">
                         <option value="">--</option>
@@ -70,6 +58,40 @@
                         {% endif %}
                     </select>
                 </div>
+            </div>
+
+            <h6 class="text-secondary border-bottom pb-2 mb-3"><i class="bi bi-arrow-repeat"></i> Entradas e Saídas
+                <button type="button" class="btn btn-sm btn-outline-success ms-2" onclick="addPassRow()">
+                    <i class="bi bi-plus-lg"></i> Adicionar
+                </button>
+            </h6>
+            <div class="table-responsive mb-3">
+                <table class="table table-dark table-sm" id="passTable">
+                    <thead>
+                        <tr>
+                            <th style="width:20%">Data de entrada</th>
+                            <th style="width:20%">Data de saída</th>
+                            <th>Protocolo / Uso</th>
+                            <th style="width:4%"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set _pass = item.passagens|from_json if item and item.passagens else [] %}
+                        {% if not _pass and item and (item.data_entrada or item.data_saida or item.uso) %}
+                            {% set _legacy = [{'data_entrada': item.data_entrada or '', 'data_saida': item.data_saida or '', 'uso': item.uso or ''}] %}
+                            {% set _pass = _legacy %}
+                        {% endif %}
+                        {% for ps in _pass %}
+                        <tr class="pass-row">
+                            <td><input type="text" name="pass_entrada[]" class="form-control form-control-sm date-mask" placeholder="DD/MM/AA" value="{{ ps.data_entrada or '' }}"></td>
+                            <td><input type="text" name="pass_saida[]" class="form-control form-control-sm date-mask" placeholder="DD/MM/AA" value="{{ ps.data_saida or '' }}"></td>
+                            <td><input type="text" name="pass_uso[]" class="form-control form-control-sm" placeholder="Ex: PRO-2026-0113, uso próprio..." value="{{ ps.uso or '' }}"></td>
+                            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <small class="text-secondary">Registre cada utilização do mesmo NS: protocolo onde foi usado ou uso próprio.</small>
             </div>
 
             <h6 class="text-secondary border-bottom pb-2 mb-3"><i class="bi bi-exclamation-triangle"></i> Defeitos Encontrados (opcional)</h6>
@@ -289,6 +311,19 @@ function addDefectRow() {
         '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()"><i class="bi bi-x"></i></button></td>';
     tbody.appendChild(tr);
     wireModelAutocomplete(tr.querySelector('select[name="defect_type[]"]'), tr.querySelector('input[name="defect_model[]"]'));
+}
+
+function addPassRow() {
+    var tbody = document.querySelector('#passTable tbody');
+    var tr = document.createElement('tr');
+    tr.className = 'pass-row';
+    tr.innerHTML =
+        '<td><input type="text" name="pass_entrada[]" class="form-control form-control-sm date-mask" placeholder="DD/MM/AA"></td>' +
+        '<td><input type="text" name="pass_saida[]" class="form-control form-control-sm date-mask" placeholder="DD/MM/AA"></td>' +
+        '<td><input type="text" name="pass_uso[]" class="form-control form-control-sm" placeholder="Ex: PRO-2026-0113, uso próprio..."></td>' +
+        '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()"><i class="bi bi-x"></i></button></td>';
+    tbody.appendChild(tr);
+    if (window.initDateMask) initDateMask(tr);
 }
 </script>
 {% endblock %}

@@ -43,6 +43,15 @@
                     <label class="form-label">Nº de Série (NS)</label>
                     <input type="text" name="ns" value="{{ f_ns }}" class="form-control" placeholder="Busca em todo o protocolo">
                 </div>
+                <div class="col-md-3 col-6">
+                    <label class="form-label">Componente</label>
+                    <select name="componente" class="form-select">
+                        <option value="">Todos</option>
+                        {% for t in tipos_componente %}
+                        <option value="{{ t }}" {{ 'selected' if f_componente == t }}>{{ comp_labels.get(t, t) }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <div class="col-md-2 col-6">
                     <label class="form-label">Entrada de</label>
                     <input type="text" name="data_de" value="{{ f_data_de }}" class="form-control date-mask" placeholder="DD/MM/AAAA">
@@ -66,7 +75,7 @@
 <div class="alert alert-warning"><i class="bi bi-emoji-neutral"></i> Nenhum protocolo encontrado com esses filtros. Tente ampliar o período ou limpar algum campo.</div>
 {% else %}
 <p class="text-secondary small mb-2">
-    <strong>{{ total }}</strong> protocolo(s) encontrado(s){% if f_ns %} — <strong>{{ total_ocorrencias }}</strong> ocorrência(s) do NS{% endif %}.
+    <strong>{{ total }}</strong> protocolo(s) encontrado(s){% if f_ns %} — <strong>{{ total_ocorrencias }}</strong> ocorrência(s) do NS{% endif %}{% if f_componente %} — <strong>{{ total_comp_ocorrencias }}</strong> ocorrência(s) de {{ comp_labels.get(f_componente, f_componente) }}{% endif %}.
 </p>
 <div class="card">
     <div class="card-body p-0">
@@ -83,6 +92,7 @@
                         <th>Saída</th>
                         <th>Status</th>
                         {% if f_ns %}<th>NS encontrado em</th>{% endif %}
+                        {% if f_componente %}<th>{{ comp_labels.get(f_componente, f_componente) }} em</th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -101,6 +111,13 @@
                         <td class="small">
                             {% for oc in r.ocorrencias %}
                             <span class="text-info">{{ oc.local }}</span>: <code>{{ oc.valor }}</code>{% if not loop.last %}; {% endif %}
+                            {% endfor %}
+                        </td>
+                        {% endif %}
+                        {% if f_componente %}
+                        <td class="small">
+                            {% for oc in r.comp_ocorrencias %}
+                            <span class="text-warning">{{ oc.local }}</span>: <code>{{ oc.valor }}</code>{% if oc.detalhe %} <span class="text-secondary">({{ oc.detalhe }})</span>{% endif %}{% if not loop.last %}; {% endif %}
                             {% endfor %}
                         </td>
                         {% endif %}

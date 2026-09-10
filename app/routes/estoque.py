@@ -69,6 +69,20 @@ def parse_estoque_defects(request_form):
     return defects
 
 
+def parse_estoque_passagens(request_form):
+    entradas = request_form.getlist('pass_entrada[]')
+    saidas = request_form.getlist('pass_saida[]')
+    usos = request_form.getlist('pass_uso[]')
+    itens = []
+    for i in range(max(len(entradas), len(saidas), len(usos))):
+        ent = normalize_date_br(entradas[i]) if i < len(entradas) else None
+        sai = normalize_date_br(saidas[i]) if i < len(saidas) else None
+        uso = usos[i].strip() if i < len(usos) else ''
+        if ent or sai or uso:
+            itens.append({'data_entrada': ent or '', 'data_saida': sai or '', 'uso': uso})
+    return json.dumps(itens) if itens else None
+
+
 @estoque_bp.route('/')
 @login_required
 def index():
@@ -90,15 +104,18 @@ def novo():
         if not equipamento:
             flash('Informe o equipamento.', 'warning')
             return render_template('estoque/form.html', item=None, **get_catalog_context())
+        passagens_json = parse_estoque_passagens(request.form)
+        primeira = json.loads(passagens_json)[0] if passagens_json else {}
         item = EstoqueUso(
-            data_entrada=normalize_date_br(request.form.get('data_entrada', '')),
+            data_entrada=primeira.get('data_entrada') or None,
             tipo_componente=request.form.get('tipo_componente', '').strip() or None,
             equipamento=equipamento,
             ns=request.form.get('ns', '').strip() or None,
-            uso=request.form.get('uso', '').strip() or None,
-            data_saida=normalize_date_br(request.form.get('data_saida', '')),
+            uso=primeira.get('uso') or None,
+            data_saida=primeira.get('data_saida') or None,
             laudo=request.form.get('laudo', '').strip() or None,
             obs=request.form.get('obs', '').strip() or None,
+            passagens=passagens_json,
         )
         db.session.add(item)
         db.session.flush()
@@ -133,12 +150,15 @@ def editar(id):
     if request.method == 'POST':
         item.equipamento = request.form.get('equipamento', '').strip() or item.equipamento
         item.tipo_componente = request.form.get('tipo_componente', '').strip() or None
-        item.data_entrada = normalize_date_br(request.form.get('data_entrada', ''))
         item.ns = request.form.get('ns', '').strip() or None
-        item.uso = request.form.get('uso', '').strip() or None
-        item.data_saida = normalize_date_br(request.form.get('data_saida', ''))
         item.laudo = request.form.get('laudo', '').strip() or None
         item.obs = request.form.get('obs', '').strip() or None
+        item.passagens = parse_estoque_passagens(request.form)
+        if item.passagens:
+            primeira = json.loads(item.passagens)[0]
+            item.data_entrada = primeira.get('data_entrada') or None
+            item.data_saida = primeira.get('data_saida') or None
+            item.uso = primeira.get('uso') or None
 
         Defect.query.filter_by(estoque_uso_id=item.id).delete()
         defects = parse_estoque_defects(request.form)

@@ -25,10 +25,6 @@
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-3">
-                        <label class="text-secondary small d-block">Data de Entrada</label>
-                        <strong>{{ item.data_entrada or '-' }}</strong>
-                    </div>
-                    <div class="col-md-2">
                         <label class="text-secondary small d-block">Componente</label>
                         <strong>{{ COMP_LABELS.get(item.tipo_componente, item.tipo_componente) if item.tipo_componente else '-' }}</strong>
                     </div>
@@ -40,15 +36,7 @@
                         <label class="text-secondary small d-block">Nº de Série</label>
                         <strong><code>{{ item.ns or '-' }}</code></strong>
                     </div>
-                    <div class="col-md-3">
-                        <label class="text-secondary small d-block">Uso</label>
-                        <strong>{{ item.uso or '-' }}</strong>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="text-secondary small d-block">Data de Saída</label>
-                        <strong>{{ item.data_saida or '-' }}</strong>
-                    </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="text-secondary small d-block">Laudo</label>
                         {% if item.laudo %}
                         <span class="badge bg-info fs-6">{{ item.laudo }}</span>
@@ -75,10 +63,51 @@
                     <label class="text-secondary small d-block">Criado em</label>
                     <strong>{{ item.created_at.strftime('%d/%m/%Y %H:%M') if item.created_at else '-' }}</strong>
                 </div>
+                {% set _pass = item.passagens|from_json if item.passagens else [] %}
+                {% if _pass %}
+                <div class="mt-2">
+                    <label class="text-secondary small d-block">{{ _pass|length }} reutilização(ões)</label>
+                    <span class="text-secondary small">Ver histórico abaixo.</span>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
+
+{% set _passagens = item.passagens|from_json if item.passagens else [] %}
+{% if not _passagens and (item.data_entrada or item.data_saida or item.uso) %}
+    {% set _passagens = [{'data_entrada': item.data_entrada or '', 'data_saida': item.data_saida or '', 'uso': item.uso or ''}] %}
+{% endif %}
+{% if _passagens %}
+<div class="card mt-3">
+    <div class="card-header"><i class="bi bi-arrow-repeat"></i> Entradas e Saídas ({{ _passagens|length }})</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Data de entrada</th>
+                        <th>Data de saída</th>
+                        <th>Protocolo / Uso</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ps in _passagens %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ ps.data_entrada or '-' }}</td>
+                        <td>{{ ps.data_saida or '-' }}</td>
+                        <td>{{ ps.uso or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {% if item.defeitos %}
 <div class="card mt-3 border-warning">

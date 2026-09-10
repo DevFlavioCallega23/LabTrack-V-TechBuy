@@ -31,8 +31,9 @@
                         <td>{{ COMP_LABELS.get(item.tipo_componente, item.tipo_componente) if item.tipo_componente else '-' }}</td>
                         <td><strong>{{ item.equipamento }}</strong></td>
                         <td><code>{{ item.ns or '-' }}</code></td>
-                        <td>{{ item.uso or '-' }}</td>
-                        <td>{{ item.data_saida or '-' }}</td>
+                        {% set _lp = item.passagens|from_json if item.passagens else [] %}
+                        <td>{{ (_lp[-1].uso if _lp and _lp[-1].uso else item.uso) or '-' }}</td>
+                        <td>{{ (_lp[-1].data_saida if _lp and _lp[-1].data_saida else item.data_saida) or '-' }}</td>
                         <td>
                             {% if item.laudo %}
                             <span class="badge bg-info">{{ item.laudo }}</span>

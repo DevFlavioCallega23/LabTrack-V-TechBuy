@@ -1,10 +1,26 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app import db
-from app.models import TBRegistro, TBMaquina, TBTroca, TBDefeito, TBPassagem
+from app.models import TBRegistro, TBMaquina, TBTroca, TBDefeito, TBPassagem, Produto
 import json
 
 maquinas_bp = Blueprint('maquinas', __name__, url_prefix='/maquinas')
+
+
+def get_catalog_context():
+    tipos_db = db.session.query(Produto.component_type).distinct().all()
+    tipos_existentes = {t[0] for t in tipos_db}
+    order = [t for t in Produto.TYPE_ORDER if t in tipos_existentes]
+    for t in sorted(tipos_existentes):
+        if t not in order:
+            order.append(t)
+    if not order:
+        order = list(Produto.TYPE_ORDER)
+    labels = Produto.TYPE_LABELS
+    return dict(
+        produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]),
+        component_types=json.dumps([{'key': t, 'label': labels.get(t, t)} for t in order]),
+    )
 
 
 def master_required():
@@ -119,7 +135,7 @@ def maquina_novo(id):
         db.session.commit()
         flash('Máquina adicionada!', 'success')
         return redirect(url_for('maquinas.detail', id=registro.id))
-    return render_template('maquinas/maquina_form.html', registro=registro, maquina=None)
+    return render_template('maquinas/maquina_form.html', registro=registro, maquina=None, **get_catalog_context())
 
 
 @maquinas_bp.route('/maquina/<int:mid>', methods=['GET', 'POST'])
@@ -135,7 +151,7 @@ def maquina_editar(mid):
         db.session.commit()
         flash('Máquina atualizada!', 'success')
         return redirect(url_for('maquinas.detail', id=maquina.registro_id))
-    return render_template('maquinas/maquina_form.html', registro=maquina.registro, maquina=maquina)
+    return render_template('maquinas/maquina_form.html', registro=maquina.registro, maquina=maquina, **get_catalog_context())
 
 
 @maquinas_bp.route('/maquina/<int:mid>/excluir', methods=['POST'])

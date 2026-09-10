@@ -583,6 +583,7 @@ document.addEventListener('input', function(e) {
     }
     if (e.target && e.target.name && e.target.name.indexOf('rma_machine_name_') === 0) {
         syncRmaTestMachines();
+        if (typeof syncTrocadoMachines === 'function') syncTrocadoMachines();
     }
 });
 
@@ -919,13 +920,37 @@ function addRmaTestRow() {
 
 let trocadoMachineCount = 0;
 
+function currentTrocadoMachineOpts(selected) {
+    const names = [];
+    document.querySelectorAll('input[name^="rma_machine_name_"]').forEach(function(inp) {
+        const v = inp.value.trim();
+        if (v && names.indexOf(v) === -1) names.push(v);
+    });
+    document.querySelectorAll('input[name^="trocado_machine_name_"]').forEach(function(inp) {
+        const v = inp.value.trim();
+        if (v && names.indexOf(v) === -1) names.push(v);
+    });
+    if (selected && names.indexOf(selected) === -1) names.push(selected);
+    if (!names.length) names.push('Computador 01');
+    return '<option value="">--</option>' +
+        names.map(n => `<option value="${n}"${n === selected ? ' selected' : ''}>${n}</option>`).join('');
+}
+
+function syncTrocadoMachines() {
+    document.querySelectorAll('#rmaTrocadosContainer select[name="trocado_row_machine[]"]').forEach(function(sel) {
+        const cur = sel.value;
+        sel.innerHTML = currentTrocadoMachineOpts(cur);
+        if (cur) sel.value = cur;
+    });
+}
+
 function trocadoMachineHTML(num, name) {
     const n = String(num).padStart(2, '0');
     const label = name || `Computador ${n}`;
     return `
     <div class="card bg-dark border-secondary mb-3 trocado-machine-block" data-trocado-machine="${n}">
         <div class="card-header d-flex justify-content-between align-items-center py-2">
-            <input type="text" name="trocado_machine_name_${n}" class="form-control form-control-sm bg-dark text-light border-secondary fw-bold" style="width:auto;min-width:200px;display:inline-block" value="${label}">
+            <input type="text" name="trocado_machine_name_${n}" class="form-control form-control-sm bg-dark text-light border-secondary fw-bold" style="width:auto;min-width:200px;display:inline-block" value="${label}" oninput="syncTrocadoMachines()">
             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTrocadoMachine(this)">
                 <i class="bi bi-x-lg"></i>
             </button>
@@ -934,9 +959,10 @@ function trocadoMachineHTML(num, name) {
             <table class="table table-dark table-sm mb-0">
                 <thead>
                     <tr>
-                        <th style="width:22%">Componente</th>
-                        <th style="width:28%">Modelo</th>
-                        <th style="width:40%">Nº de Série</th>
+                        <th style="width:16%">Máquina</th>
+                        <th style="width:18%">Componente</th>
+                        <th style="width:24%">Modelo</th>
+                        <th style="width:32%">Nº de Série</th>
                         <th style="width:10%"></th>
                     </tr>
                 </thead>
@@ -968,13 +994,16 @@ function removeTrocadoMachine(btn) {
     btn.closest('.trocado-machine-block').remove();
 }
 
-function addTrocadoCompRow(btn) {
+function addTrocadoCompRow(btn, presetMachine) {
     const block = btn.closest('.trocado-machine-block');
     const machine = block.dataset.trocadoMachine;
+    const nameInput = block.querySelector('input[name^="trocado_machine_name_"]');
+    const cardName = nameInput ? nameInput.value.trim() : ('Computador ' + machine);
     const tbody = block.querySelector('.trocado-machine-body');
     const tr = document.createElement('tr');
     tr.className = 'comp-row';
     tr.innerHTML = `
+        <td><select name="trocado_row_machine[]" class="form-select form-select-sm">${currentTrocadoMachineOpts(presetMachine || cardName)}</select></td>
         <td><select name="trocado_comp_type_${machine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
         <td><input type="text" name="trocado_comp_model_${machine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..."></td>
         <td><input type="text" name="trocado_comp_serial_${machine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="3"></td>
@@ -998,20 +1027,24 @@ function replicateTrocadoMachine(btn) {
     const dstMachine = dstBlock.dataset.trocadoMachine;
     const dstTbody = dstBlock.querySelector('.trocado-machine-body');
     const srcRows = srcBlock.querySelectorAll('.trocado-machine-body .comp-row');
+    const dstNameInput = dstBlock.querySelector('input[name^="trocado_machine_name_"]');
+    const dstName = dstNameInput ? dstNameInput.value.trim() : ('Computador ' + dstMachine);
     srcRows.forEach(function(row) {
         const tr = document.createElement('tr');
         tr.className = 'comp-row';
-        const srcSelect = row.querySelector('select');
+        const srcTypeSel = row.querySelector('select[name^="trocado_comp_type_"]');
+        const srcMachSel = row.querySelector('select[name="trocado_row_machine[]"]');
         const srcModel = row.querySelector('input[name^="trocado_comp_model_"]');
         const serial = '';
         tr.innerHTML = `
+            <td><select name="trocado_row_machine[]" class="form-select form-select-sm">${currentTrocadoMachineOpts(dstName)}</select></td>
             <td><select name="trocado_comp_type_${dstMachine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
             <td><input type="text" name="trocado_comp_model_${dstMachine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${srcModel ? srcModel.value : ''}"></td>
             <td><input type="text" name="trocado_comp_serial_${dstMachine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="3" value="${serial}"></td>
             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
         `;
-        const select = tr.querySelector('select');
-        select.value = srcSelect ? srcSelect.value : '';
+        const selects = tr.querySelectorAll('select');
+        if (selects[1]) selects[1].value = srcTypeSel ? srcTypeSel.value : '';
         dstTbody.appendChild(tr);
     });
 }
@@ -1038,13 +1071,14 @@ function loadTrocadoMachines(data) {
             const tr = document.createElement('tr');
             tr.className = 'comp-row';
             tr.innerHTML = `
+                <td><select name="trocado_row_machine[]" class="form-select form-select-sm">${currentTrocadoMachineOpts(entry.name || null)}</select></td>
                 <td><select name="trocado_comp_type_${m}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
                 <td><input type="text" name="trocado_comp_model_${m}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${item.model || ''}"></td>
                 <td><input type="text" name="trocado_comp_serial_${m}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="3" value="${item.serial || ''}"></td>
                 <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
             `;
-            const select = tr.querySelector('select');
-            select.value = item.type || '';
+            const selects = tr.querySelectorAll('select');
+            if (selects[1]) selects[1].value = item.type || '';
             tbody.appendChild(tr);
         });
     });
@@ -1426,13 +1460,14 @@ function loadRmaTrocadosItems(data) {
             tr.className = 'comp-row';
             const type = item.type || item.component || '';
             tr.innerHTML = `
+                <td><select name="trocado_row_machine[]" class="form-select form-select-sm">${currentTrocadoMachineOpts(entry.name || null)}</select></td>
                 <td><select name="trocado_comp_type_${m}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
                 <td><input type="text" name="trocado_comp_model_${m}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${item.model || ''}"></td>
                 <td><input type="text" name="trocado_comp_serial_${m}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="3" value="${item.serial || ''}"></td>
                 <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
             `;
-            const select = tr.querySelector('select');
-            select.value = type;
+            const selects = tr.querySelectorAll('select');
+            if (selects[1]) selects[1].value = type;
             tbody.appendChild(tr);
         });
     });
@@ -1602,8 +1637,21 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelector('form').addEventListener('submit', function(e) {
         const rows = document.querySelectorAll('#rmaTestTable tbody .rma-test-row');
         const items = [];
+        const singleMachine = (function() {
+            const names = [];
+            document.querySelectorAll('input[name^="rma_machine_name_"]').forEach(function(inp) {
+                const v = inp.value.trim();
+                if (v && names.indexOf(v) === -1) names.push(v);
+            });
+            return names.length === 1 ? names[0] : '';
+        })();
         rows.forEach(function(row) {
             const machine = row.querySelector('select[name^="rma_test_machine"]');
+            let mval = machine ? machine.value : '';
+            if (!mval && singleMachine) {
+                mval = singleMachine;
+                if (machine) machine.value = singleMachine;
+            }
             const comp = row.querySelector('select[name^="rma_test_comp"]');
             const model = row.querySelector('input[name^="rma_test_model"]');
             const serial = row.querySelector('input[name^="rma_test_serial"]');
@@ -1612,7 +1660,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const dataCompra = row.querySelector('input[name^="rma_test_data_compra"]');
             const status = row.querySelector('select[name^="rma_test_status"]');
             items.push({
-                machine: machine ? machine.value : '',
+                machine: mval,
                 component: comp ? comp.value : '',
                 model: model ? model.value : '',
                 serial: serial ? serial.value : '',
@@ -1630,31 +1678,82 @@ document.addEventListener('DOMContentLoaded', function() {
             this.appendChild(hidden);
         }
         hidden.value = JSON.stringify(items);
+        const singleDefMachine = (function() {
+            const names = [];
+            document.querySelectorAll('input[name^="machine_name_"]').forEach(function(inp) {
+                const v = inp.value.trim();
+                if (v && names.indexOf(v) === -1) names.push(v);
+            });
+            if (names.length !== 1) {
+                const rma = [];
+                document.querySelectorAll('input[name^="rma_machine_name_"]').forEach(function(inp) {
+                    const v = inp.value.trim();
+                    if (v && rma.indexOf(v) === -1) rma.push(v);
+                });
+                return rma.length === 1 ? rma[0] : (names.length ? '' : '');
+            }
+            return names[0];
+        })();
+        if (singleDefMachine) {
+            document.querySelectorAll('select[name="defect_maquina[]"]').forEach(function(sel) {
+                if (!sel.value) {
+                    let opt = sel.querySelector('option[value="' + singleDefMachine + '"]');
+                    if (!opt) {
+                        opt = document.createElement('option');
+                        opt.value = singleDefMachine;
+                        opt.textContent = singleDefMachine;
+                        sel.appendChild(opt);
+                    }
+                    sel.value = singleDefMachine;
+                }
+            });
+        }
     });
 
-    // Serialize Equipamentos Mudados on submit
+    // Serialize Equipamentos Mudados on submit (regrouped by chosen Máquina per row)
     document.querySelector('form').addEventListener('submit', function(e) {
         const blocks = document.querySelectorAll('#rmaTrocadosContainer .trocado-machine-block');
-        const data = {};
+        const unitByName = {};
         blocks.forEach(function(block) {
             const unit = block.dataset.trocadoMachine;
             const nameInput = block.querySelector('input[name^="trocado_machine_name_"]');
-            const name = nameInput ? nameInput.value : ('Computador ' + unit);
-            const comps = [];
+            const name = nameInput ? nameInput.value.trim() : ('Computador ' + unit);
+            if (name && !unitByName[name]) unitByName[name] = unit;
+        });
+        if (!Object.keys(unitByName).length) unitByName['Computador 01'] = '01';
+        let autoUnit = 1;
+        const data = {};
+        blocks.forEach(function(block) {
             const rows = block.querySelectorAll('.trocado-machine-body .comp-row');
             rows.forEach(function(row) {
-                const comp = row.querySelector('select');
+                const machSel = row.querySelector('select[name="trocado_row_machine[]"]');
+                const comp = row.querySelector('select[name^="trocado_comp_type_"]');
                 const model = row.querySelector('input[name^="trocado_comp_model_"]');
                 const serial = row.querySelector('input[name^="trocado_comp_serial_"]');
                 if (comp && comp.value) {
-                    comps.push({
+                    let mname = machSel ? machSel.value.trim() : '';
+                    if (!mname) {
+                        const blkNameInput = block.querySelector('input[name^="trocado_machine_name_"]');
+                        mname = blkNameInput ? blkNameInput.value.trim() : 'Computador 01';
+                    }
+                    if (!unitByName[mname]) {
+                        while (Object.values(unitByName).indexOf(String(autoUnit).padStart(2, '0')) !== -1) autoUnit++;
+                        unitByName[mname] = String(autoUnit).padStart(2, '0');
+                        autoUnit++;
+                    }
+                    const unit = unitByName[mname];
+                    if (!data[unit]) data[unit] = {name: mname, components: []};
+                    data[unit].components.push({
                         type: comp.value,
                         model: model ? model.value : '',
                         serial: serial ? serial.value : ''
                     });
                 }
             });
-            data[unit] = {name: name, components: comps};
+        });
+        Object.keys(unitByName).forEach(function(nm) {
+            const u = unitByName[nm];
+            if (!data[u]) data[u] = {name: nm, components: []};
         });
         let hidden = document.querySelector('input[name="rma_trocados_json"]');
         if (!hidden) {

@@ -75,6 +75,8 @@ def add_missing_columns():
             estoque_cols = [c['name'] for c in inspector.get_columns('estoque_uso')]
             if 'tipo_componente' not in estoque_cols:
                 conn.execute(db.text('ALTER TABLE estoque_uso ADD COLUMN tipo_componente VARCHAR(50)'))
+            if 'passagens' not in estoque_cols:
+                conn.execute(db.text('ALTER TABLE estoque_uso ADD COLUMN passagens TEXT'))
         except Exception:
             pass
 
@@ -89,6 +91,7 @@ def add_missing_columns():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 data_entrada VARCHAR(10),
                 tipo_componente VARCHAR(50),
+                passagens TEXT,
                 equipamento VARCHAR(100) NOT NULL,
                 ns VARCHAR(100),
                 uso VARCHAR(200),

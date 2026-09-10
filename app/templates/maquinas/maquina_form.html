@@ -34,26 +34,18 @@
                         </tr>
                     </thead>
                     <tbody id="nsItensBody">
+                        {% set COMP_FALLBACK = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM', 'ssd': 'SSD', 'hdd': 'HD (mecânico)', 'fonte': 'Fonte', 'placa_de_video': 'Placa de Vídeo', 'gpu': 'GPU', 'gabinete': 'Gabinete', 'monitor': 'Monitor', 'outro': 'Outro'} %}
                         {% for item in (maquina.get_ns_itens() if maquina else []) %}
                         <tr class="comp-row">
                             <td>
-                                <select name="comp_type[]" class="form-select form-select-sm comp-type">
+                                <select name="comp_type[]" class="form-select form-select-sm comp-type" data-selected="{{ item.comp or '' }}">
                                     <option value="">-- Selecione --</option>
-                                    {% for key, label in [
-                                        ('processador', 'Processador'),
-                                        ('placa_mae', 'Placa-Mãe (Soquete)'),
-                                        ('ram', 'RAM'),
-                                        ('ssd', 'SSD'),
-                                        ('hdd', 'HD (mecânico)'),
-                                        ('fonte', 'Fonte'),
-                                        ('monitor', 'Monitor'),
-                                        ('outro', 'Outro')
-                                    ] %}
+                                    {% for key, label in COMP_FALLBACK.items() %}
                                     <option value="{{ key }}" {{ 'selected' if item.comp == key }}>{{ label }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
-                            <td><input type="text" name="comp_model[]" class="form-control form-control-sm" placeholder="Ex: I3-2100, 8GB, WD 120..." value="{{ item.model or '' }}"></td>
+                            <td><input type="text" name="comp_model[]" class="form-control form-control-sm comp-model" placeholder="Ex: I3-2100, 8GB, WD 120... (livre)" value="{{ item.model or '' }}"></td>
                             <td><input type="text" name="comp_ns[]" class="form-control form-control-sm" placeholder="Nº de Série" value="{{ item.ns or '' }}"></td>
                             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
                         </tr>
@@ -75,11 +67,58 @@
 </div>
 
 <script>
-const COMP_OPTIONS = '<option value="">-- Selecione --</option>' +
-    [['processador', 'Processador'], ['placa_mae', 'Placa-Mãe (Soquete)'], ['ram', 'RAM'],
-     ['ssd', 'SSD'], ['hdd', 'HD (mecânico)'], ['fonte', 'Fonte'], ['monitor', 'Monitor'],
-     ['outro', 'Outro']]
-    .map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+let produtosCatalogo = [];
+{% if produtos_catalogo is defined and produtos_catalogo %}
+try { produtosCatalogo = {{ produtos_catalogo|safe }}; } catch(e) {}
+{% endif %}
+let COMP_TYPES_DB = [];
+{% if component_types is defined and component_types %}
+try { COMP_TYPES_DB = {{ component_types|safe }}; } catch(e) {}
+{% endif %}
+const COMP_LABELS_JS = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM', 'ssd': 'SSD', 'hdd': 'HD (mecânico)', 'fonte': 'Fonte', 'placa_de_video': 'Placa de Vídeo', 'gpu': 'GPU', 'gabinete': 'Gabinete', 'monitor': 'Monitor', 'outro': 'Outro'};
+COMP_TYPES_DB.forEach(function(t) { if (!COMP_LABELS_JS[t.key]) COMP_LABELS_JS[t.key] = t.label; });
+
+function esc(s) { return String(s == null ? '' : s).replace(/"/g, '&quot;'); }
+
+function buildTypeOpts(selected) {
+    var html = '<option value="">-- Selecione --</option>';
+    Object.keys(COMP_LABELS_JS).forEach(function(k) {
+        html += '<option value="' + k + '"' + (selected === k ? ' selected' : '') + '>' + COMP_LABELS_JS[k] + '</option>';
+    });
+    return html;
+}
+
+function updateModelDatalist(typeSelect, modelInput) {
+    var tipo = typeSelect ? typeSelect.value : '';
+    var produtos = tipo ? produtosCatalogo.filter(function(p) { return p.component_type === tipo; }) : produtosCatalogo;
+    var dlId = modelInput.getAttribute('list');
+    if (!dlId) {
+        dlId = 'dl_' + Math.random().toString(36).substr(2, 9);
+        modelInput.setAttribute('list', dlId);
+        var dl = document.createElement('datalist');
+        dl.id = dlId;
+        document.body.appendChild(dl);
+    }
+    var dl = document.getElementById(dlId);
+    if (!dl) return;
+    dl.innerHTML = produtos.map(function(p) { return '<option value="' + esc(p.model_name) + '"></option>'; }).join('');
+    modelInput.placeholder = 'Selecione ou digite... (livre)';
+}
+
+function wireRow(tr) {
+    var sel = tr.querySelector('.comp-type');
+    var model = tr.querySelector('.comp-model');
+    if (!sel || !model) return;
+    var cur = sel.getAttribute('data-selected') || sel.value;
+    sel.innerHTML = buildTypeOpts(cur);
+    if (cur) sel.value = cur;
+    sel.removeAttribute('data-selected');
+    sel.addEventListener('change', function() { updateModelDatalist(sel, model); });
+    model.addEventListener('focus', function() { updateModelDatalist(sel, model); });
+    updateModelDatalist(sel, model);
+}
+
+document.querySelectorAll('#nsItensBody .comp-row').forEach(wireRow);
 
 function addCompRow() {
     const tbody = document.getElementById('nsItensBody');
@@ -88,13 +127,34 @@ function addCompRow() {
     const tr = document.createElement('tr');
     tr.className = 'comp-row';
     tr.innerHTML = `
-        <td><select name="comp_type[]" class="form-select form-select-sm comp-type">${COMP_OPTIONS}</select></td>
-        <td><input type="text" name="comp_model[]" class="form-control form-control-sm" placeholder="Ex: I3-2100, 8GB, WD 120..."></td>
+        <td><select name="comp_type[]" class="form-select form-select-sm comp-type">${buildTypeOpts('')}</select></td>
+        <td><input type="text" name="comp_model[]" class="form-control form-control-sm comp-model" placeholder="Selecione ou digite... (livre)"></td>
         <td><input type="text" name="comp_ns[]" class="form-control form-control-sm" placeholder="Nº de Série"></td>
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
     `;
     tbody.appendChild(tr);
+    wireRow(tr);
     tr.querySelector('.comp-type').focus();
 }
+
+fetch('{{ url_for("produtos.api_listar") }}', {credentials: 'same-origin'})
+    .then(function(r) { return r.ok ? r.json() : []; })
+    .then(function(data) {
+        if (Array.isArray(data) && data.length) {
+            produtosCatalogo = data;
+            data.forEach(function(p) { if (p.component_type && !COMP_LABELS_JS[p.component_type]) COMP_LABELS_JS[p.component_type] = p.type_label || p.component_type; });
+            document.querySelectorAll('#nsItensBody .comp-row').forEach(function(tr) {
+                var sel = tr.querySelector('.comp-type');
+                var model = tr.querySelector('.comp-model');
+                if (sel) {
+                    var cur = sel.value;
+                    sel.innerHTML = buildTypeOpts(cur);
+                    if (cur) sel.value = cur;
+                }
+                if (sel && model) updateModelDatalist(sel, model);
+            });
+        }
+    })
+    .catch(function() {});
 </script>
 {% endblock %}

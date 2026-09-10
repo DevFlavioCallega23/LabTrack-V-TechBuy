@@ -1085,6 +1085,63 @@ def exportar_defeitos_excel():
     return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                      as_attachment=True, download_name=filename)
 
+def _component_ocorrencias_protocolo(p, comp):
+    """Collect every occurrence of a component type in a protocol."""
+    if not comp:
+        return []
+    ocorrencias = []
+    label = COMP_LABELS.get(comp, comp)
+
+    for c in p.components:
+        if (c.component_type or '') == comp:
+            ocorrencias.append({
+                'local': f'Componente {c.type_label()}' + (f' — {c.machine_name}' if c.machine_name else ''),
+                'valor': c.specification or c.serial_number or label,
+                'detalhe': c.serial_number or ''
+            })
+
+    for d in p.defects:
+        if (d.component_type or '') == comp:
+            ocorrencias.append({
+                'local': f'Defeito — {d.type_label()}' + (f' — {d.maquina}' if d.maquina else ''),
+                'valor': d.specification or d.serial_number or label,
+                'detalhe': d.description or ''
+            })
+
+    for campo, rotulo in [('rma_equip_itens', 'Equipamento RMA'),
+                          ('rma_trocados', 'Equipamento mudado')]:
+        raw = getattr(p, campo)
+        if not raw:
+            continue
+        try:
+            data = json.loads(raw)
+            for unit, info in data.items():
+                for item in info.get('components', []):
+                    if (item.get('type') or '') == comp:
+                        ocorrencias.append({
+                            'local': f'{rotulo} — {info.get("name", "Máquina")}',
+                            'valor': item.get('model') or label,
+                            'detalhe': item.get('serial') or ''
+                        })
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            pass
+
+    if p.rma_test_result:
+        try:
+            for item in json.loads(p.rma_test_result):
+                if (item.get('component') or '') == comp:
+                    ocorrencias.append({
+                        'local': 'Teste de mesa' + (f' — {item.get("machine")}' if item.get('machine') else ''),
+                        'valor': item.get('model') or label,
+                        'detalhe': (item.get('defeito') or '')
+                                + (f' — NS: {item.get("serial")}' if item.get('serial') else '')
+                    })
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    return ocorrencias
+
+
 def _ns_ocorrencias_protocolo(p, termo=None):
     """Collect every NS occurrence in a protocol. If termo is None, return all."""
     def casa(valor):
@@ -1212,14 +1269,16 @@ def busca_avancada():
     tipo = request.args.get('tipo', '').strip()
     pedido = request.args.get('pedido', '').strip()
     ns = request.args.get('ns', '').strip()
+    componente = request.args.get('componente', '').strip()
     data_de_raw = request.args.get('data_de', '').strip()
     data_ate_raw = request.args.get('data_ate', '').strip()
     data_de = parse_date_br(data_de_raw)
     data_ate = parse_date_br(data_ate_raw)
 
-    filtros_ativos = any([cliente, vendedor, tipo, pedido, ns, data_de, data_ate])
+    filtros_ativos = any([cliente, vendedor, tipo, pedido, ns, componente, data_de, data_ate])
     resultados = []
     total_ocorrencias = 0
+    total_comp_ocorrencias = 0
 
     if filtros_ativos:
         q = Protocol.query
@@ -1237,6 +1296,14 @@ def busca_avancada():
             q = q.filter(Protocol.entry_date >= data_de)
         if data_ate:
             q = q.filter(Protocol.entry_date < data_ate + timedelta(days=1))
+        if componente:
+            q = q.filter(db.or_(
+                Protocol.components.any(Component.component_type == componente),
+                Protocol.defects.any(Defect.component_type == componente),
+                Protocol.rma_test_result.ilike(f'%"component": "{componente}"%'),
+                Protocol.rma_equip_itens.ilike(f'%"type": "{componente}"%'),
+                Protocol.rma_trocados.ilike(f'%"type": "{componente}"%')
+            ))
 
         protocols = q.order_by(Protocol.entry_date.desc().nullslast(),
                                Protocol.created_at.desc()).all()
@@ -1246,19 +1313,32 @@ def busca_avancada():
             ocorrencias = _ns_ocorrencias_protocolo(p, termo_ns) if termo_ns else []
             if termo_ns and not ocorrencias:
                 continue
-            resultados.append({'p': p, 'ocorrencias': ocorrencias})
+            comp_ocorrencias = _component_ocorrencias_protocolo(p, componente) if componente else []
+            if componente and not comp_ocorrencias:
+                continue
+            resultados.append({'p': p, 'ocorrencias': ocorrencias, 'comp_ocorrencias': comp_ocorrencias})
             total_ocorrencias += len(ocorrencias)
+            total_comp_ocorrencias += len(comp_ocorrencias)
 
     vendedores = [r[0] for r in db.session.query(Protocol.seller).distinct()
                   .filter(Protocol.seller.isnot(None), Protocol.seller != '')
                   .order_by(Protocol.seller).all()]
 
+    tipos_componente = sorted({t[0] for t in db.session.query(Produto.component_type).distinct().all()} |
+                              {t[0] for t in db.session.query(Component.component_type).distinct().all()} |
+                              {t[0] for t in db.session.query(Defect.component_type).distinct().all() if t[0]})
+    comp_labels = dict(Produto.TYPE_LABELS)
+    for t in tipos_componente:
+        comp_labels.setdefault(t, COMP_LABELS.get(t, t))
+
     return render_template('protocols/busca.html',
         resultados=resultados, total=len(resultados),
         total_ocorrencias=total_ocorrencias, vendedores=vendedores,
+        total_comp_ocorrencias=total_comp_ocorrencias,
+        tipos_componente=tipos_componente, comp_labels=comp_labels,
         filtros_ativos=filtros_ativos,
         f_cliente=cliente, f_vendedor=vendedor, f_tipo=tipo, f_pedido=pedido,
-        f_ns=ns, f_data_de=data_de_raw, f_data_ate=data_ate_raw,
+        f_ns=ns, f_componente=componente, f_data_de=data_de_raw, f_data_ate=data_ate_raw,
         TYPE_LABELS=Protocol.TYPE_LABELS)
 
 @protocols_bp.route('/ns')
