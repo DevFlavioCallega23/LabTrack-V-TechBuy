@@ -70,9 +70,12 @@
 </div>
 
 {% if not filtros_ativos %}
-<p class="text-secondary"><i class="bi bi-info-circle"></i> Preencha pelo menos um filtro para buscar. Dica: pode combinar vários — ex.: cliente + tipo + período.</p>
-{% elif total == 0 %}
-<div class="alert alert-warning"><i class="bi bi-emoji-neutral"></i> Nenhum protocolo encontrado com esses filtros. Tente ampliar o período ou limpar algum campo.</div>
+<p class="text-secondary"><i class="bi bi-info-circle"></i> Preencha pelo menos um filtro para buscar. Dica: pode combinar vários — ex.: cliente + tipo + período. O NS também varre Máquinas TechBuy e Uso do Estoque.</p>
+{% elif total == 0 and not tb_resultados and not estoque_resultados %}
+<div class="alert alert-warning"><i class="bi bi-emoji-neutral"></i> Nenhum protocolo encontrado com esses filtros (nem em máquinas ou estoque). Tente ampliar o período ou limpar algum campo.</div>
+{% else %}
+{% if total == 0 %}
+<p class="text-secondary small mb-2">Nenhum protocolo encontrado com esses filtros — veja máquinas e estoque abaixo.</p>
 {% else %}
 <p class="text-secondary small mb-2">
     <strong>{{ total }}</strong> protocolo(s) encontrado(s){% if f_ns %} — <strong>{{ total_ocorrencias }}</strong> ocorrência(s) do NS{% endif %}{% if f_componente %} — <strong>{{ total_comp_ocorrencias }}</strong> ocorrência(s) de {{ comp_labels.get(f_componente, f_componente) }}{% endif %}.
@@ -128,5 +131,72 @@
         </div>
     </div>
 </div>
+{% endif %}
+
+{% if tb_resultados %}
+<h5 class="mt-4 mb-2"><i class="bi bi-pc-display text-info"></i> Máquinas TechBuy <span class="badge bg-info">{{ tb_resultados|length }}</span></h5>
+<div class="card mb-3">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover table-sm mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th>Dono</th>
+                        <th>Máquina</th>
+                        <th>NS encontrado em</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in tb_resultados %}
+                    <tr class="clickable-row" data-href="{{ url_for('maquinas.detail', id=r.registro_id) }}">
+                        <td><strong>{{ r.dono or '-' }}</strong></td>
+                        <td>{{ r.identificacao }}</td>
+                        <td class="small">
+                            {% for oc in r.ocorrencias %}
+                            <span class="text-info">{{ oc.local }}</span>: <code>{{ oc.valor }}</code>{% if oc.detalhe %} <span class="text-secondary">({{ oc.detalhe }})</span>{% endif %}{% if not loop.last %}; {% endif %}
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if estoque_resultados %}
+<h5 class="mt-4 mb-2"><i class="bi bi-box-seam text-warning"></i> Uso do Estoque <span class="badge bg-warning text-dark">{{ estoque_resultados|length }}</span></h5>
+<div class="card mb-3">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover table-sm mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th>Registro</th>
+                        <th>Equipamento</th>
+                        <th>NS</th>
+                        <th>NS encontrado em</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in estoque_resultados %}
+                    <tr class="clickable-row" data-href="{{ url_for('estoque.detail', id=r.item.id) }}">
+                        <td><strong>#{{ r.item.id }}</strong></td>
+                        <td>{{ r.item.equipamento }}</td>
+                        <td><code>{{ r.item.ns or '-' }}</code></td>
+                        <td class="small">
+                            {% for oc in r.ocorrencias %}
+                            <span class="text-info">{{ oc.local }}</span>: <code>{{ oc.valor }}</code>{% if oc.detalhe %} <span class="text-secondary">({{ oc.detalhe }})</span>{% endif %}{% if not loop.last %}; {% endif %}
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endif %}
 {% endblock %}

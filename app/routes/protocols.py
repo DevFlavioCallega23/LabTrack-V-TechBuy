@@ -1238,6 +1238,75 @@ def _ns_ocorrencias_protocolo(p, termo=None):
 
     return ocorrencias
 
+
+def _ns_ocorrencias_maquina(maq, termo):
+    """Collect NS occurrences in a TechBuy machine record."""
+    ocorrencias = []
+    dono = maq.registro.nome if maq.registro else ''
+    ident = maq.identificacao or 'Máquina'
+    base_local = f'{dono} — {ident}' if dono else ident
+    for item in maq.get_ns_itens():
+        if item.get('ns') and termo in item['ns'].lower():
+            ocorrencias.append({
+                'local': f'peça {COMP_LABELS.get(item.get("comp", ""), item.get("comp", ""))}',
+                'valor': item['ns'],
+                'detalhe': item.get('model') or ''
+            })
+    for t in maq.trocas:
+        if t.ns and termo in t.ns.lower():
+            ocorrencias.append({
+                'local': f'troca de {t.produto or "produto"}',
+                'valor': t.ns,
+                'detalhe': f'Data: {t.data or "-"}'
+            })
+    for d in maq.defeitos:
+        if d.ns and termo in d.ns.lower():
+            ocorrencias.append({
+                'local': f'defeito em {d.produto or "produto"}',
+                'valor': d.ns,
+                'detalhe': d.defeito or ''
+            })
+    for pas in maq.passagens:
+        if pas.ns and termo in pas.ns.lower():
+            ocorrencias.append({
+                'local': 'passagem',
+                'valor': pas.ns,
+                'detalhe': pas.defeito or ''
+            })
+    return ocorrencias, base_local
+
+
+def _component_ocorrencias_estoque(eu, comp):
+    """Check if a component type exists in an EstoqueUso record."""
+    if not comp:
+        return []
+    ocorrencias = []
+    if (eu.tipo_componente or '') == comp:
+        ocorrencias.append({'local': 'Equipamento', 'valor': eu.equipamento or '', 'detalhe': eu.ns or ''})
+    for d in eu.defeitos:
+        if (d.component_type or '') == comp:
+            ocorrencias.append({'local': f'Defeito — {d.type_label()}', 'valor': d.specification or '', 'detalhe': d.serial_number or ''})
+    return ocorrencias
+
+
+def _ns_ocorrencias_estoque(eu, termo):
+    """Collect NS occurrences in an EstoqueUso record."""
+    ocorrencias = []
+    if eu.ns and termo in eu.ns.lower():
+        ocorrencias.append({
+            'local': f'{eu.equipamento or "Equipamento"}',
+            'valor': eu.ns,
+            'detalhe': eu.uso or ''
+        })
+    for d in eu.defeitos:
+        if d.serial_number and termo in d.serial_number.lower():
+            ocorrencias.append({
+                'local': f'Defeito — {d.type_label()}',
+                'valor': d.serial_number,
+                'detalhe': d.description or ''
+            })
+    return ocorrencias
+
 @protocols_bp.route('/ns/todos')
 @login_required
 def ns_todos():
@@ -1320,6 +1389,46 @@ def busca_avancada():
             total_ocorrencias += len(ocorrencias)
             total_comp_ocorrencias += len(comp_ocorrencias)
 
+    from app.models import EstoqueUso
+    tb_resultados = []
+    estoque_resultados = []
+    if filtros_ativos and (termo_ns or componente):
+        for maq in TBMaquina.query.all():
+            if termo_ns:
+                ocorrencias, base_local = _ns_ocorrencias_maquina(maq, termo_ns)
+            else:
+                ocorrencias, base_local = [], ''
+                for item in maq.get_ns_itens():
+                    if (item.get('comp') or '') == componente:
+                        ocorrencias.append({
+                            'local': f'peça {COMP_LABELS.get(item.get("comp", ""), item.get("comp", ""))}',
+                            'valor': item.get('ns') or '',
+                            'detalhe': item.get('model') or ''
+                        })
+                if ocorrencias:
+                    dono = maq.registro.nome if maq.registro else ''
+                    base_local = f'{dono} — {maq.identificacao or "Máquina"}' if dono else (maq.identificacao or 'Máquina')
+            if ocorrencias:
+                tb_resultados.append({
+                    'maquina': maq,
+                    'dono': maq.registro.nome if maq.registro else '',
+                    'identificacao': maq.identificacao or 'Máquina',
+                    'registro_id': maq.registro_id,
+                    'ocorrencias': ocorrencias
+                })
+        eq = EstoqueUso.query
+        if componente:
+            eq = eq.filter(db.or_(
+                EstoqueUso.tipo_componente == componente,
+                EstoqueUso.defeitos.any(Defect.component_type == componente)
+            ))
+        for eu in eq.all():
+            ocorrencias = _ns_ocorrencias_estoque(eu, termo_ns) if termo_ns else _component_ocorrencias_estoque(eu, componente)
+            if termo_ns and componente and not _component_ocorrencias_estoque(eu, componente):
+                continue
+            if ocorrencias:
+                estoque_resultados.append({'item': eu, 'ocorrencias': ocorrencias})
+
     vendedores = [r[0] for r in db.session.query(Protocol.seller).distinct()
                   .filter(Protocol.seller.isnot(None), Protocol.seller != '')
                   .order_by(Protocol.seller).all()]
@@ -1336,6 +1445,7 @@ def busca_avancada():
         total_ocorrencias=total_ocorrencias, vendedores=vendedores,
         total_comp_ocorrencias=total_comp_ocorrencias,
         tipos_componente=tipos_componente, comp_labels=comp_labels,
+        tb_resultados=tb_resultados, estoque_resultados=estoque_resultados,
         filtros_ativos=filtros_ativos,
         f_cliente=cliente, f_vendedor=vendedor, f_tipo=tipo, f_pedido=pedido,
         f_ns=ns, f_componente=componente, f_data_de=data_de_raw, f_data_ate=data_ate_raw,
