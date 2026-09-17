@@ -33,8 +33,29 @@ body {
     font-weight: 700;
 }
 
-.nav-link:hover {
-    opacity: 0.8;
+.navbar-nav .nav-link {
+    border-radius: 8px;
+    margin: 0 2px;
+    padding: 6px 12px;
+    position: relative;
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.navbar-nav .nav-link:hover {
+    background-color: rgba(30, 203, 225, 0.12);
+    color: #fff !important;
+    transform: translateY(-1px);
+}
+
+.navbar-nav .nav-link.active {
+    background: var(--tb-gradient);
+    color: #000 !important;
+    font-weight: 600;
+    box-shadow: 0 2px 12px rgba(30, 203, 225, 0.35);
+}
+
+.navbar-nav .nav-link.active i {
+    color: #000 !important;
 }
 
 .badge {

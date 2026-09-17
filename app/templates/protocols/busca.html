@@ -2,9 +2,11 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
     <h3 class="mb-0"><i class="bi bi-search"></i> Busca Avançada</h3>
-    <div class="d-flex gap-2">
-        <a href="{{ url_for('protocols.rastreio_ns') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-upc-scan"></i> Rastreio rápido de NS</a>
-        <a href="{{ url_for('protocols.ns_todos') }}" class="btn btn-outline-info btn-sm"><i class="bi bi-list-ul"></i> Todos os NS</a>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('protocols.rastreio_ns') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-upc-scan"></i> Rastreio de NS</a>
+        <a href="{{ url_for('protocols.rastreio_pedido') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-receipt"></i> Rastreio de Pedido</a>
+        <a href="{{ url_for('protocols.rastreio_equipamento') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-motherboard"></i> Rastreio de Equipamento</a>
+        <a href="{{ url_for('protocols.rastreio_cliente') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-person"></i> Rastreio de Cliente</a>
     </div>
 </div>
 
@@ -15,7 +17,7 @@
             <div class="row g-3">
                 <div class="col-md-4 col-6">
                     <label class="form-label">Cliente</label>
-                    <input type="text" name="cliente" value="{{ f_cliente }}" class="form-control" placeholder="Nome do cliente...">
+                    <input type="text" id="f-cliente" name="cliente" value="{{ f_cliente }}" class="form-control" placeholder="Nome do cliente...">
                 </div>
                 <div class="col-md-2 col-6">
                     <label class="form-label">Vendedor</label>
@@ -37,7 +39,11 @@
                 </div>
                 <div class="col-md-3 col-6">
                     <label class="form-label">Pedido (nº ou original)</label>
-                    <input type="text" name="pedido" value="{{ f_pedido }}" class="form-control" placeholder="PED..., NF...">
+                    <input type="text" id="f-pedido" name="pedido" value="{{ f_pedido }}" class="form-control" placeholder="PED..., NF...">
+                </div>
+                <div class="col-md-3 col-6">
+                    <label class="form-label">Modelo / Equipamento</label>
+                    <input type="text" id="f-modelo" name="modelo" value="{{ f_modelo }}" class="form-control" placeholder="Ex: I5-9500, 8GB...">
                 </div>
                 <div class="col-md-4 col-6">
                     <label class="form-label">Nº de Série (NS)</label>
@@ -78,7 +84,7 @@
 <p class="text-secondary small mb-2">Nenhum protocolo encontrado com esses filtros — veja máquinas e estoque abaixo.</p>
 {% else %}
 <p class="text-secondary small mb-2">
-    <strong>{{ total }}</strong> protocolo(s) encontrado(s){% if f_ns %} — <strong>{{ total_ocorrencias }}</strong> ocorrência(s) do NS{% endif %}{% if f_componente %} — <strong>{{ total_comp_ocorrencias }}</strong> ocorrência(s) de {{ comp_labels.get(f_componente, f_componente) }}{% endif %}.
+    <strong>{{ total }}</strong> protocolo(s) encontrado(s){% if f_ns %} — <strong>{{ total_ocorrencias }}</strong> ocorrência(s) do NS{% endif %}{% if f_modelo %} — modelo <strong>{{ f_modelo }}</strong>{% endif %}{% if f_componente %} — <strong>{{ total_comp_ocorrencias }}</strong> ocorrência(s) de {{ comp_labels.get(f_componente, f_componente) }}{% endif %}.
 </p>
 <div class="card">
     <div class="card-body p-0">
@@ -199,4 +205,18 @@
 </div>
 {% endif %}
 {% endif %}
+<script>
+(function() {
+    const params = new URLSearchParams(window.location.search);
+    const foco = params.get('foco');
+    if (!foco) return;
+    const el = document.getElementById('f-' + foco);
+    if (el) {
+        el.scrollIntoView({block: 'center'});
+        el.focus({preventScroll: true});
+        el.classList.add('border-info');
+        setTimeout(function() { el.classList.remove('border-info'); }, 2000);
+    }
+})();
+</script>
 {% endblock %}

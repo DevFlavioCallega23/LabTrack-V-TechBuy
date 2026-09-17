@@ -58,16 +58,24 @@ def parse_components(request_form):
         models = request_form.getlist(f'comp_model_{unit}[]')
         serials = request_form.getlist(f'comp_serial_{unit}[]')
         product_ids = request_form.getlist(f'comp_product_id_{unit}[]')
+        cabo_fontes = request_form.getlist(f'comp_serial_fonte_{unit}[]')
         machine_name = request_form.get(f'machine_name_{unit}', '').strip() or f'Máquina {unit}'
         is_prebuilt = request_form.get(f'pe_switch_{unit}') == 'on'
         for i in range(len(types)):
             ct = types[i].strip()
             serial = serials[i].strip() if i < len(serials) else ''
+            if ct == 'cabo_de_forca':
+                cabo_status = serial
+                fonte_ns = cabo_fontes[i].strip() if i < len(cabo_fontes) else ''
+                if cabo_status == 'Informado ao Estoque' and fonte_ns:
+                    serial = f'Informado ao Estoque: {fonte_ns}'
+                else:
+                    serial = cabo_status or 'OK'
             if ct:
                 if not is_prebuilt:
                     if not serial:
                         continue
-                    if len(serial) < 6:
+                    if ct != 'cabo_de_forca' and len(serial) < 6:
                         flash(f'Nº de série deve ter no mínimo 6 caracteres.', 'danger')
                         return None
                 model = models[i].strip() if i < len(models) else ''
@@ -434,7 +442,7 @@ def build_component_types():
     """Build component types list from Produto table for dynamic dropdowns."""
     tipos_db = db.session.query(Produto.component_type).distinct().all()
     tipos_existentes = {t[0] for t in tipos_db}
-    default_order = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'gpu', 'gabinete', 'monitor']
+    default_order = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'gpu', 'gabinete', 'monitor', 'cabo_de_forca']
     order = [t for t in default_order if t in tipos_existentes]
     for t in tipos_existentes:
         if t not in order:
@@ -1338,13 +1346,14 @@ def busca_avancada():
     tipo = request.args.get('tipo', '').strip()
     pedido = request.args.get('pedido', '').strip()
     ns = request.args.get('ns', '').strip()
+    modelo = request.args.get('modelo', '').strip()
     componente = request.args.get('componente', '').strip()
     data_de_raw = request.args.get('data_de', '').strip()
     data_ate_raw = request.args.get('data_ate', '').strip()
     data_de = parse_date_br(data_de_raw)
     data_ate = parse_date_br(data_ate_raw)
 
-    filtros_ativos = any([cliente, vendedor, tipo, pedido, ns, componente, data_de, data_ate])
+    filtros_ativos = any([cliente, vendedor, tipo, pedido, ns, modelo, componente, data_de, data_ate])
     resultados = []
     total_ocorrencias = 0
     total_comp_ocorrencias = 0
@@ -1372,6 +1381,15 @@ def busca_avancada():
                 Protocol.rma_test_result.ilike(f'%"component": "{componente}"%'),
                 Protocol.rma_equip_itens.ilike(f'%"type": "{componente}"%'),
                 Protocol.rma_trocados.ilike(f'%"type": "{componente}"%')
+            ))
+        if modelo:
+            like = f'%{modelo}%'
+            q = q.filter(db.or_(
+                Protocol.components.any(Component.specification.ilike(like)),
+                Protocol.defects.any(Defect.specification.ilike(like)),
+                Protocol.rma_test_result.ilike(like),
+                Protocol.rma_equip_itens.ilike(like),
+                Protocol.rma_trocados.ilike(like)
             ))
 
         protocols = q.order_by(Protocol.entry_date.desc().nullslast(),
@@ -1448,27 +1466,34 @@ def busca_avancada():
         tb_resultados=tb_resultados, estoque_resultados=estoque_resultados,
         filtros_ativos=filtros_ativos,
         f_cliente=cliente, f_vendedor=vendedor, f_tipo=tipo, f_pedido=pedido,
-        f_ns=ns, f_componente=componente, f_data_de=data_de_raw, f_data_ate=data_ate_raw,
+        f_ns=ns, f_modelo=modelo, f_componente=componente, f_data_de=data_de_raw, f_data_ate=data_ate_raw,
         TYPE_LABELS=Protocol.TYPE_LABELS)
 
 @protocols_bp.route('/ns')
 @login_required
 def rastreio_ns():
+    from app.models import EstoqueUso
     busca = request.args.get('busca', '').strip()
+    tipo = request.args.get('tipo', '').strip()
     resultados = []
     tb_resultados = []
+    estoque_resultados = []
     if busca:
         termo = busca.lower()
-        for p in Protocol.query.order_by(Protocol.created_at.desc()).all():
-            ocorrencias = _ns_ocorrencias_protocolo(p, termo)
-            if ocorrencias:
-                resultados.append({
-                    'protocolo': p,
-                    'ocorrencias': ocorrencias
-                })
+        if tipo != 'estoque':
+            pq = Protocol.query
+            if tipo:
+                pq = pq.filter(Protocol.type == tipo)
+            for p in pq.order_by(Protocol.created_at.desc()).all():
+                ocorrencias = _ns_ocorrencias_protocolo(p, termo)
+                if ocorrencias:
+                    resultados.append({
+                        'protocolo': p,
+                        'ocorrencias': ocorrencias
+                    })
 
         # Máquinas TechBuy (módulo do Master)
-        for maq in TBMaquina.query.all():
+        for maq in (TBMaquina.query.all() if tipo != 'estoque' else []):
             ocorrencias = []
             dono = maq.registro.nome if maq.registro else ''
             ident = maq.identificacao or 'Máquina'
@@ -1509,8 +1534,172 @@ def rastreio_ns():
                     'ocorrencias': ocorrencias
                 })
 
+        for eu in EstoqueUso.query.all():
+            ocorrencias = _ns_ocorrencias_estoque(eu, termo)
+            if ocorrencias:
+                estoque_resultados.append({'item': eu, 'ocorrencias': ocorrencias})
+
     return render_template('protocols/ns.html', busca=busca, resultados=resultados,
-        total_resultados=len(resultados), tb_resultados=tb_resultados)
+        total_resultados=len(resultados), tb_resultados=tb_resultados,
+        estoque_resultados=estoque_resultados,
+        f_tipo=tipo, TYPE_LABELS=Protocol.TYPE_LABELS)
+
+
+def _modelo_ocorrencias_protocolo(p, termo):
+    """Collect model/equipment matches in a protocol."""
+    ocorrencias = []
+    for c in p.components:
+        if c.specification and termo in c.specification.lower():
+            ocorrencias.append({
+                'local': f'Componente {c.type_label()}' + (f' — {c.machine_name}' if c.machine_name else ''),
+                'valor': c.specification,
+                'detalhe': c.serial_number or ''
+            })
+    for d in p.defects:
+        if d.specification and termo in d.specification.lower():
+            ocorrencias.append({
+                'local': f'Defeito — {d.type_label()}' + (f' — {d.maquina}' if d.maquina else ''),
+                'valor': d.specification,
+                'detalhe': d.serial_number or ''
+            })
+    for campo, rotulo in [('rma_equip_itens', 'Equipamento RMA'),
+                          ('rma_trocados', 'Equipamento mudado')]:
+        raw = getattr(p, campo)
+        if not raw:
+            continue
+        try:
+            data = json.loads(raw)
+            for unit, info in data.items():
+                for comp in info.get('components', []):
+                    if comp.get('model') and termo in comp['model'].lower():
+                        ocorrencias.append({
+                            'local': f'{rotulo} — {info.get("name", "Máquina")}',
+                            'valor': comp['model'],
+                            'detalhe': comp.get('serial') or ''
+                        })
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            pass
+    if p.rma_test_result:
+        try:
+            for item in json.loads(p.rma_test_result):
+                if item.get('model') and termo in item['model'].lower():
+                    ocorrencias.append({
+                        'local': 'Teste de mesa' + (f' — {item.get("machine")}' if item.get('machine') else ''),
+                        'valor': item['model'],
+                        'detalhe': item.get('serial') or ''
+                    })
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return ocorrencias
+
+
+@protocols_bp.route('/rastreio-pedido')
+@login_required
+def rastreio_pedido():
+    busca = request.args.get('busca', '').strip()
+    resultados = []
+    if busca:
+        like = f'%{busca}%'
+        for p in Protocol.query.filter(
+            db.or_(Protocol.order_number.ilike(like),
+                   Protocol.original_order.ilike(like))
+        ).order_by(Protocol.created_at.desc()).all():
+            resultados.append({'protocolo': p})
+    return render_template('protocols/rastreio_pedido.html', busca=busca,
+        resultados=resultados, total_resultados=len(resultados))
+
+
+@protocols_bp.route('/rastreio-equipamento')
+@login_required
+def rastreio_equipamento():
+    from app.models import EstoqueUso
+    busca = request.args.get('busca', '').strip()
+    componente = request.args.get('componente', '').strip()
+    tipo = request.args.get('tipo', '').strip()
+    resultados = []
+    estoque_resultados = []
+    if busca or componente:
+        termo = busca.lower() if busca else None
+        like = f'%{busca}%' if busca else None
+        q = Protocol.query
+        if tipo and tipo != 'estoque':
+            q = q.filter(Protocol.type == tipo)
+        if like:
+            q = q.filter(db.or_(
+                Protocol.components.any(Component.specification.ilike(like)),
+                Protocol.defects.any(Defect.specification.ilike(like)),
+                Protocol.rma_test_result.ilike(like),
+                Protocol.rma_equip_itens.ilike(like),
+                Protocol.rma_trocados.ilike(like)
+            ))
+        if componente:
+            q = q.filter(db.or_(
+                Protocol.components.any(Component.component_type == componente),
+                Protocol.defects.any(Defect.component_type == componente),
+                Protocol.rma_test_result.ilike(f'%"component": "{componente}"%'),
+                Protocol.rma_equip_itens.ilike(f'%"type": "{componente}"%'),
+                Protocol.rma_trocados.ilike(f'%"type": "{componente}"%')
+            ))
+        if tipo != 'estoque':
+            for p in q.order_by(Protocol.created_at.desc()).all():
+                ocorrencias = _modelo_ocorrencias_protocolo(p, termo) if termo else _component_ocorrencias_protocolo(p, componente)
+                if termo and componente and not _component_ocorrencias_protocolo(p, componente):
+                    continue
+                resultados.append({'protocolo': p, 'ocorrencias': ocorrencias})
+        eq = EstoqueUso.query
+        if componente:
+            eq = eq.filter(db.or_(
+                EstoqueUso.tipo_componente == componente,
+                EstoqueUso.defeitos.any(Defect.component_type == componente)
+            ))
+        if like:
+            eq = eq.filter(db.or_(
+                EstoqueUso.equipamento.ilike(like),
+                EstoqueUso.defeitos.any(Defect.specification.ilike(like))
+            ))
+        for eu in eq.all():
+            ocorrencias = []
+            if termo and eu.equipamento and termo in eu.equipamento.lower():
+                ocorrencias.append({'local': 'Equipamento', 'valor': eu.equipamento, 'detalhe': eu.ns or ''})
+            for d in eu.defeitos:
+                if termo and d.specification and termo in d.specification.lower():
+                    ocorrencias.append({'local': f'Defeito — {d.type_label()}', 'valor': d.specification, 'detalhe': d.serial_number or ''})
+                elif componente and (d.component_type or '') == componente and not termo:
+                    ocorrencias.append({'local': f'Defeito — {d.type_label()}', 'valor': d.specification or '', 'detalhe': d.serial_number or ''})
+            if componente and (eu.tipo_componente or '') == componente and not any(o['local'] == 'Equipamento' for o in ocorrencias):
+                ocorrencias.append({'local': 'Equipamento', 'valor': eu.equipamento or '', 'detalhe': eu.ns or ''})
+            if ocorrencias:
+                estoque_resultados.append({'item': eu, 'ocorrencias': ocorrencias})
+
+    tipos_componente = sorted({t[0] for t in db.session.query(Produto.component_type).distinct().all()} |
+                              {t[0] for t in db.session.query(Component.component_type).distinct().all()} |
+                              {t[0] for t in db.session.query(Defect.component_type).distinct().all() if t[0]})
+    comp_labels = dict(Produto.TYPE_LABELS)
+    for t in tipos_componente:
+        comp_labels.setdefault(t, COMP_LABELS.get(t, t))
+
+    return render_template('protocols/rastreio_equipamento.html', busca=busca,
+        resultados=resultados, total_resultados=len(resultados),
+        estoque_resultados=estoque_resultados,
+        tipos_componente=tipos_componente, comp_labels=comp_labels,
+        f_componente=componente, f_tipo=tipo, TYPE_LABELS=Protocol.TYPE_LABELS)
+
+
+@protocols_bp.route('/rastreio-cliente')
+@login_required
+def rastreio_cliente():
+    busca = request.args.get('busca', '').strip()
+    tipo = request.args.get('tipo', '').strip()
+    resultados = []
+    if busca:
+        q = Protocol.query.filter(Protocol.client_name.ilike(f'%{busca}%'))
+        if tipo:
+            q = q.filter(Protocol.type == tipo)
+        for p in q.order_by(Protocol.created_at.desc()).all():
+            resultados.append({'protocolo': p})
+    return render_template('protocols/rastreio_cliente.html', busca=busca,
+        resultados=resultados, total_resultados=len(resultados),
+        f_tipo=tipo, TYPE_LABELS=Protocol.TYPE_LABELS)
 
 @protocols_bp.route('/defeitos/<int:id>/status', methods=['POST'])
 @login_required

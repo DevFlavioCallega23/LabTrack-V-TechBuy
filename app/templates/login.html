@@ -16,6 +16,41 @@
             border: 1px solid rgba(255,255,255,0.1);
             background: rgba(30,30,50,0.9);
             backdrop-filter: blur(10px);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        .login-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(30,203,225,0.5);
+            box-shadow: 0 12px 40px rgba(30,203,225,0.15);
+        }
+        .login-card .btn-primary {
+            background: linear-gradient(135deg, #1ecbe1, #3b82f6);
+            border: none;
+            color: #000;
+            font-weight: 600;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+        }
+        .login-card .btn-primary:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+            box-shadow: 0 6px 20px rgba(30,203,225,0.4);
+        }
+        .login-card .form-control {
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .login-card .form-control:hover {
+            border-color: rgba(30,203,225,0.5);
+        }
+        .login-card .form-control:focus {
+            border-color: #1ecbe1;
+            box-shadow: 0 0 0 0.2rem rgba(30,203,225,0.25);
+        }
+        .brand-icon {
+            display: inline-block;
+            transition: transform 0.2s ease;
+        }
+        .login-card:hover .brand-icon {
+            transform: scale(1.08);
         }
         .login-header {
             border-bottom: 1px solid rgba(255,255,255,0.1);

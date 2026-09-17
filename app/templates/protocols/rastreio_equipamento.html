@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h3><i class="bi bi-upc-scan"></i> Rastreio de NS</h3>
+    <h3><i class="bi bi-motherboard"></i> Rastreio de Equipamento</h3>
     <div class="d-flex gap-2 flex-wrap">
         <a href="{{ url_for('protocols.busca_avancada') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-search"></i> Busca avançada</a>
+        <a href="{{ url_for('protocols.rastreio_ns') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-upc-scan"></i> Rastreio de NS</a>
         <a href="{{ url_for('protocols.rastreio_pedido') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-receipt"></i> Rastreio de Pedido</a>
-        <a href="{{ url_for('protocols.rastreio_equipamento') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-motherboard"></i> Rastreio de Equipamento</a>
         <a href="{{ url_for('protocols.rastreio_cliente') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-person"></i> Rastreio de Cliente</a>
     </div>
 </div>
@@ -13,9 +13,18 @@
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-2 align-items-end" autocomplete="off">
-            <div class="col-md-5">
-                <label class="form-label"><i class="bi bi-search"></i> Número de série</label>
-                <input type="text" name="busca" class="form-control" placeholder="Digite o NS para rastrear..." value="{{ busca }}" autofocus>
+            <div class="col-md-4">
+                <label class="form-label"><i class="bi bi-search"></i> Modelo do equipamento</label>
+                <input type="text" name="busca" class="form-control" placeholder="Ex: I5-9500, 8GB, SSD 240..." value="{{ busca }}" autofocus>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Componente</label>
+                <select name="componente" class="form-select">
+                    <option value="">Todos</option>
+                    {% for t in tipos_componente %}
+                    <option value="{{ t }}" {{ 'selected' if f_componente == t }}>{{ comp_labels.get(t, t) }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="col-md-3">
                 <label class="form-label">Tipo de protocolo</label>
@@ -34,13 +43,12 @@
     </div>
 </div>
 
-{% if busca %}
+{% if busca or f_componente %}
 <div class="mb-3">
     <span class="badge bg-info text-dark">{{ total_resultados }} protocolo(s) encontrado(s)</span>
-    <span class="text-secondary ms-2">com o NS "<strong>{{ busca }}</strong>"{% if f_tipo %} em {{ TYPE_LABELS.get(f_tipo, 'Uso do Estoque') }}{% endif %}</span>
+    <span class="text-secondary ms-2">com {% if busca %}o equipamento "<strong>{{ busca }}</strong>"{% endif %}{% if busca and f_componente %} + {% endif %}{% if f_componente %}{{ comp_labels.get(f_componente, f_componente) }}{% endif %}{% if f_tipo %} em {{ TYPE_LABELS.get(f_tipo, 'Uso do Estoque') }}{% endif %}</span>
 </div>
 
-{% if resultados or tb_resultados or estoque_resultados %}
 {% if resultados %}
 <div class="card mb-4">
     <div class="card-body p-0">
@@ -53,15 +61,16 @@
                         <th>Cliente</th>
                         <th>Status</th>
                         <th>Entrada</th>
-                        <th>Onde o NS aparece</th>
+                        <th>Onde aparece</th>
+                        <th>Modelo</th>
                         <th>NS</th>
-                        <th>Detalhe</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for r in resultados %}
                     {% set p = r.protocolo %}
-                    {% set qtd = r.ocorrencias|length %}
+                    {% set qtd = r.ocorrencias|length if r.ocorrencias else 1 %}
+                    {% if r.ocorrencias %}
                     {% for occ in r.ocorrencias %}
                     <tr class="clickable-row" data-href="{{ url_for('protocols.detail_protocol', id=p.id) }}">
                         {% if loop.first %}
@@ -76,54 +85,34 @@
                         <td class="text-secondary">{{ occ.detalhe or '—' }}</td>
                     </tr>
                     {% endfor %}
+                    {% else %}
+                    <tr class="clickable-row" data-href="{{ url_for('protocols.detail_protocol', id=p.id) }}">
+                        <td><a href="{{ url_for('protocols.detail_protocol', id=p.id) }}">{{ p.protocol_number }}</a></td>
+                        <td><span class="badge {{ p.type_badge() }}">{{ p.type_label() }}</span></td>
+                        <td>{{ p.client_name or '-' }}</td>
+                        <td><span class="badge {{ p.status_badge() }}">{{ p.status_label() }}</span></td>
+                        <td>{{ p.entry_date.strftime('%d/%m/%Y') if p.entry_date else p.created_at.strftime('%d/%m/%Y') }}</td>
+                        <td colspan="3" class="text-secondary">—</td>
+                    </tr>
+                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
-{% endif %}
-
-{% if tb_resultados %}
+{% else %}
 <div class="card">
-    <div class="card-header"><i class="bi bi-pc-display"></i> Máquinas TechBuy (módulo do Master)</div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-dark table-hover mb-0 table-sm">
-                <thead>
-                    <tr>
-                        <th>Pessoa</th>
-                        <th>Máquina</th>
-                        <th>Onde o NS aparece</th>
-                        <th>NS</th>
-                        <th>Detalhe</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for r in tb_resultados %}
-                    {% set qtd = r.ocorrencias|length %}
-                    {% for occ in r.ocorrencias %}
-                    <tr class="clickable-row" data-href="{{ url_for('maquinas.detail', id=r.maquina.registro_id) }}">
-                        {% if loop.first %}
-                        <td rowspan="{{ qtd }}">{{ r.dono }}</td>
-                        <td rowspan="{{ qtd }}">{{ r.identificacao }}</td>
-                        {% endif %}
-                        <td>{{ occ.local }}</td>
-                        <td><code>{{ occ.valor }}</code></td>
-                        <td class="text-secondary">{{ occ.detalhe or '—' }}</td>
-                    </tr>
-                    {% endfor %}
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+    <div class="card-body text-center text-secondary py-4">
+        <i class="bi bi-search fs-3 d-block mb-2"></i>
+        Nenhum protocolo encontrado.
     </div>
 </div>
 {% endif %}
 
 {% if estoque_resultados %}
-<div class="card mt-4">
-    <div class="card-header"><i class="bi bi-box-seam text-warning"></i> Uso do Estoque <span class="badge bg-warning text-dark">{{ estoque_resultados|length }}</span></div>
+<h5 class="mt-4 mb-2"><i class="bi bi-box-seam text-warning"></i> Uso do Estoque <span class="badge bg-warning text-dark">{{ estoque_resultados|length }}</span></h5>
+<div class="card mb-3">
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-dark table-hover mb-0 table-sm">
@@ -131,38 +120,26 @@
                     <tr>
                         <th>Registro</th>
                         <th>Equipamento</th>
-                        <th>Onde o NS aparece</th>
                         <th>NS</th>
-                        <th>Detalhe</th>
+                        <th>Onde aparece</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for r in estoque_resultados %}
-                    {% set qtd = r.ocorrencias|length %}
-                    {% for occ in r.ocorrencias %}
                     <tr class="clickable-row" data-href="{{ url_for('estoque.detail', id=r.item.id) }}">
-                        {% if loop.first %}
-                        <td rowspan="{{ qtd }}"><strong>#{{ r.item.id }}</strong></td>
-                        <td rowspan="{{ qtd }}">{{ r.item.equipamento }}</td>
-                        {% endif %}
-                        <td>{{ occ.local }}</td>
-                        <td><code>{{ occ.valor }}</code></td>
-                        <td class="text-secondary">{{ occ.detalhe or '—' }}</td>
+                        <td><strong>#{{ r.item.id }}</strong></td>
+                        <td>{{ r.item.equipamento }}</td>
+                        <td><code>{{ r.item.ns or '-' }}</code></td>
+                        <td class="small">
+                            {% for oc in r.ocorrencias %}
+                            <span class="text-info">{{ oc.local }}</span>: <code>{{ oc.valor }}</code>{% if oc.detalhe %} <span class="text-secondary">({{ oc.detalhe }})</span>{% endif %}{% if not loop.last %}; {% endif %}
+                            {% endfor %}
+                        </td>
                     </tr>
-                    {% endfor %}
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-    </div>
-</div>
-{% endif %}
-
-{% else %}
-<div class="card">
-    <div class="card-body text-center text-secondary py-4">
-        <i class="bi bi-search fs-3 d-block mb-2"></i>
-        Nenhum registro encontrado com o NS "<strong>{{ busca }}</strong>".
     </div>
 </div>
 {% endif %}

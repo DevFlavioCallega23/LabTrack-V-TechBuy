@@ -157,7 +157,8 @@ class Component(db.Model):
         'ram': 'RAM',
         'ssd': 'SSD',
         'fonte': 'Fonte',
-        'monitor': 'Monitor'
+        'monitor': 'Monitor',
+        'cabo_de_forca': 'Cabo de Força'
     }
 
     def type_label(self):
@@ -187,6 +188,7 @@ class Defect(db.Model):
         'ssd': 'SSD',
         'fonte': 'Fonte',
         'monitor': 'Monitor',
+        'cabo_de_forca': 'Cabo de Força',
         'outro': 'Outro'
     }
 
@@ -310,10 +312,11 @@ class Produto(db.Model):
         'placa_de_video': 'Placa de Vídeo',
         'gpu': 'GPU',
         'gabinete': 'Gabinete',
-        'monitor': 'Monitor'
+        'monitor': 'Monitor',
+        'cabo_de_forca': 'Cabo de Força'
     }
 
-    TYPE_ORDER = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'gpu', 'gabinete', 'monitor']
+    TYPE_ORDER = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'gpu', 'gabinete', 'monitor', 'cabo_de_forca']
 
     def type_label(self):
         return self.TYPE_LABELS.get(self.component_type, self.component_type)

@@ -10,7 +10,7 @@ estoque_bp = Blueprint('estoque', __name__, url_prefix='/estoque')
 def build_component_types():
     tipos_db = db.session.query(Produto.component_type).distinct().all()
     tipos_existentes = {t[0] for t in tipos_db}
-    default_order = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'gpu', 'gabinete', 'monitor']
+    default_order = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'gpu', 'gabinete', 'monitor', 'cabo_de_forca']
     order = [t for t in default_order if t in tipos_existentes]
     for t in tipos_existentes:
         if t not in order:

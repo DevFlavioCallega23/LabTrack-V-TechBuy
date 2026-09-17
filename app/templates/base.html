@@ -22,45 +22,45 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('protocols.list_protocols') }}">
+                        <a class="nav-link {{ 'active' if request.endpoint in ['protocols.list_protocols', 'protocols.detail_protocol', 'protocols.create_protocol', 'protocols.edit_protocol'] }}" href="{{ url_for('protocols.list_protocols') }}">
                             <i class="bi bi-list-ul"></i> Protocolos
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('protocols.report') }}">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'protocols.report' }}" href="{{ url_for('protocols.report') }}">
                             <i class="bi bi-bar-chart"></i> Relatório
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('protocols.defeitos') }}">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'protocols.defeitos' }}" href="{{ url_for('protocols.defeitos') }}">
                             <i class="bi bi-exclamation-triangle text-danger"></i> Defeitos
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('protocols.busca_avancada') }}">
+                        <a class="nav-link {{ 'active' if request.endpoint in ['protocols.busca_avancada', 'protocols.rastreio_ns', 'protocols.rastreio_pedido', 'protocols.rastreio_equipamento', 'protocols.rastreio_cliente', 'protocols.ns_todos'] }}" href="{{ url_for('protocols.busca_avancada') }}">
                             <i class="bi bi-search"></i> Buscar
                         </a>
                     </li>
                     {% if current_user.is_master() %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('maquinas.index') }}">
+                        <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('maquinas.') }}" href="{{ url_for('maquinas.index') }}">
                             <i class="bi bi-pc-display"></i> Máquinas TechBuy
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('estoque.index') }}">
+                        <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('estoque.') }}" href="{{ url_for('estoque.index') }}">
                             <i class="bi bi-box-seam"></i> Uso do Estoque
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('produtos.index') }}">
+                        <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('produtos.') }}" href="{{ url_for('produtos.index') }}">
                             <i class="bi bi-tags"></i> Produtos
                         </a>
                     </li>
                     {% endif %}
                     {% if current_user.is_master() %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ['protocols.list_users', 'backup_admin.index'] }}" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-gear"></i> Admin
                         </a>
                         <ul class="dropdown-menu dropdown-menu-dark">

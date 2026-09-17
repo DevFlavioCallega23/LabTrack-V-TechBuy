@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-person"></i> Rastreio de Cliente</h3>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('protocols.busca_avancada') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-search"></i> Busca avançada</a>
+        <a href="{{ url_for('protocols.rastreio_ns') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-upc-scan"></i> Rastreio de NS</a>
+        <a href="{{ url_for('protocols.rastreio_pedido') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-receipt"></i> Rastreio de Pedido</a>
+        <a href="{{ url_for('protocols.rastreio_equipamento') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-motherboard"></i> Rastreio de Equipamento</a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end" autocomplete="off">
+            <div class="col-md-5">
+                <label class="form-label"><i class="bi bi-search"></i> Nome do cliente</label>
+                <input type="text" name="busca" class="form-control" placeholder="Digite o nome do cliente..." value="{{ busca }}" autofocus>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Tipo de protocolo</label>
+                <select name="tipo" class="form-select">
+                    <option value="">Todos</option>
+                    {% for chave, rotulo in TYPE_LABELS.items() %}
+                    <option value="{{ chave }}" {{ 'selected' if f_tipo == chave }}>{{ rotulo }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-info w-100"><i class="bi bi-search"></i> Rastrear</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if busca %}
+<div class="mb-3">
+    <span class="badge bg-info text-dark">{{ total_resultados }} protocolo(s) encontrado(s)</span>
+    <span class="text-secondary ms-2">do cliente "<strong>{{ busca }}</strong>"{% if f_tipo %} em {{ TYPE_LABELS.get(f_tipo, f_tipo) }}{% endif %}</span>
+</div>
+
+{% if resultados %}
+<div class="card mb-4">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 table-sm">
+                <thead>
+                    <tr>
+                        <th>Protocolo</th>
+                        <th>Tipo</th>
+                        <th>Cliente</th>
+                        <th>Vendedor</th>
+                        <th>Pedido</th>
+                        <th>Status</th>
+                        <th>Entrada</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in resultados %}
+                    {% set p = r.protocolo %}
+                    <tr class="clickable-row" data-href="{{ url_for('protocols.detail_protocol', id=p.id) }}">
+                        <td><a href="{{ url_for('protocols.detail_protocol', id=p.id) }}">{{ p.protocol_number }}</a></td>
+                        <td><span class="badge {{ p.type_badge() }}">{{ p.type_label() }}</span></td>
+                        <td>{{ p.client_name or '-' }}</td>
+                        <td>{{ p.seller or '-' }}</td>
+                        <td><code>{{ p.order_number or p.original_order or '-' }}</code></td>
+                        <td><span class="badge {{ p.status_badge() }}">{{ p.status_label() }}</span></td>
+                        <td>{{ p.entry_date.strftime('%d/%m/%Y') if p.entry_date else p.created_at.strftime('%d/%m/%Y') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center text-secondary py-4">
+        <i class="bi bi-search fs-3 d-block mb-2"></i>
+        Nenhum protocolo encontrado do cliente "<strong>{{ busca }}</strong>".
+    </div>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
