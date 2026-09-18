@@ -84,6 +84,8 @@ def add_missing_columns():
             conn.execute(db.text('ALTER TABLE component ADD COLUMN product_id INTEGER REFERENCES produto(id)'))
         if 'material_comum' not in component_cols:
             conn.execute(db.text('ALTER TABLE component ADD COLUMN material_comum BOOLEAN DEFAULT 0'))
+        if 'estoque_uso_id' not in component_cols:
+            conn.execute(db.text('ALTER TABLE component ADD COLUMN estoque_uso_id INTEGER REFERENCES estoque_uso(id)'))
 
         tables = [r[0] for r in conn.execute(db.text("SELECT name FROM sqlite_master WHERE type='table'")).fetchall()]
         if 'estoque_uso' not in tables:

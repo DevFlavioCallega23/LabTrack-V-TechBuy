@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-{% set COMP_LABELS = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe (Soquete)', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'placa_de_video': 'Placa de Vídeo', 'gpu': 'GPU', 'gabinete': 'Gabinete', 'monitor': 'Monitor', 'outro': 'Outro'} %}
+{% set COMP_LABELS = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe', 'ram': 'Memória RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'placa_de_video': 'Placa de Vídeo', 'gpu': 'GPU', 'gabinete': 'Gabinete', 'monitor': 'Monitor', 'cabo_de_forca': 'Cabo de Força'} %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3><i class="bi bi-box-seam"></i> Registro de Uso #{{ item.id }}</h3>
     <div class="d-flex gap-2">
@@ -100,6 +100,34 @@
                         <td>{{ ps.data_entrada or '-' }}</td>
                         <td>{{ ps.data_saida or '-' }}</td>
                         <td>{{ ps.uso or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if item.components %}
+<div class="card mt-3">
+    <div class="card-header"><i class="bi bi-cpu"></i> Componentes ({{ item.components|length }})</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Componente</th>
+                        <th>Modelo</th>
+                        <th>Nº de Série</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in item.components %}
+                    <tr>
+                        <td><span class="badge bg-primary">{{ COMP_LABELS.get(c.component_type, c.component_type) }}</span></td>
+                        <td><code>{{ c.specification or '-' }}</code></td>
+                        <td><code>{{ c.serial_number or '-' }}</code></td>
                     </tr>
                     {% endfor %}
                 </tbody>

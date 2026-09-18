@@ -141,7 +141,8 @@ class Protocol(db.Model):
 
 class Component(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    protocol_id = db.Column(db.Integer, db.ForeignKey('protocol.id'), nullable=False)
+    protocol_id = db.Column(db.Integer, db.ForeignKey('protocol.id'), nullable=True)
+    estoque_uso_id = db.Column(db.Integer, db.ForeignKey('estoque_uso.id'), nullable=True)
     product_id = db.Column(db.Integer, db.ForeignKey('produto.id'), nullable=True)
     component_type = db.Column(db.String(50), nullable=False)
     specification = db.Column(db.String(200))
@@ -298,6 +299,9 @@ class EstoqueUso(db.Model):
     defeitos = db.relationship('Defect', backref='estoque_uso', lazy=True,
                                order_by='Defect.sort_order',
                                cascade='all, delete-orphan')
+    components = db.relationship('Component', backref='estoque_uso', lazy=True,
+                                 order_by='Component.sort_order',
+                                 cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<EstoqueUso {self.equipamento} {self.ns}>'

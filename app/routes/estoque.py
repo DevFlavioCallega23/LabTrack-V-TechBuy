@@ -1,31 +1,9 @@
-import json
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app import db
-from app.models import EstoqueUso, Defect, Produto
+from app.models import EstoqueUso, Defect, Component
 
 estoque_bp = Blueprint('estoque', __name__, url_prefix='/estoque')
-
-
-def build_component_types():
-    tipos_db = db.session.query(Produto.component_type).distinct().all()
-    tipos_existentes = {t[0] for t in tipos_db}
-    default_order = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'gpu', 'gabinete', 'monitor', 'cabo_de_forca']
-    order = [t for t in default_order if t in tipos_existentes]
-    for t in tipos_existentes:
-        if t not in order:
-            order.append(t)
-    if not order:
-        order = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'monitor']
-    labels = Produto.TYPE_LABELS
-    return json.dumps([{'key': t, 'label': labels.get(t, t)} for t in order])
-
-
-def get_catalog_context():
-    return dict(
-        produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]),
-        component_types=build_component_types(),
-    )
 
 
 def master_required():
@@ -69,18 +47,20 @@ def parse_estoque_defects(request_form):
     return defects
 
 
-def parse_estoque_passagens(request_form):
-    entradas = request_form.getlist('pass_entrada[]')
-    saidas = request_form.getlist('pass_saida[]')
-    usos = request_form.getlist('pass_uso[]')
-    itens = []
-    for i in range(max(len(entradas), len(saidas), len(usos))):
-        ent = normalize_date_br(entradas[i]) if i < len(entradas) else None
-        sai = normalize_date_br(saidas[i]) if i < len(saidas) else None
-        uso = usos[i].strip() if i < len(usos) else ''
-        if ent or sai or uso:
-            itens.append({'data_entrada': ent or '', 'data_saida': sai or '', 'uso': uso})
-    return json.dumps(itens) if itens else None
+def parse_estoque_components(request_form):
+    components = []
+    types = request_form.getlist('comp_type[]')
+    models = request_form.getlist('comp_model[]')
+    serials = request_form.getlist('comp_serial[]')
+    for i in range(len(types)):
+        if types[i].strip():
+            components.append(Component(
+                component_type=types[i].strip(),
+                specification=models[i].strip() if i < len(models) else '',
+                serial_number=serials[i].strip() if i < len(serials) else '',
+                sort_order=i
+            ))
+    return components
 
 
 @estoque_bp.route('/')
@@ -103,19 +83,15 @@ def novo():
         equipamento = request.form.get('equipamento', '').strip()
         if not equipamento:
             flash('Informe o equipamento.', 'warning')
-            return render_template('estoque/form.html', item=None, **get_catalog_context())
-        passagens_json = parse_estoque_passagens(request.form)
-        primeira = json.loads(passagens_json)[0] if passagens_json else {}
+            return render_template('estoque/form.html', item=None)
         item = EstoqueUso(
-            data_entrada=primeira.get('data_entrada') or None,
-            tipo_componente=request.form.get('tipo_componente', '').strip() or None,
+            data_entrada=normalize_date_br(request.form.get('data_entrada', '')),
             equipamento=equipamento,
             ns=request.form.get('ns', '').strip() or None,
-            uso=primeira.get('uso') or None,
-            data_saida=primeira.get('data_saida') or None,
+            uso=request.form.get('uso', '').strip() or None,
+            data_saida=normalize_date_br(request.form.get('data_saida', '')),
             laudo=request.form.get('laudo', '').strip() or None,
             obs=request.form.get('obs', '').strip() or None,
-            passagens=passagens_json,
         )
         db.session.add(item)
         db.session.flush()
@@ -124,10 +100,16 @@ def novo():
         for d in defects:
             d.estoque_uso_id = item.id
         db.session.add_all(defects)
+
+        components = parse_estoque_components(request.form)
+        for c in components:
+            c.estoque_uso_id = item.id
+        db.session.add_all(components)
+
         db.session.commit()
         flash(f'Registro de uso criado!', 'success')
         return redirect(url_for('estoque.detail', id=item.id))
-    return render_template('estoque/form.html', item=None, **get_catalog_context())
+    return render_template('estoque/form.html', item=None)
 
 
 @estoque_bp.route('/<int:id>')
@@ -149,26 +131,29 @@ def editar(id):
     item = EstoqueUso.query.get_or_404(id)
     if request.method == 'POST':
         item.equipamento = request.form.get('equipamento', '').strip() or item.equipamento
-        item.tipo_componente = request.form.get('tipo_componente', '').strip() or None
+        item.data_entrada = normalize_date_br(request.form.get('data_entrada', ''))
         item.ns = request.form.get('ns', '').strip() or None
+        item.uso = request.form.get('uso', '').strip() or None
+        item.data_saida = normalize_date_br(request.form.get('data_saida', ''))
         item.laudo = request.form.get('laudo', '').strip() or None
         item.obs = request.form.get('obs', '').strip() or None
-        item.passagens = parse_estoque_passagens(request.form)
-        if item.passagens:
-            primeira = json.loads(item.passagens)[0]
-            item.data_entrada = primeira.get('data_entrada') or None
-            item.data_saida = primeira.get('data_saida') or None
-            item.uso = primeira.get('uso') or None
 
         Defect.query.filter_by(estoque_uso_id=item.id).delete()
         defects = parse_estoque_defects(request.form)
         for d in defects:
             d.estoque_uso_id = item.id
         db.session.add_all(defects)
+
+        Component.query.filter_by(estoque_uso_id=item.id).delete()
+        components = parse_estoque_components(request.form)
+        for c in components:
+            c.estoque_uso_id = item.id
+        db.session.add_all(components)
+
         db.session.commit()
         flash('Registro atualizado!', 'success')
         return redirect(url_for('estoque.detail', id=item.id))
-    return render_template('estoque/form.html', item=item, **get_catalog_context())
+    return render_template('estoque/form.html', item=item)
 
 
 @estoque_bp.route('/<int:id>/excluir', methods=['POST'])
@@ -179,6 +164,7 @@ def excluir(id):
         return bloqueio
     item = EstoqueUso.query.get_or_404(id)
     Defect.query.filter_by(estoque_uso_id=item.id).delete()
+    Component.query.filter_by(estoque_uso_id=item.id).delete()
     db.session.delete(item)
     db.session.commit()
     flash('Registro excluído.', 'success')
