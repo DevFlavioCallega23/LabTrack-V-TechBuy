@@ -97,6 +97,11 @@ body {
     transition: opacity 0.2s;
 }
 
+.venda-pe-group {
+    display: flex;
+    align-items: center;
+}
+
 .btn-primary {
     background: var(--tb-gradient);
     border: none;

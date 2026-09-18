@@ -39,8 +39,8 @@
                     <label class="form-label fw-bold fs-5"><i class="bi bi-tag"></i> {{ form.type.label }}</label>
                     {{ form.type(class='form-select form-select-lg', id='protocolType') }}
                 </div>
-                <div class="col-md-3 align-items-end field-group" data-show-for="venda" style="display:none">
-                    <div class="form-check form-switch mb-2">
+                <div class="col-md-3 align-items-center field-group venda-pe-group" data-show-for="venda" style="display:none">
+                    <div class="form-check form-switch mt-4">
                         <input class="form-check-input" type="checkbox" role="switch" id="vendaPe" name="venda_pe" {% if (editing and protocol.venda_pe) or request.form.get('venda_pe') %}checked{% endif %}>
                         <label class="form-check-label" for="vendaPe">Venda Pronta-Entrega (PE)</label>
                     </div>
@@ -1571,7 +1571,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const type = typeSelect.value;
         fieldGroups.forEach(function(g) {
             const sf = g.getAttribute('data-show-for');
-            if (sf) g.style.display = sf.split(',').includes(type) ? 'block' : 'none';
+            if (sf) {
+                const show = sf.split(',').includes(type);
+                if (g.classList.contains('venda-pe-group')) {
+                    g.style.display = show ? 'flex' : 'none';
+                } else {
+                    g.style.display = show ? 'block' : 'none';
+                }
+            }
         });
         exitGroups.forEach(function(g) {
             const sf = g.getAttribute('data-show-for');
