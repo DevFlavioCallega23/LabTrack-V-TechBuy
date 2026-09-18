@@ -130,6 +130,12 @@ class Protocol(db.Model):
     def status_badge(self):
         return self.STATUS_BADGES.get(self.status, 'bg-secondary')
 
+    def get_power_cables(self):
+        try:
+            return json.loads(self.power_cables) if self.power_cables else {}
+        except Exception:
+            return {}
+
     def __repr__(self):
         return f'<Protocol {self.protocol_number}>'
 

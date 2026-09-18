@@ -97,7 +97,15 @@ def parse_components(request_form):
                 ))
     return components
 
-def parse_rma_equip(request_form):
+def parse_power_cables(request_form):
+    data = {}
+    for key in request_form.keys():
+        if key.startswith('machine_power_cable_'):
+            unit = key[len('machine_power_cable_'):]
+            cable = request_form.get(key, 'OK').strip()
+            fonte = request_form.get(f'machine_power_cable_fonte_{unit}', '').strip()
+            data[unit] = {'cable': cable, 'fonte': fonte}
+    return json.dumps(data) if data else None
     """Parse RMA equipment JSON from form."""
     raw = request_form.get('rma_equip_json', '').strip()
     if not raw:
@@ -397,6 +405,7 @@ def create_protocol():
             rma_entry_date=form.rma_entry_date.data or None,
             rma_in_warranty=form.type.data == 'rma',
             rma_passagens=rma_passagens,
+            power_cables=parse_power_cables(request_form),
             created_by=current_user.id
         )
 
@@ -617,6 +626,7 @@ def edit_protocol(id):
         protocol.rma_test_result = parse_rma_test_items(request.form)
         protocol.rma_trocados = parse_rma_trocados(request.form)
         protocol.rma_entry_date = form.rma_entry_date.data or None
+        protocol.power_cables = parse_power_cables(request_form)
 
         Component.query.filter_by(protocol_id=protocol.id).delete()
         protocol.components = components

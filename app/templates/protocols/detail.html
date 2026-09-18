@@ -407,6 +407,16 @@
                         {% if first.is_prebuilt %}
                         <span class="badge bg-warning text-dark ms-2">PE</span>
                         {% endif %}
+                        <div class="mt-1 small text-secondary">
+                            <strong>Cabo de Força:</strong>
+                            {% set pc_data = protocol.get_power_cables() %}
+                            {% set unit_pc = pc_data.get(unit_group.grouper, {}) %}
+                            {% set pc_val = unit_pc.get('cable', 'OK') %}
+                            {{ pc_val }}
+                            {% if pc_val == 'Informado ao Estoque' and unit_pc.get('fonte') %}
+                            <span class="ms-2">— NS da Fonte: <code>{{ unit_pc.get('fonte') }}</code></span>
+                            {% endif %}
+                        </div>
                         <div class="table-responsive mt-1">
                             <table class="table table-dark table-sm mb-0">
                                 <thead>

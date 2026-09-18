@@ -614,18 +614,30 @@ function syncRmaTestMachines() {
 let machineCount = 0;
 let rmaMachineCount = 0;
 
-function machineHTML(num, name, isPrebuilt) {
+function machineHTML(num, name, isPrebuilt, powerCableVal, powerCableFonteVal) {
     const n = String(num).padStart(2, '0');
     const label = name || `Máquina ${n}`;
     const checked = isPrebuilt ? 'checked' : '';
+    const pcVal = powerCableVal || 'OK';
+    const pcFonte = powerCableFonteVal || '';
+    const showFonte = (pcVal === 'Informado ao Estoque') ? '' : 'style="display:none"';
     return `
     <div class="card bg-dark border-secondary mb-3 machine-block" data-machine="${n}">
-        <div class="card-header d-flex justify-content-between align-items-center py-2">
-            <div class="d-flex align-items-center gap-3">
+        <div class="card-header d-flex justify-content-between align-items-center py-2 flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-3 flex-wrap">
                 <input type="text" name="machine_name_${n}" class="form-control form-control-sm bg-dark text-light border-secondary fw-bold" style="width:auto;min-width:200px;display:inline-block" value="${label}">
                 <div class="form-check form-switch mb-0">
                     <input class="form-check-input" type="checkbox" id="peSwitch_${n}" name="pe_switch_${n}" ${checked} onchange="togglePE(this)">
                     <label class="form-check-label small text-secondary" for="peSwitch_${n}">Pronta-Entrega</label>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                    <span class="small text-secondary">Cabo de Força:</span>
+                    <select name="machine_power_cable_${n}" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto;" onchange="toggleMachinePowerCable(this)">
+                        <option value="OK" ${pcVal === 'OK' ? 'selected' : ''}>OK</option>
+                        <option value="Informado ao Estoque" ${pcVal === 'Informado ao Estoque' ? 'selected' : ''}>Informado ao Estoque</option>
+                        <option value="Vai sem cabo de força" ${pcVal === 'Vai sem cabo de força' ? 'selected' : ''}>Vai sem cabo de força</option>
+                    </select>
+                    <input type="text" name="machine_power_cable_fonte_${n}" class="form-control form-control-sm bg-dark text-light border-secondary" style="width:140px; ${showFonte}" placeholder="NS da Fonte" value="${pcFonte}">
                 </div>
             </div>
             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeMachine(this)">
@@ -653,6 +665,15 @@ function machineHTML(num, name, isPrebuilt) {
             </button>
         </div>
     </div>`;
+}
+
+function toggleMachinePowerCable(sel) {
+    const container = sel.closest('.d-flex');
+    const fonteInput = container.querySelector('input[name^="machine_power_cable_fonte_"]');
+    if (fonteInput) {
+        fonteInput.style.display = (sel.value === 'Informado ao Estoque') ? '' : 'none';
+        if (sel.value !== 'Informado ao Estoque') fonteInput.value = '';
+    }
 }
 
 function rmaMachineHTML(num, name) {
@@ -713,7 +734,11 @@ function replicateMachine(btn) {
     if (next > machineCount) machineCount = next;
     const srcPE = srcBlock.querySelector('.form-check-input');
     const isPE = srcPE ? srcPE.checked : false;
-    container.insertAdjacentHTML('beforeend', machineHTML(next, null, isPE));
+    const srcPcSel = srcBlock.querySelector('select[name^="machine_power_cable_"]');
+    const srcFonteInput = srcBlock.querySelector('input[name^="machine_power_cable_fonte_"]');
+    const pcVal = srcPcSel ? srcPcSel.value : 'OK';
+    const pcFonte = srcFonteInput ? srcFonteInput.value : '';
+    container.insertAdjacentHTML('beforeend', machineHTML(next, null, isPE, pcVal, pcFonte));
     const dstBlock = container.lastElementChild;
     const dstMachine = dstBlock.dataset.machine;
     const dstCb = dstBlock.querySelector('.form-check-input');
@@ -1191,7 +1216,9 @@ function loadMachines(data) {
         const machineName = entry.name || null;
         const comps = entry.components || entry || [];
         const isPE = entry.is_prebuilt || false;
-        container.insertAdjacentHTML('beforeend', machineHTML(num, machineName, isPE));
+        const pc = entry.power_cable || 'OK';
+        const pcFonte = entry.power_cable_fonte || '';
+        container.insertAdjacentHTML('beforeend', machineHTML(num, machineName, isPE, pc, pcFonte));
         const block = container.lastElementChild;
         const tbody = block.querySelector('.machine-body');
         const cb = block.querySelector('.form-check-input');
