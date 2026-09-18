@@ -230,9 +230,8 @@
                 <div class="col-md-3">
                     <label class="form-label">Cabo de Força</label>
                     <select name="power_cable" class="form-select" id="powerCable" onchange="togglePowerCableFonte()">
-                        <option value="">---</option>
-                        <option value="OK" {{ 'selected' if editing and protocol.power_cable == 'OK' }}>OK</option>
-                        <option value="IE" {{ 'selected' if editing and protocol.power_cable == 'IE' }}>Informado ao Estoque</option>
+                        <option value="OK" selected>OK</option>
+                        <option value="IE">Informado ao Estoque</option>
                     </select>
                 </div>
                 <div class="col-md-3" id="powerCableFonteGroup" style="{{ 'display:block' if editing and protocol.power_cable == 'IE' else 'display:none' }}">
