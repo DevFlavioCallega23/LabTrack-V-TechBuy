@@ -296,20 +296,50 @@ def parse_defects(request_form):
     return defects
 
 def get_incomplete_fields(protocol):
-    """Retorna lista de campos faltantes em um protocolo."""
+    """Retorna lista de campos faltantes em um protocolo, baseado no tipo."""
     missing = []
-    if not protocol.type:
+    t = protocol.type
+
+    if not t:
         missing.append('Tipo')
-    if not protocol.client_name:
-        missing.append('Cliente')
-    if not protocol.order_number:
-        missing.append('Nº Pedido')
-    if not protocol.seller:
-        missing.append('Vendedor')
-    if not protocol.components:
-        missing.append('Componentes')
-    if not protocol.entry_date:
-        missing.append('Data Entrada')
+        return missing
+
+    if t == 'ponta_entrega':
+        if not protocol.components:
+            missing.append('Componentes')
+        if not protocol.entry_date:
+            missing.append('Data Entrada')
+
+    elif t == 'venda':
+        if not protocol.client_name:
+            missing.append('Cliente')
+        if not protocol.seller:
+            missing.append('Vendedor')
+        if not protocol.order_number:
+            missing.append('Nº Pedido')
+        if not protocol.components:
+            missing.append('Componentes')
+
+    elif t in ('rma', 'servico'):
+        if not protocol.client_name:
+            missing.append('Cliente')
+        if not protocol.seller:
+            missing.append('Vendedor')
+        if not protocol.original_order and not protocol.order_number:
+            missing.append('Pedido Original')
+        if not protocol.rma_extra_equip and not protocol.components:
+            missing.append('Equipamento')
+
+    elif t == 'nao_comprado':
+        if not protocol.client_name:
+            missing.append('Cliente')
+        if not protocol.seller:
+            missing.append('Vendedor')
+        if not protocol.order_number:
+            missing.append('Nº Pedido')
+        if not protocol.components:
+            missing.append('Componentes')
+
     return missing
 
 @protocols_bp.route('/')
