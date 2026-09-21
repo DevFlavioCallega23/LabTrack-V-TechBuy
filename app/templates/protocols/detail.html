@@ -212,6 +212,13 @@
     </div>
 </div>
 
+{% if incomplete_fields %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle"></i> <strong>Dados incompletos:</strong> {{ incomplete_fields|join(', ') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
 <div class="row g-3">
     <div class="col-md-8">
         <div class="card h-100">
@@ -518,8 +525,8 @@
                                         {% endfor %}
                                     </tbody>
                                 </table>
-                            </div>
-                        </div>
+    </div>
+</div>
                         {% endfor %}
                     {% else %}
                     <div class="table-responsive">

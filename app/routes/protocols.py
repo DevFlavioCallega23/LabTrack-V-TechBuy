@@ -504,7 +504,8 @@ def build_component_types():
 @login_required
 def detail_protocol(id):
     protocol = Protocol.query.get_or_404(id)
-    return render_template('protocols/detail.html', protocol=protocol)
+    incomplete_fields = get_incomplete_fields(protocol)
+    return render_template('protocols/detail.html', protocol=protocol, incomplete_fields=incomplete_fields)
 
 @protocols_bp.route('/<int:id>/pdf')
 @login_required
