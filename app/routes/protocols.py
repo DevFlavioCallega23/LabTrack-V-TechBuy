@@ -3,7 +3,7 @@ import re
 import io
 import os
 from datetime import datetime, date, timedelta
-from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file, current_app, jsonify
 from flask_login import login_required, current_user
 from app import db
 from app.models import Protocol, Component, Defect, User, WindowsKey, Produto
@@ -370,6 +370,11 @@ def create_protocol():
     if form.validate_on_submit():
         components = parse_components(request.form)
         if components is None:
+            msgs = build_validation_messages(form, components_is_none=True)
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'ok': False, 'errors': msgs})
+            for msg in msgs:
+                flash(msg, 'warning')
             comp_data = build_comp_data_from_form(request.form)
             rma_comp_data = build_rma_equip_data_from_form(request.form)
             rma_test_data = build_rma_test_data_from_form(request.form)
@@ -378,8 +383,6 @@ def create_protocol():
             form.exit_date.data = request.form.get('exit_date', '')
             defect_data = build_defect_data_from_form(request.form)
             win_keys_data = build_windows_key_data_from_form(request.form)
-            for msg in build_validation_messages(form, components_is_none=True):
-                flash(msg, 'warning')
             return render_template('protocols/create.html', form=form, editing=False, comp_data=comp_data,
                 rma_comp_data=rma_comp_data, rma_test_data=rma_test_data, rma_trocados_data=rma_trocados_data,
                 defect_data=defect_data, win_keys_data=win_keys_data, machines=build_machine_names(comp_data),
@@ -438,7 +441,10 @@ def create_protocol():
         return redirect(url_for('protocols.detail_protocol', id=protocol.id))
 
     if request.method == 'POST':
-        for msg in build_validation_messages(form):
+        msgs = build_validation_messages(form)
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'ok': False, 'errors': msgs})
+        for msg in msgs:
             flash(msg, 'warning')
         comp_data = build_comp_data_from_form(request.form)
         rma_comp_data = build_rma_equip_data_from_form(request.form)
@@ -620,7 +626,10 @@ def edit_protocol(id):
             form.exit_date.data = request.form.get('exit_date', '')
             defect_data = build_defect_data_from_form(request.form)
             win_keys_data = build_windows_key_data_from_form(request.form)
-            for msg in build_validation_messages(form, components_is_none=True):
+            msgs = build_validation_messages(form, components_is_none=True)
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'ok': False, 'errors': msgs})
+            for msg in msgs:
                 flash(msg, 'warning')
             return render_template('protocols/create.html', form=form, editing=True, protocol=protocol,
                 comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
@@ -662,7 +671,10 @@ def edit_protocol(id):
         return redirect(url_for('protocols.detail_protocol', id=protocol.id))
 
     if request.method == 'POST':
-        for msg in build_validation_messages(form):
+        msgs = build_validation_messages(form)
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'ok': False, 'errors': msgs})
+        for msg in msgs:
             flash(msg, 'warning')
         comp_data = build_comp_data_from_form(request.form)
         rma_comp_data = build_rma_equip_data_from_form(request.form)
