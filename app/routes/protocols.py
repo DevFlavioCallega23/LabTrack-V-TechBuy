@@ -302,6 +302,8 @@ def get_incomplete_fields(protocol):
         missing.append('Data Entrada')
     return missing
 
+@protocols_bp.route('/')
+@login_required
 def list_protocols():
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '').strip()
