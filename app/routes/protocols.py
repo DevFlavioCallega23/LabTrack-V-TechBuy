@@ -430,7 +430,7 @@ def create_protocol():
             rma_entry_date=form.rma_entry_date.data or None,
             rma_in_warranty=form.type.data == 'rma',
             rma_passagens=rma_passagens,
-            power_cables=parse_power_cables(request_form),
+            power_cables=parse_power_cables(request.form),
             created_by=current_user.id
         )
 
@@ -640,7 +640,7 @@ def edit_protocol(id):
         protocol.rma_test_result = parse_rma_test_items(request.form)
         protocol.rma_trocados = parse_rma_trocados(request.form)
         protocol.rma_entry_date = form.rma_entry_date.data or None
-        protocol.power_cables = parse_power_cables(request_form)
+        protocol.power_cables = parse_power_cables(request.form)
 
         Component.query.filter_by(protocol_id=protocol.id).delete()
         protocol.components = components
