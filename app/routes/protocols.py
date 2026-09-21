@@ -45,6 +45,20 @@ def parse_int_or_none(val):
     except (ValueError, TypeError):
         return None
 
+def build_validation_messages(form, components_is_none=False):
+    """Gera lista de mensagens de erro específicas para exibição."""
+    msgs = []
+    if components_is_none:
+        msgs.append('Nº de série deve ter no mínimo 6 caracteres.')
+    if not form.type.data:
+        msgs.append('O campo Tipo de Protocolo é obrigatório.')
+    for field_name, errors in form.errors.items():
+        label = getattr(getattr(form, field_name, None), 'label', None)
+        label_text = label.text if label else field_name
+        for err in errors:
+            msgs.append(f'{label_text}: {err}')
+    return msgs
+
 def parse_components(request_form):
     components = []
     seen_units = set()
@@ -364,6 +378,8 @@ def create_protocol():
             form.exit_date.data = request.form.get('exit_date', '')
             defect_data = build_defect_data_from_form(request.form)
             win_keys_data = build_windows_key_data_from_form(request.form)
+            for msg in build_validation_messages(form, components_is_none=True):
+                flash(msg, 'warning')
             return render_template('protocols/create.html', form=form, editing=False, comp_data=comp_data,
                 rma_comp_data=rma_comp_data, rma_test_data=rma_test_data, rma_trocados_data=rma_trocados_data,
                 defect_data=defect_data, win_keys_data=win_keys_data, machines=build_machine_names(comp_data),
@@ -422,7 +438,8 @@ def create_protocol():
         return redirect(url_for('protocols.detail_protocol', id=protocol.id))
 
     if request.method == 'POST':
-        flash(f'Não foi possível salvar. Verifique os campos obrigatórios.', 'warning')
+        for msg in build_validation_messages(form):
+            flash(msg, 'warning')
         comp_data = build_comp_data_from_form(request.form)
         rma_comp_data = build_rma_equip_data_from_form(request.form)
         rma_test_data = build_rma_test_data_from_form(request.form)
@@ -603,6 +620,8 @@ def edit_protocol(id):
             form.exit_date.data = request.form.get('exit_date', '')
             defect_data = build_defect_data_from_form(request.form)
             win_keys_data = build_windows_key_data_from_form(request.form)
+            for msg in build_validation_messages(form, components_is_none=True):
+                flash(msg, 'warning')
             return render_template('protocols/create.html', form=form, editing=True, protocol=protocol,
                 comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
                 rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data,
@@ -643,7 +662,8 @@ def edit_protocol(id):
         return redirect(url_for('protocols.detail_protocol', id=protocol.id))
 
     if request.method == 'POST':
-        flash(f'Não foi possível salvar. Verifique os campos obrigatórios.', 'warning')
+        for msg in build_validation_messages(form):
+            flash(msg, 'warning')
         comp_data = build_comp_data_from_form(request.form)
         rma_comp_data = build_rma_equip_data_from_form(request.form)
         rma_test_data = build_rma_test_data_from_form(request.form)

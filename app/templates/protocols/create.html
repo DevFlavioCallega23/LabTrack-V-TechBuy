@@ -1882,13 +1882,25 @@ document.addEventListener('DOMContentLoaded', function() {
             if (resp.redirected) {
                 window.location.href = resp.url;
             } else {
-                btn.disabled = false;
-                btn.innerHTML = 'Salvar';
-                const alertBox = document.createElement('div');
-                alertBox.className = 'alert alert-warning alert-dismissible fade show mt-3';
-                alertBox.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Verifique os campos obrigatórios e tente novamente. Os dados foram preservados.<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
-                form.prepend(alertBox);
-                window.scrollTo(0, 0);
+                return resp.text().then(function(html) {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Salvar';
+                    var parser = new DOMParser();
+                    var doc = parser.parseFromString(html, 'text/html');
+                    var alerts = doc.querySelectorAll('.alert');
+                    if (alerts.length > 0) {
+                        form.querySelectorAll('.alert').forEach(function(a) { a.remove(); });
+                        alerts.forEach(function(a) {
+                            form.prepend(a);
+                        });
+                    } else {
+                        var alertBox = document.createElement('div');
+                        alertBox.className = 'alert alert-warning alert-dismissible fade show mt-3';
+                        alertBox.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Verifique os campos obrigatórios e tente novamente. Os dados foram preservados.<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                        form.prepend(alertBox);
+                    }
+                    window.scrollTo(0, 0);
+                });
             }
         }).catch(function() {
             btn.disabled = false;
