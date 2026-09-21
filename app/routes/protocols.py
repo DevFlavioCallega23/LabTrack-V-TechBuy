@@ -283,8 +283,6 @@ def parse_defects(request_form):
             ))
     return defects
 
-@protocols_bp.route('/')
-@login_required
 def get_incomplete_fields(protocol):
     """Retorna lista de campos faltantes em um protocolo."""
     missing = []
