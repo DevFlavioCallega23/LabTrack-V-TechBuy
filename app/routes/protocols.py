@@ -159,6 +159,18 @@ def build_rma_equip_data_from_form(request_form):
             data[unit] = {'name': machine_name, 'components': comps}
     return json.dumps(data)
 
+def parse_rma_equip(request_form):
+    """Parse RMA equipment JSON from form."""
+    raw = request_form.get('rma_equip_json', '').strip()
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        cleaned = {k: v for k, v in data.items() if v.get('components')}
+        return json.dumps(cleaned) if cleaned else None
+    except (json.JSONDecodeError, TypeError):
+        return None
+
 def parse_rma_test_items(request_form):
     """Parse RMA test items from JSON hidden field."""
     raw = request_form.get('rma_test_json', '').strip()
