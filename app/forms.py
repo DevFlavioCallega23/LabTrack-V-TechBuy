@@ -44,12 +44,13 @@ class ChangePasswordForm(FlaskForm):
 
 class ProtocolForm(FlaskForm):
     type = SelectField('Tipo de Protocolo', choices=[
+        ('', 'Selecione...'),
         ('venda', 'Venda'),
         ('ponta_entrega', 'Pronta-Entrega'),
         ('rma', 'RMA (Garantia)'),
         ('servico', 'Serviço (Fora de Garantia)'),
         ('nao_comprado', 'Não comprado na TechBuy')
-    ], validators=[DataRequired()])
+    ], default='')
     venda_pe = BooleanField('Venda Pronta-Entrega (PE)', default=False)
     client_name = StringField('Cliente / Nome', validators=[Optional(), Length(max=200)])
     lote = StringField('Quantidade', validators=[Optional(), Length(max=50)])
@@ -79,19 +80,5 @@ class ProtocolForm(FlaskForm):
     rma_entry_date = StringField('Data de Entrada (RMA)', validators=[Optional()])
     observations = TextAreaField('Observações', validators=[Optional()])
     submit = SubmitField('Salvar')
-
-    REQUIRED_CLIENT_SELLER = {'venda', 'servico', 'rma', 'nao_comprado'}
-
-    def validate(self, extra_validators=None):
-        if not super().validate(extra_validators):
-            return False
-        if self.type.data in self.REQUIRED_CLIENT_SELLER:
-            if not self.client_name.data or not self.client_name.data.strip():
-                self.client_name.errors.append('Cliente é obrigatório para este tipo de protocolo.')
-                return False
-            if not self.seller.data or self.seller.data == '':
-                self.seller.errors.append('Vendedor é obrigatório para este tipo de protocolo.')
-                return False
-        return True
 
 

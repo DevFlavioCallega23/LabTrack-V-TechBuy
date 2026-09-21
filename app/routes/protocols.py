@@ -48,8 +48,6 @@ def parse_int_or_none(val):
 def build_validation_messages(form, components_is_none=False):
     """Gera lista de mensagens de erro específicas para exibição."""
     msgs = []
-    if components_is_none:
-        msgs.append('Nº de série deve ter no mínimo 6 caracteres.')
     if not form.type.data:
         msgs.append('O campo Tipo de Protocolo é obrigatório.')
     for field_name, errors in form.errors.items():
@@ -86,12 +84,8 @@ def parse_components(request_form):
                 else:
                     serial = cabo_status or 'OK'
             if ct:
-                if not is_prebuilt:
-                    if not serial:
-                        continue
-                    if ct != 'cabo_de_forca' and len(serial) < 6:
-                        flash(f'Nº de série deve ter no mínimo 6 caracteres.', 'danger')
-                        return None
+                if not is_prebuilt and not serial:
+                    continue
                 model = models[i].strip() if i < len(models) else ''
                 product_id = None
                 if not material_comum and product_ids:
@@ -291,6 +285,23 @@ def parse_defects(request_form):
 
 @protocols_bp.route('/')
 @login_required
+def get_incomplete_fields(protocol):
+    """Retorna lista de campos faltantes em um protocolo."""
+    missing = []
+    if not protocol.type:
+        missing.append('Tipo')
+    if not protocol.client_name:
+        missing.append('Cliente')
+    if not protocol.order_number:
+        missing.append('Nº Pedido')
+    if not protocol.seller:
+        missing.append('Vendedor')
+    if not protocol.components:
+        missing.append('Componentes')
+    if not protocol.entry_date:
+        missing.append('Data Entrada')
+    return missing
+
 def list_protocols():
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '').strip()
@@ -354,10 +365,17 @@ def list_protocols():
         page=page, per_page=20, error_out=False
     )
 
+    incomplete_map = {}
+    for p in protocols.items:
+        fields = get_incomplete_fields(p)
+        if fields:
+            incomplete_map[p.id] = fields
+
     return render_template('protocols/list.html',
         protocols=protocols, search=search, search_mode=search_mode,
         comp_type_filter=comp_type_filter,
-        type_filter=type_filter, status_filter=status_filter, mes_filter=mes_filter)
+        type_filter=type_filter, status_filter=status_filter, mes_filter=mes_filter,
+        incomplete_map=incomplete_map)
 
 @protocols_bp.route('/novo', methods=['GET', 'POST'])
 @login_required
@@ -369,25 +387,13 @@ def create_protocol():
     form = ProtocolForm()
     if form.validate_on_submit():
         components = parse_components(request.form)
-        if components is None:
-            msgs = build_validation_messages(form, components_is_none=True)
+        if not form.type.data:
+            msgs = ['O campo Tipo de Protocolo é obrigatório.']
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'ok': False, 'errors': msgs})
             for msg in msgs:
                 flash(msg, 'warning')
-            comp_data = build_comp_data_from_form(request.form)
-            rma_comp_data = build_rma_equip_data_from_form(request.form)
-            rma_test_data = build_rma_test_data_from_form(request.form)
-            rma_trocados_data = build_rma_trocados_data_from_form(request.form)
-            form.entry_date.data = request.form.get('entry_date', '')
-            form.exit_date.data = request.form.get('exit_date', '')
-            defect_data = build_defect_data_from_form(request.form)
-            win_keys_data = build_windows_key_data_from_form(request.form)
-            return render_template('protocols/create.html', form=form, editing=False, comp_data=comp_data,
-                rma_comp_data=rma_comp_data, rma_test_data=rma_test_data, rma_trocados_data=rma_trocados_data,
-                defect_data=defect_data, win_keys_data=win_keys_data, machines=build_machine_names(comp_data),
-                produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]),
-                component_types=build_component_types())
+            return redirect(url_for('protocols.create_protocol'))
 
         protocol_number = gerar_numero_protocolo()
 
@@ -617,26 +623,6 @@ def edit_protocol(id):
     form = ProtocolForm(obj=protocol)
     if form.validate_on_submit():
         components = parse_components(request.form)
-        if components is None:
-            comp_data = build_comp_data_from_form(request.form)
-            rma_comp_data = build_rma_equip_data_from_form(request.form)
-            rma_test_data = build_rma_test_data_from_form(request.form)
-            rma_trocados_data = build_rma_trocados_data_from_form(request.form)
-            form.entry_date.data = request.form.get('entry_date', '')
-            form.exit_date.data = request.form.get('exit_date', '')
-            defect_data = build_defect_data_from_form(request.form)
-            win_keys_data = build_windows_key_data_from_form(request.form)
-            msgs = build_validation_messages(form, components_is_none=True)
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'ok': False, 'errors': msgs})
-            for msg in msgs:
-                flash(msg, 'warning')
-            return render_template('protocols/create.html', form=form, editing=True, protocol=protocol,
-                comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
-                rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data,
-                machines=build_machine_names(comp_data),
-                produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]),
-                component_types=build_component_types())
 
         form.populate_obj(protocol)
         protocol.venda_pe = bool(form.venda_pe.data) if form.type.data == 'venda' else False
