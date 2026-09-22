@@ -57,9 +57,10 @@ def build_validation_messages(form, components_is_none=False):
             msgs.append(f'{label_text}: {err}')
     return msgs
 
-def parse_components(request_form):
+def parse_components(request_form, protocol_type=None):
     components = []
     seen_units = set()
+    ns_optional = protocol_type in ('rma', 'servico')
     material_comum = request_form.get('material_comum') == 'on'
     for key in request_form.keys():
         if key.startswith('comp_type_') and key.endswith('[]'):
@@ -84,7 +85,7 @@ def parse_components(request_form):
                 else:
                     serial = cabo_status or 'OK'
             if ct:
-                if not is_prebuilt and not serial:
+                if not is_prebuilt and not serial and not ns_optional:
                     continue
                 model = models[i].strip() if i < len(models) else ''
                 product_id = None
@@ -327,7 +328,7 @@ def get_incomplete_fields(protocol):
             missing.append('Vendedor')
         if not protocol.original_order and not protocol.order_number:
             missing.append('Pedido Original')
-        if not protocol.rma_extra_equip and not protocol.components:
+        if not protocol.rma_extra_equip and not protocol.components and not protocol.rma_equip_itens:
             missing.append('Equipamento')
 
     elif t == 'nao_comprado':
@@ -352,6 +353,7 @@ def list_protocols():
     type_filter = request.args.get('type', '')
     status_filter = request.args.get('status', '')
     mes_filter = request.args.get('mes', '')
+    incompletos_filter = request.args.get('incompletos', '')
 
     query = Protocol.query
 
@@ -403,6 +405,13 @@ def list_protocols():
         except ValueError:
             pass
 
+    if incompletos_filter:
+        incomplete_ids = [p.id for p in Protocol.query.all() if get_incomplete_fields(p)]
+        if incomplete_ids:
+            query = query.filter(Protocol.id.in_(incomplete_ids))
+        else:
+            query = query.filter(db.false())
+
     protocols = query.order_by(Protocol.created_at.desc()).paginate(
         page=page, per_page=20, error_out=False
     )
@@ -413,11 +422,14 @@ def list_protocols():
         if fields:
             incomplete_map[p.id] = fields
 
+    incomplete_count = len([p for p in Protocol.query.all() if get_incomplete_fields(p)])
+
     return render_template('protocols/list.html',
         protocols=protocols, search=search, search_mode=search_mode,
         comp_type_filter=comp_type_filter,
         type_filter=type_filter, status_filter=status_filter, mes_filter=mes_filter,
-        incomplete_map=incomplete_map)
+        incomplete_map=incomplete_map, incomplete_count=incomplete_count,
+        incompletos_filter=incompletos_filter)
 
 @protocols_bp.route('/novo', methods=['GET', 'POST'])
 @login_required
@@ -428,7 +440,7 @@ def create_protocol():
 
     form = ProtocolForm()
     if form.validate_on_submit():
-        components = parse_components(request.form)
+        components = parse_components(request.form, form.type.data)
         if not form.type.data:
             msgs = ['O campo Tipo de Protocolo é obrigatório.']
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -665,7 +677,7 @@ def edit_protocol(id):
     protocol = Protocol.query.get_or_404(id)
     form = ProtocolForm(obj=protocol)
     if form.validate_on_submit():
-        components = parse_components(request.form)
+        components = parse_components(request.form, form.type.data)
 
         form.populate_obj(protocol)
         protocol.venda_pe = bool(form.venda_pe.data) if form.type.data == 'venda' else False
@@ -1522,8 +1534,8 @@ def busca_avancada():
                   .filter(Protocol.seller.isnot(None), Protocol.seller != '')
                   .order_by(Protocol.seller).all()]
 
-    tipos_componente = sorted({t[0] for t in db.session.query(Produto.component_type).distinct().all()} |
-                              {t[0] for t in db.session.query(Component.component_type).distinct().all()} |
+    tipos_componente = sorted({t[0] for t in db.session.query(Produto.component_type).distinct().all() if t[0]} |
+                              {t[0] for t in db.session.query(Component.component_type).distinct().all() if t[0]} |
                               {t[0] for t in db.session.query(Defect.component_type).distinct().all() if t[0]})
     comp_labels = dict(Produto.TYPE_LABELS)
     for t in tipos_componente:
@@ -1742,8 +1754,8 @@ def rastreio_equipamento():
             if ocorrencias:
                 estoque_resultados.append({'item': eu, 'ocorrencias': ocorrencias})
 
-    tipos_componente = sorted({t[0] for t in db.session.query(Produto.component_type).distinct().all()} |
-                              {t[0] for t in db.session.query(Component.component_type).distinct().all()} |
+    tipos_componente = sorted({t[0] for t in db.session.query(Produto.component_type).distinct().all() if t[0]} |
+                              {t[0] for t in db.session.query(Component.component_type).distinct().all() if t[0]} |
                               {t[0] for t in db.session.query(Defect.component_type).distinct().all() if t[0]})
     comp_labels = dict(Produto.TYPE_LABELS)
     for t in tipos_componente:

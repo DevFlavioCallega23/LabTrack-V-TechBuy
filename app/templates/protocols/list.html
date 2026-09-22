@@ -52,6 +52,14 @@
             <div class="col-12">
                 <span class="badge bg-info text-dark">
                     <i class="bi bi-calendar3"></i> Mês: {{ mes_filter }} 
+                    <a href="{{ url_for('protocols.list_protocols', search=search, search_mode=search_mode, comp_type=comp_type_filter, status=status_filter, incompletos=incompletos_filter) }}" class="text-dark text-decoration-none ms-1"><i class="bi bi-x-lg"></i></a>
+                </span>
+            </div>
+            {% endif %}
+            {% if incompletos_filter %}
+            <div class="col-12">
+                <span class="badge bg-warning text-dark">
+                    <i class="bi bi-exclamation-triangle"></i> Somente incompletos
                     <a href="{{ url_for('protocols.list_protocols', search=search, search_mode=search_mode, comp_type=comp_type_filter, status=status_filter) }}" class="text-dark text-decoration-none ms-1"><i class="bi bi-x-lg"></i></a>
                 </span>
             </div>
@@ -60,11 +68,10 @@
     </div>
 </div>
 
-{% if incomplete_map %}
-<div class="alert alert-warning alert-dismissible fade show" role="alert">
-    <i class="bi bi-exclamation-triangle"></i> <strong>{{ incomplete_map|length }}</strong> protocolo(s) com dados incompletos.
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
+{% if incomplete_count and not incompletos_filter %}
+<a href="{{ url_for('protocols.list_protocols', incompletos=1) }}" class="alert alert-warning d-block text-decoration-none mb-3" role="alert">
+    <i class="bi bi-exclamation-triangle"></i> <strong>{{ incomplete_count }}</strong> protocolo(s) com dados incompletos. <i class="bi bi-arrow-right"></i> ver somente incompletos
+</a>
 {% endif %}
 
 <div class="card">
