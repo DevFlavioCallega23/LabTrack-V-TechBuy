@@ -24,7 +24,16 @@
                     {% set COMP_LABELS = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'placa_de_video': 'Placa de Vídeo', 'gpu': 'GPU', 'gabinete': 'Gabinete', 'monitor': 'Monitor', 'outro': 'Outro'} %}
                     {% for item in itens %}
                     <tr class="clickable-row" data-href="{{ url_for('estoque.detail', id=item.id) }}">
-                        <td>{{ COMP_LABELS.get(item.tipo_componente, item.tipo_componente) if item.tipo_componente else '-' }}</td>
+                        <td>
+                            {% set _c = item.components[0] if item.components else None %}
+                            {% if _c %}
+                            {{ COMP_LABELS.get(_c.component_type, _c.component_type) }}
+                            {% elif item.tipo_componente %}
+                            {{ COMP_LABELS.get(item.tipo_componente, item.tipo_componente) }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
                         <td><strong>{{ item.equipamento }}</strong></td>
                         <td>
                             {% if item.laudo %}
