@@ -213,9 +213,26 @@
 </div>
 
 {% if incomplete_fields %}
-<div class="alert alert-warning alert-dismissible fade show" role="alert">
-    <i class="bi bi-exclamation-triangle"></i> <strong>Dados incompletos:</strong> {{ incomplete_fields|join(', ') }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+<div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3" role="alert">
+    <div>
+        <i class="bi bi-exclamation-triangle"></i> <strong>Dados incompletos:</strong> {{ incomplete_fields|join(', ') }}
+    </div>
+    <form method="POST" action="{{ url_for('protocols.toggle_ignored_incompletos', id=protocol.id) }}" class="d-inline">
+        <button type="submit" class="btn btn-sm btn-outline-dark">
+            <i class="bi bi-eye-slash"></i> Ignorar
+        </button>
+    </form>
+</div>
+{% elif protocol.incomplete_ignored %}
+<div class="alert alert-secondary d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3" role="alert">
+    <div>
+        <i class="bi bi-eye-slash"></i> Alerta de dados incompletos <strong>ignorado</strong>.
+    </div>
+    <form method="POST" action="{{ url_for('protocols.toggle_ignored_incompletos', id=protocol.id) }}" class="d-inline">
+        <button type="submit" class="btn btn-sm btn-outline-warning">
+            <i class="bi bi-arrow-counterclockwise"></i> Reativar alerta
+        </button>
+    </form>
 </div>
 {% endif %}
 

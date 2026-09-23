@@ -291,6 +291,8 @@ def parse_defects(request_form):
 
 def get_incomplete_fields(protocol):
     """Retorna lista de campos faltantes em um protocolo, baseado no tipo."""
+    if getattr(protocol, 'incomplete_ignored', False):
+        return []
     missing = []
     t = protocol.type
 
@@ -536,6 +538,18 @@ def detail_protocol(id):
     protocol = Protocol.query.get_or_404(id)
     incomplete_fields = get_incomplete_fields(protocol)
     return render_template('protocols/detail.html', protocol=protocol, incomplete_fields=incomplete_fields)
+
+@protocols_bp.route('/<int:id>/ignorar-incompletos', methods=['POST'])
+@login_required
+def toggle_ignored_incompletos(id):
+    protocol = Protocol.query.get_or_404(id)
+    protocol.incomplete_ignored = not protocol.incomplete_ignored
+    db.session.commit()
+    if protocol.incomplete_ignored:
+        flash('Alerta de dados incompletos ignorado.', 'success')
+    else:
+        flash('Alerta de dados incompletos reativado.', 'info')
+    return redirect(url_for('protocols.detail_protocol', id=id))
 
 @protocols_bp.route('/<int:id>/pdf')
 @login_required
