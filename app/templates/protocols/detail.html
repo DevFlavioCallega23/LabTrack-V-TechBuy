@@ -419,9 +419,10 @@
                             {% set pc_data = protocol.get_power_cables() %}
                             {% set unit_pc = pc_data.get(unit_group.grouper, {}) %}
                             {% set pc_val = unit_pc.get('cable', 'OK') %}
+                            {% if pc_val in ('Vai sem cabo de força', 'Foi sem Cabo de Força') %}
+                            <span class="text-warning">Foi sem Cabo de Força</span>
+                            {% else %}
                             {{ pc_val }}
-                            {% if pc_val == 'Informado ao Estoque' and unit_pc.get('fonte') %}
-                            <span class="ms-2">— NS da Fonte: <code>{{ unit_pc.get('fonte') }}</code></span>
                             {% endif %}
                         </div>
                         <div class="table-responsive mt-1">
@@ -446,17 +447,6 @@
                         </div>
                     </div>
                     {% endfor %}
-                    {% if protocol.power_cable %}
-                    <div class="mt-2">
-                        <strong>Cabo de Força:</strong>
-                        {% if protocol.power_cable == 'OK' %}OK
-                        {% elif protocol.power_cable == 'IE' %}Informado ao Estoque
-                        {% else %}{{ protocol.power_cable }}{% endif %}
-                        {% if protocol.power_cable == 'IE' and protocol.power_cable_fonte_serial %}
-                        <span class="ms-2">— NS da Fonte: <code>{{ protocol.power_cable_fonte_serial }}</code></span>
-                        {% endif %}
-                    </div>
-                    {% endif %}
                 </div>
                 {% endif %}
 

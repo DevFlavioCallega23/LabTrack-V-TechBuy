@@ -226,20 +226,6 @@
                 </div>
             </div>
 
-            <div class="row g-3 mt-2 hide-for-rma hide-for-nao-comprado" data-show-for="rma,servico" style="display:none">
-                <div class="col-md-3">
-                    <label class="form-label">Cabo de Força</label>
-                    <select name="power_cable" class="form-select" id="powerCable" onchange="togglePowerCableFonte()">
-                        <option value="OK" selected>OK</option>
-                        <option value="IE">Informado ao Estoque</option>
-                    </select>
-                </div>
-                <div class="col-md-3" id="powerCableFonteGroup" style="{{ 'display:block' if editing and protocol.power_cable == 'IE' else 'display:none' }}">
-                    <label class="form-label">NS da Fonte sem Cabo</label>
-                    <input type="text" name="power_cable_fonte_serial" class="form-control" placeholder="Nº de série da fonte" value="{{ protocol.power_cable_fonte_serial or '' if editing else '' }}">
-                </div>
-            </div>
-
             <!-- Chave do Windows -->
             <div class="row g-3 mt-2 hide-for-rma hide-for-nao-comprado">
                 <div class="col-12">
@@ -613,13 +599,11 @@ function syncRmaTestMachines() {
 let machineCount = 0;
 let rmaMachineCount = 0;
 
-function machineHTML(num, name, isPrebuilt, powerCableVal, powerCableFonteVal) {
+function machineHTML(num, name, isPrebuilt, powerCableVal) {
     const n = String(num).padStart(2, '0');
     const label = name || `Máquina ${n}`;
     const checked = isPrebuilt ? 'checked' : '';
     const pcVal = powerCableVal || 'OK';
-    const pcFonte = powerCableFonteVal || '';
-    const showFonte = (pcVal === 'Informado ao Estoque') ? '' : 'style="display:none"';
     return `
     <div class="card bg-dark border-secondary mb-3 machine-block" data-machine="${n}">
         <div class="card-header d-flex justify-content-between align-items-center py-2 flex-wrap gap-2">
@@ -631,12 +615,10 @@ function machineHTML(num, name, isPrebuilt, powerCableVal, powerCableFonteVal) {
                 </div>
                 <div class="d-flex align-items-center gap-1">
                     <span class="small text-secondary">Cabo de Força:</span>
-                    <select name="machine_power_cable_${n}" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto;" onchange="toggleMachinePowerCable(this)">
+                    <select name="machine_power_cable_${n}" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto;">
                         <option value="OK" ${pcVal === 'OK' ? 'selected' : ''}>OK</option>
-                        <option value="Informado ao Estoque" ${pcVal === 'Informado ao Estoque' ? 'selected' : ''}>Informado ao Estoque</option>
-                        <option value="Vai sem cabo de força" ${pcVal === 'Vai sem cabo de força' ? 'selected' : ''}>Vai sem cabo de força</option>
+                        <option value="Foi sem Cabo de Força" ${pcVal === 'Foi sem Cabo de Força' || pcVal === 'Vai sem cabo de força' ? 'selected' : ''}>Foi sem Cabo de Força</option>
                     </select>
-                    <input type="text" name="machine_power_cable_fonte_${n}" class="form-control form-control-sm bg-dark text-light border-secondary" style="width:140px; ${showFonte}" placeholder="NS da Fonte" value="${pcFonte}">
                 </div>
             </div>
             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeMachine(this)">
@@ -664,15 +646,6 @@ function machineHTML(num, name, isPrebuilt, powerCableVal, powerCableFonteVal) {
             </button>
         </div>
     </div>`;
-}
-
-function toggleMachinePowerCable(sel) {
-    const container = sel.closest('.d-flex');
-    const fonteInput = container.querySelector('input[name^="machine_power_cable_fonte_"]');
-    if (fonteInput) {
-        fonteInput.style.display = (sel.value === 'Informado ao Estoque') ? '' : 'none';
-        if (sel.value !== 'Informado ao Estoque') fonteInput.value = '';
-    }
 }
 
 function rmaMachineHTML(num, name) {
@@ -734,10 +707,8 @@ function replicateMachine(btn) {
     const srcPE = srcBlock.querySelector('.form-check-input');
     const isPE = srcPE ? srcPE.checked : false;
     const srcPcSel = srcBlock.querySelector('select[name^="machine_power_cable_"]');
-    const srcFonteInput = srcBlock.querySelector('input[name^="machine_power_cable_fonte_"]');
     const pcVal = srcPcSel ? srcPcSel.value : 'OK';
-    const pcFonte = srcFonteInput ? srcFonteInput.value : '';
-    container.insertAdjacentHTML('beforeend', machineHTML(next, null, isPE, pcVal, pcFonte));
+    container.insertAdjacentHTML('beforeend', machineHTML(next, null, isPE, pcVal));
     const dstBlock = container.lastElementChild;
     const dstMachine = dstBlock.dataset.machine;
     const dstCb = dstBlock.querySelector('.form-check-input');
@@ -1216,8 +1187,7 @@ function loadMachines(data) {
         const comps = entry.components || entry || [];
         const isPE = entry.is_prebuilt || false;
         const pc = entry.power_cable || 'OK';
-        const pcFonte = entry.power_cable_fonte || '';
-        container.insertAdjacentHTML('beforeend', machineHTML(num, machineName, isPE, pc, pcFonte));
+        container.insertAdjacentHTML('beforeend', machineHTML(num, machineName, isPE, pc));
         const block = container.lastElementChild;
         const tbody = block.querySelector('.machine-body');
         const cb = block.querySelector('.form-check-input');
@@ -1523,13 +1493,6 @@ document.addEventListener('DOMContentLoaded', function() {
     {% if rma_trocados_data is defined %}
     loadRmaTrocadosItems({{ rma_trocados_data|safe }});
     {% endif %}
-
-    function togglePowerCableFonte() {
-        const sel = document.getElementById('powerCable');
-        const grp = document.getElementById('powerCableFonteGroup');
-        grp.style.display = sel.value === 'IE' ? 'block' : 'none';
-    }
-    window.togglePowerCableFonte = togglePowerCableFonte;
 
     function toggleWindowsKeys() {
         const checked = document.getElementById('toggleWindowsKeys').checked;

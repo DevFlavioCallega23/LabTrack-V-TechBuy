@@ -77,13 +77,6 @@ def parse_components(request_form, protocol_type=None):
         for i in range(len(types)):
             ct = types[i].strip()
             serial = serials[i].strip() if i < len(serials) else ''
-            if ct == 'cabo_de_forca':
-                cabo_status = serial
-                fonte_ns = cabo_fontes[i].strip() if i < len(cabo_fontes) else ''
-                if cabo_status == 'Informado ao Estoque' and fonte_ns:
-                    serial = f'Informado ao Estoque: {fonte_ns}'
-                else:
-                    serial = cabo_status or 'OK'
             if ct:
                 if not is_prebuilt and not serial and not ns_optional:
                     continue
@@ -112,16 +105,16 @@ def parse_power_cables(request_form):
         if key.startswith('machine_power_cable_'):
             unit = key[len('machine_power_cable_'):]
             cable = request_form.get(key, 'OK').strip()
-            fonte = request_form.get(f'machine_power_cable_fonte_{unit}', '').strip()
-            data[unit] = {'cable': cable, 'fonte': fonte}
+            data[unit] = {'cable': cable}
     return json.dumps(data) if data else None
+
+def parse_rma_equip(request_form):
     """Parse RMA equipment JSON from form."""
     raw = request_form.get('rma_equip_json', '').strip()
     if not raw:
         return None
     try:
         data = json.loads(raw)
-        # Remove empty entries (no components)
         cleaned = {k: v for k, v in data.items() if v.get('components')}
         return json.dumps(cleaned) if cleaned else None
     except (json.JSONDecodeError, TypeError):
@@ -374,7 +367,6 @@ def list_protocols():
                 Protocol.rma_equip_itens.ilike(f'%{search}%'),
                 Protocol.rma_trocados.ilike(f'%{search}%'),
                 Protocol.rma_passagens.ilike(f'%{search}%'),
-                Protocol.power_cable_fonte_serial.ilike(f'%{search}%'),
                 Protocol.ref_ns.ilike(f'%{search}%')
             )
         )
@@ -454,8 +446,6 @@ def create_protocol():
         entry = form.entry_date.data
         exit = form.exit_date.data
 
-        power_cable = request.form.get('power_cable', '').strip() or None
-        power_cable_fonte = request.form.get('power_cable_fonte_serial', '').strip() or None
         rma_passagens = request.form.get('rma_passagens_json', '').strip() or None
         rma_equip_itens = parse_rma_equip(request.form)
         rma_test_result = parse_rma_test_items(request.form)
@@ -472,8 +462,6 @@ def create_protocol():
             entry_date=parse_date_br(form.entry_date.data) if form.entry_date.data else datetime.utcnow(),
             exit_date=parse_date_br(form.exit_date.data) if form.exit_date.data else None,
             observations=form.observations.data,
-            power_cable=power_cable,
-            power_cable_fonte_serial=power_cable_fonte,
             ref_ns=form.ref_ns.data or None,
             base_defect=form.base_defect.data or None,
             original_order=form.original_order.data or None,
@@ -534,7 +522,7 @@ def build_component_types():
     """Build component types list from Produto table for dynamic dropdowns."""
     tipos_db = db.session.query(Produto.component_type).distinct().all()
     tipos_existentes = {t[0] for t in tipos_db}
-    default_order = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'gpu', 'gabinete', 'monitor', 'cabo_de_forca']
+    default_order = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'gpu', 'gabinete', 'monitor']
     order = [t for t in default_order if t in tipos_existentes]
     for t in tipos_existentes:
         if t not in order:
@@ -685,8 +673,6 @@ def edit_protocol(id):
         protocol.exit_date = parse_date_br(form.exit_date.data) if form.exit_date.data else None
         protocol.updated_at = datetime.utcnow()
 
-        protocol.power_cable = request.form.get('power_cable', '').strip() or None
-        protocol.power_cable_fonte_serial = request.form.get('power_cable_fonte_serial', '').strip() or None
         protocol.rma_in_warranty = form.type.data == 'rma'
         protocol.rma_passagens = request.form.get('rma_passagens_json', '').strip() or None
         protocol.original_order = form.original_order.data or None
@@ -1261,13 +1247,6 @@ def _ns_ocorrencias_protocolo(p, termo=None):
                 'valor': d.serial_number,
                 'detalhe': d.description or ''
             })
-
-    if casa(p.power_cable_fonte_serial):
-        ocorrencias.append({
-            'local': 'Fonte (serial do cabo de força)',
-            'valor': p.power_cable_fonte_serial,
-            'detalhe': ''
-        })
 
     if casa(p.ref_ns):
         ocorrencias.append({
