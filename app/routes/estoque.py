@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app import db
 from app.models import EstoqueUso, Defect, Component
+import json
 
 estoque_bp = Blueprint('estoque', __name__, url_prefix='/estoque')
 
@@ -63,6 +64,24 @@ def parse_estoque_components(request_form):
     return components
 
 
+def parse_passagens(request_form):
+    entradas = request_form.getlist('pass_entrada[]')
+    usos = request_form.getlist('pass_uso[]')
+    saidas = request_form.getlist('pass_saida[]')
+    items = []
+    for i in range(len(entradas)):
+        entrada = entradas[i].strip() if i < len(entradas) else ''
+        uso = usos[i].strip() if i < len(usos) else ''
+        saida = saidas[i].strip() if i < len(saidas) else ''
+        if entrada or uso or saida:
+            items.append({
+                'data_entrada': normalize_date_br(entrada),
+                'uso': uso,
+                'data_saida': normalize_date_br(saida)
+            })
+    return json.dumps(items, ensure_ascii=False) if items else None
+
+
 @estoque_bp.route('/')
 @login_required
 def index():
@@ -80,18 +99,11 @@ def novo():
     if bloqueio:
         return bloqueio
     if request.method == 'POST':
-        equipamento = request.form.get('equipamento', '').strip()
-        if not equipamento:
-            flash('Informe o equipamento.', 'warning')
-            return render_template('estoque/form.html', item=None)
         item = EstoqueUso(
-            data_entrada=normalize_date_br(request.form.get('data_entrada', '')),
-            equipamento=equipamento,
-            ns=request.form.get('ns', '').strip() or None,
-            uso=request.form.get('uso', '').strip() or None,
-            data_saida=normalize_date_br(request.form.get('data_saida', '')),
+            equipamento=request.form.get('equipamento', '').strip() or '-',
             laudo=request.form.get('laudo', '').strip() or None,
             obs=request.form.get('obs', '').strip() or None,
+            passagens=parse_passagens(request.form),
         )
         db.session.add(item)
         db.session.flush()
@@ -131,12 +143,9 @@ def editar(id):
     item = EstoqueUso.query.get_or_404(id)
     if request.method == 'POST':
         item.equipamento = request.form.get('equipamento', '').strip() or item.equipamento
-        item.data_entrada = normalize_date_br(request.form.get('data_entrada', ''))
-        item.ns = request.form.get('ns', '').strip() or None
-        item.uso = request.form.get('uso', '').strip() or None
-        item.data_saida = normalize_date_br(request.form.get('data_saida', ''))
         item.laudo = request.form.get('laudo', '').strip() or None
         item.obs = request.form.get('obs', '').strip() or None
+        item.passagens = parse_passagens(request.form)
 
         Defect.query.filter_by(estoque_uso_id=item.id).delete()
         defects = parse_estoque_defects(request.form)

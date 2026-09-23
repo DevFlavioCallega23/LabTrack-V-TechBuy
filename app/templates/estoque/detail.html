@@ -7,6 +7,9 @@
         <a href="{{ url_for('estoque.index') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Voltar
         </a>
+        <a href="{{ url_for('estoque.editar', id=item.id) }}" class="btn btn-info">
+            <i class="bi bi-save"></i> Salvar
+        </a>
         <a href="{{ url_for('estoque.editar', id=item.id) }}" class="btn btn-warning">
             <i class="bi bi-pencil"></i> Editar
         </a>
@@ -19,25 +22,43 @@
 </div>
 
 <div class="row g-3">
+    {% if item.components %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-cpu"></i> Componente ({{ item.components|length }})</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Componente</th>
+                                <th>Modelo</th>
+                                <th>Nº de Série</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in item.components %}
+                            <tr>
+                                <td><span class="badge bg-primary">{{ COMP_LABELS.get(c.component_type, c.component_type) }}</span></td>
+                                <td><code>{{ c.specification or '-' }}</code></td>
+                                <td><code>{{ c.serial_number or '-' }}</code></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="col-md-8">
         <div class="card h-100">
-            <div class="card-header"><i class="bi bi-info-circle"></i> Dados do Uso</div>
+            <div class="card-header"><i class="bi bi-info-circle"></i> Resultado</div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-3">
-                        <label class="text-secondary small d-block">Componente</label>
-                        <strong>{{ COMP_LABELS.get(item.tipo_componente, item.tipo_componente) if item.tipo_componente else '-' }}</strong>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="text-secondary small d-block">Equipamento / Detalhe</label>
-                        <strong>{{ item.equipamento }}</strong>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="text-secondary small d-block">Nº de Série</label>
-                        <strong><code>{{ item.ns or '-' }}</code></strong>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="text-secondary small d-block">Laudo</label>
+                        <label class="text-secondary small d-block">Resultado</label>
                         {% if item.laudo %}
                         <span class="badge bg-info fs-6">{{ item.laudo }}</span>
                         {% else %}
@@ -79,18 +100,18 @@
 {% if not _passagens and (item.data_entrada or item.data_saida or item.uso) %}
     {% set _passagens = [{'data_entrada': item.data_entrada or '', 'data_saida': item.data_saida or '', 'uso': item.uso or ''}] %}
 {% endif %}
-{% if _passagens %}
 <div class="card mt-3">
-    <div class="card-header"><i class="bi bi-arrow-repeat"></i> Entradas e Saídas ({{ _passagens|length }})</div>
+    <div class="card-header"><i class="bi bi-arrow-repeat"></i> Histórico de Passagem{% if _passagens %} ({{ _passagens|length }}){% endif %}</div>
     <div class="card-body p-0">
+        {% if _passagens %}
         <div class="table-responsive">
             <table class="table table-dark table-sm mb-0">
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>Data de entrada</th>
-                        <th>Data de saída</th>
-                        <th>Protocolo / Uso</th>
+                        <th>Data de Entrada</th>
+                        <th>Uso</th>
+                        <th>Data de Saída</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -98,44 +119,18 @@
                     <tr>
                         <td>{{ loop.index }}</td>
                         <td>{{ ps.data_entrada or '-' }}</td>
-                        <td>{{ ps.data_saida or '-' }}</td>
                         <td>{{ ps.uso or '-' }}</td>
+                        <td>{{ ps.data_saida or '-' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% else %}
+        <div class="text-secondary py-3 px-3 mb-0">Nenhuma passagem registrada.</div>
+        {% endif %}
     </div>
 </div>
-{% endif %}
-
-{% if item.components %}
-<div class="card mt-3">
-    <div class="card-header"><i class="bi bi-cpu"></i> Componentes ({{ item.components|length }})</div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-dark table-sm mb-0">
-                <thead>
-                    <tr>
-                        <th>Componente</th>
-                        <th>Modelo</th>
-                        <th>Nº de Série</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for c in item.components %}
-                    <tr>
-                        <td><span class="badge bg-primary">{{ COMP_LABELS.get(c.component_type, c.component_type) }}</span></td>
-                        <td><code>{{ c.specification or '-' }}</code></td>
-                        <td><code>{{ c.serial_number or '-' }}</code></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-{% endif %}
 
 {% if item.defeitos %}
 <div class="card mt-3 border-warning">

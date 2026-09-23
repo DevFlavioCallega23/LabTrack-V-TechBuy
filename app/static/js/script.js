@@ -43,5 +43,19 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Enter navigates to next field in all forms
+    document.querySelectorAll('form').forEach(function(form) {
+        form.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                var formEls = Array.from(this.querySelectorAll('input, select, button:not([type="submit"])'));
+                var idx = formEls.indexOf(e.target);
+                if (idx >= 0 && idx < formEls.length - 1) {
+                    formEls[idx + 1].focus();
+                }
+            }
+        });
+    });
+
     initDateMask();
 });

@@ -9,53 +9,16 @@
 </div>
 
 <form method="POST" autocomplete="off">
-    <div class="card mb-4">
-        <div class="card-body">
-            <h6 class="text-secondary border-bottom pb-2 mb-3"><i class="bi bi-info-circle"></i> Dados do Uso</h6>
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label">Data de Entrada</label>
-                    <input type="text" name="data_entrada" class="form-control date-mask" placeholder="DD/MM/AA" value="{{ item.data_entrada if item else '' }}">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Equipamento *</label>
-                    <input type="text" name="equipamento" class="form-control" placeholder="Ex: SSD 120, I5-6300HQ" value="{{ item.equipamento if item else '' }}" required>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Nº de Série</label>
-                    <input type="text" name="ns" class="form-control" placeholder="NS do item" value="{{ item.ns if item else '' }}">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Uso</label>
-                    <input type="text" name="uso" class="form-control" placeholder="Ex: Teste SO, teste RMA" value="{{ item.uso if item else '' }}">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Data de Saída</label>
-                    <input type="text" name="data_saida" class="form-control date-mask" placeholder="DD/MM/AA" value="{{ item.data_saida if item else '' }}">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Laudo</label>
-                    <select name="laudo" class="form-select">
-                        <option value="">--</option>
-                        <option value="OK" {{ 'selected' if item and item.laudo == 'OK' }}>OK</option>
-                        <option value="Defeito" {{ 'selected' if item and item.laudo == 'Defeito' }}>Defeito</option>
-                        {% if item and item.laudo and item.laudo not in ('OK', 'Defeito') %}
-                        <option value="{{ item.laudo }}" selected>{{ item.laudo }} (antigo)</option>
-                        {% endif %}
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Observações</label>
-                    <input type="text" name="obs" class="form-control" placeholder="Observações gerais" value="{{ item.obs if item else '' }}">
-                </div>
-            </div>
-        </div>
+    <div class="d-flex justify-content-end mb-3">
+        <button type="submit" class="btn btn-info">
+            <i class="bi bi-check-lg"></i> {{ 'Atualizar' if item else 'Salvar' }}
+        </button>
     </div>
 
     <div class="card mb-4">
         <div class="card-body">
             <h6 class="text-secondary border-bottom pb-2 mb-3">
-                <i class="bi bi-cpu"></i> Componentes
+                <i class="bi bi-cpu"></i> Componente
                 <button type="button" class="btn btn-sm btn-outline-success ms-2" onclick="addEstoqueCompRow()">
                     <i class="bi bi-plus-lg"></i> Adicionar
                 </button>
@@ -84,6 +47,66 @@
                                 </td>
                                 <td><input type="text" name="comp_model[]" class="form-control form-control-sm" value="{{ c.specification or '' }}" placeholder="Modelo"></td>
                                 <td><input type="text" name="comp_serial[]" class="form-control form-control-sm" value="{{ c.serial_number or '' }}" placeholder="Nº de Série"></td>
+                                <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+                            </tr>
+                            {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h6 class="text-secondary border-bottom pb-2 mb-3"><i class="bi bi-info-circle"></i> Resultado</h6>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Laudo</label>
+                    <select name="laudo" class="form-select">
+                        <option value="">--</option>
+                        <option value="OK" {{ 'selected' if item and item.laudo == 'OK' }}>OK</option>
+                        <option value="Defeito" {{ 'selected' if item and item.laudo == 'Defeito' }}>Defeito</option>
+                        {% if item and item.laudo and item.laudo not in ('OK', 'Defeito') %}
+                        <option value="{{ item.laudo }}" selected>{{ item.laudo }} (antigo)</option>
+                        {% endif %}
+                    </select>
+                </div>
+                <div class="col-md-9">
+                    <label class="form-label">Observações</label>
+                    <input type="text" name="obs" class="form-control" placeholder="Observações gerais" value="{{ item.obs if item else '' }}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h6 class="text-secondary border-bottom pb-2 mb-3">
+                <i class="bi bi-arrow-repeat"></i> Histórico de Passagem
+                <button type="button" class="btn btn-sm btn-outline-success ms-2" onclick="addPassagemRow()">
+                    <i class="bi bi-plus-lg"></i> Adicionar
+                </button>
+            </h6>
+            <small class="text-secondary d-block mb-2">Data de Saída fica nesta tabela, coluna "Data de Saída".</small>
+            <div class="table-responsive">
+                <table class="table table-dark table-sm mb-0" id="passagemTable">
+                    <thead>
+                        <tr>
+                            <th style="width:25%">Data de Entrada</th>
+                            <th style="width:45%">Uso</th>
+                            <th style="width:25%">Data de Saída</th>
+                            <th style="width:5%"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if item and item.passagens %}
+                            {% set passagens = item.passagens|from_json if item.passagens else [] %}
+                            {% for p in passagens %}
+                            <tr class="passagem-row">
+                                <td><input type="text" name="pass_entrada[]" class="form-control form-control-sm date-mask" placeholder="DD/MM/AAAA" value="{{ p.data_entrada or '' }}"></td>
+                                <td><input type="text" name="pass_uso[]" class="form-control form-control-sm" placeholder="Ex: Teste SO, teste RMA" value="{{ p.uso or '' }}"></td>
+                                <td><input type="text" name="pass_saida[]" class="form-control form-control-sm date-mask" placeholder="DD/MM/AAAA" value="{{ p.data_saida or '' }}"></td>
                                 <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
                             </tr>
                             {% endfor %}
@@ -168,6 +191,19 @@ function addEstoqueCompRow() {
     tbody.appendChild(tr);
 }
 
+function addPassagemRow() {
+    var tbody = document.querySelector('#passagemTable tbody');
+    var tr = document.createElement('tr');
+    tr.className = 'passagem-row';
+    tr.innerHTML =
+        '<td><input type="text" name="pass_entrada[]" class="form-control form-control-sm date-mask" placeholder="DD/MM/AAAA"></td>' +
+        '<td><input type="text" name="pass_uso[]" class="form-control form-control-sm" placeholder="Ex: Teste SO, teste RMA"></td>' +
+        '<td><input type="text" name="pass_saida[]" class="form-control form-control-sm date-mask" placeholder="DD/MM/AAAA"></td>' +
+        '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()"><i class="bi bi-x"></i></button></td>';
+    tbody.appendChild(tr);
+    if (window.initDateMask) initDateMask(tr);
+}
+
 function addDefectRow() {
     var tbody = document.querySelector('#defectTable tbody');
     var tr = document.createElement('tr');
@@ -182,16 +218,5 @@ function addDefectRow() {
         '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()"><i class="bi bi-x"></i></button></td>';
     tbody.appendChild(tr);
 }
-
-document.querySelector('form').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        var formEls = Array.from(this.querySelectorAll('input, select, button:not([type="submit"])'));
-        var idx = formEls.indexOf(e.target);
-        if (idx >= 0 && idx < formEls.length - 1) {
-            formEls[idx + 1].focus();
-        }
-    }
-});
 </script>
 {% endblock %}
