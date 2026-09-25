@@ -513,18 +513,10 @@
                                             <td><code>{{ defect.serial_number or '-' }}</code></td>
                                             <td class="text-danger">{{ defect.description or '-' }}</td>
                                             <td>
-                                                {% if defect.responsavel == 'loja' %}<span class="badge bg-success">Loja</span>
-                                                {% elif defect.responsavel == 'cliente' %}<span class="badge bg-warning text-dark">Cliente</span>
-                                                {% elif defect.responsavel == 'terceiro' %}<span class="badge bg-info text-dark">Terceiro</span>
-                                                {% else %}<span class="text-secondary">-</span>{% endif %}
+                                                {% if defect.responsavel %}<span class="badge {{ RESP_BADGES.get(defect.responsavel, 'bg-secondary') }}">{{ RESP_LABELS.get(defect.responsavel, defect.responsavel) }}</span>{% else %}<span class="text-secondary">-</span>{% endif %}
                                             </td>
                                             <td>
-                                                {% if defect.defeito_status == 'aguardando_peca' %}<span class="badge bg-danger">Aguardando peça</span>
-                                                {% elif defect.defeito_status == 'em_teste' %}<span class="badge bg-dark">Em teste</span>
-                                                {% elif defect.defeito_status == 'trocado' %}<span class="badge bg-primary">Trocado</span>
-                                                {% elif defect.defeito_status == 'devolvido' %}<span class="badge bg-warning text-dark">Devolvido ao cliente</span>
-                                                {% elif defect.defeito_status == 'concluido' %}<span class="badge bg-success">Concluído</span>
-                                                {% else %}<span class="text-secondary">-</span>{% endif %}
+                                                {% if defect.defeito_status %}<span class="badge {{ DEFEITO_STATUS_BADGES.get(defect.defeito_status, 'bg-secondary') }}">{{ DEFEITO_STATUS_LABELS.get(defect.defeito_status, defect.defeito_status) }}</span>{% else %}<span class="text-secondary">-</span>{% endif %}
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -556,18 +548,10 @@
                                     <td><code>{{ defect.serial_number or '-' }}</code></td>
                                     <td class="text-danger">{{ defect.description or '-' }}</td>
                                     <td>
-                                        {% if defect.responsavel == 'loja' %}<span class="badge bg-success">Loja</span>
-                                        {% elif defect.responsavel == 'cliente' %}<span class="badge bg-warning text-dark">Cliente</span>
-                                        {% elif defect.responsavel == 'terceiro' %}<span class="badge bg-info text-dark">Terceiro</span>
-                                        {% else %}<span class="text-secondary">-</span>{% endif %}
+                                        {% if defect.responsavel %}<span class="badge {{ RESP_BADGES.get(defect.responsavel, 'bg-secondary') }}">{{ RESP_LABELS.get(defect.responsavel, defect.responsavel) }}</span>{% else %}<span class="text-secondary">-</span>{% endif %}
                                     </td>
                                     <td>
-                                        {% if defect.defeito_status == 'aguardando_peca' %}<span class="badge bg-danger">Aguardando peça</span>
-                                        {% elif defect.defeito_status == 'em_teste' %}<span class="badge bg-dark">Em teste</span>
-                                        {% elif defect.defeito_status == 'trocado' %}<span class="badge bg-primary">Trocado</span>
-                                        {% elif defect.defeito_status == 'devolvido' %}<span class="badge bg-warning text-dark">Devolvido ao cliente</span>
-                                        {% elif defect.defeito_status == 'concluido' %}<span class="badge bg-success">Concluído</span>
-                                        {% else %}<span class="text-secondary">-</span>{% endif %}
+                                        {% if defect.defeito_status %}<span class="badge {{ DEFEITO_STATUS_BADGES.get(defect.defeito_status, 'bg-secondary') }}">{{ DEFEITO_STATUS_LABELS.get(defect.defeito_status, defect.defeito_status) }}</span>{% else %}<span class="text-secondary">-</span>{% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}

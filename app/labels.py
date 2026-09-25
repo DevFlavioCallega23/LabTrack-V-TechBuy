@@ -71,18 +71,32 @@ COMPONENT_OPTIONS = [(k, COMPONENT_LABELS[k]) for k in COMPONENT_ORDER]
 
 # --- Defeitos ----------------------------------------------------------
 
-DEFEITO_RESP_LABELS = {
-    'loja': 'Loja',
-    'cliente': 'Cliente',
-    'terceiro': 'Terceiro',
-}
-
 DEFEITO_STATUS_LABELS = {
     'aguardando_peca': 'Aguardando peça',
     'em_teste': 'Em teste',
     'trocado': 'Trocado',
     'devolvido': 'Devolvido ao cliente',
     'concluido': 'Concluído',
+}
+
+DEFEITO_STATUS_BADGES = {
+    'aguardando_peca': 'bg-danger',
+    'em_teste': 'bg-dark',
+    'trocado': 'bg-primary',
+    'devolvido': 'bg-warning text-dark',
+    'concluido': 'bg-success',
+}
+
+DEFEITO_RESP_LABELS = {
+    'loja': 'Loja',
+    'cliente': 'Cliente',
+    'terceiro': 'Terceiro',
+}
+
+DEFEITO_RESP_BADGES = {
+    'loja': 'bg-success',
+    'cliente': 'bg-warning text-dark',
+    'terceiro': 'bg-info text-dark',
 }
 
 # Mapeia o texto digitado no campo de defeito para o rótulo exibido

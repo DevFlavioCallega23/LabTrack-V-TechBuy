@@ -109,7 +109,7 @@
 {% if rma_test %}
 {{ secao('Itens enviados ao laboratório (Teste de Mesa)') }}
 {% set comp_labels = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor', 'outro': 'Outro'} %}
-{% set status_labels = {'aguardando_peca': 'Aguardando peça', 'em_teste': 'Em teste', 'trocado': 'Trocado', 'devolvido': 'Devolvido ao cliente', 'concluido': 'Concluído'} %}
+{% set status_labels = DEFEITO_STATUS_LABELS %}
 {% set pdf_test_machines = [] %}
 {% for item in rma_test %}
     {% if item.machine and item.machine not in pdf_test_machines %}
@@ -247,7 +247,7 @@
         <th>Status</th>
     </tr>
     {% set resp_labels = {'loja': 'Loja', 'cliente': 'Cliente', 'terceiro': 'Terceiro'} %}
-    {% set dstatus_labels = {'aguardando_peca': 'Aguardando peça', 'em_teste': 'Em teste', 'trocado': 'Trocado', 'devolvido': 'Devolvido ao cliente', 'concluido': 'Concluído'} %}
+    {% set dstatus_labels = DEFEITO_STATUS_LABELS %}
     {% for defect in protocol.defects %}
     <tr{% if loop.index is even %} class="zebra"{% endif %}>
         <td>{{ defect.type_label() }}</td>
