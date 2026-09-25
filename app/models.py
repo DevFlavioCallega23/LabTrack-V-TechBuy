@@ -3,6 +3,10 @@ from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
+from app.labels import (
+    PROTO_TYPE_LABELS, PROTO_TYPE_BADGES, PROTO_STATUS_LABELS, PROTO_STATUS_BADGES,
+    COMPONENT_LABELS, COMPONENT_ORDER,
+)
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -82,35 +86,10 @@ class Protocol(db.Model):
                                    order_by='WindowsKey.sort_order',
                                    cascade='all, delete-orphan')
 
-    TYPE_LABELS = {
-        'venda': 'Venda',
-        'ponta_entrega': 'Pronta-Entrega',
-        'rma': 'RMA (Garantia)',
-        'servico': 'Serviço (Fora de Garantia)',
-        'nao_comprado': 'NTB'
-    }
-
-    TYPE_BADGES = {
-        'venda': 'bg-success',
-        'ponta_entrega': 'bg-warning text-dark',
-        'rma': 'bg-primary',
-        'servico': 'bg-danger',
-        'nao_comprado': 'bg-secondary'
-    }
-
-    STATUS_LABELS = {
-        'pendente': 'Pendente',
-        'andamento': 'Em Andamento',
-        'concluido': 'Concluído',
-        'cancelado': 'Cancelado'
-    }
-
-    STATUS_BADGES = {
-        'pendente': 'bg-warning text-dark',
-        'andamento': 'bg-dark',
-        'concluido': 'bg-info text-dark',
-        'cancelado': 'bg-danger'
-    }
+    TYPE_LABELS = PROTO_TYPE_LABELS
+    TYPE_BADGES = PROTO_TYPE_BADGES
+    STATUS_LABELS = PROTO_STATUS_LABELS
+    STATUS_BADGES = PROTO_STATUS_BADGES
 
     def type_label(self):
         return self.TYPE_LABELS.get(self.type, self.type)
@@ -150,17 +129,7 @@ class Component(db.Model):
 
     product = db.relationship('Produto', backref='components', lazy=True)
 
-    FIXED_TYPES = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'monitor']
-
-    TYPE_LABELS = {
-        'processador': 'Processador',
-        'placa_mae': 'Placa-Mãe (Soquete)',
-        'ram': 'RAM',
-        'ssd': 'SSD',
-        'fonte': 'Fonte',
-        'monitor': 'Monitor',
-        'cabo_de_forca': 'Cabo de Força'
-    }
+    TYPE_LABELS = COMPONENT_LABELS
 
     def type_label(self):
         return self.TYPE_LABELS.get(self.component_type, self.component_type)
@@ -182,16 +151,7 @@ class Defect(db.Model):
     vindo_estoque = db.Column(db.Boolean, default=False)
     sort_order = db.Column(db.Integer, default=0)
 
-    TYPE_LABELS = {
-        'processador': 'Processador',
-        'placa_mae': 'Placa-Mãe (Soquete)',
-        'ram': 'RAM',
-        'ssd': 'SSD',
-        'fonte': 'Fonte',
-        'monitor': 'Monitor',
-        'cabo_de_forca': 'Cabo de Força',
-        'outro': 'Outro'
-    }
+    TYPE_LABELS = COMPONENT_LABELS
 
     def type_label(self):
         return self.TYPE_LABELS.get(self.component_type, self.component_type)
@@ -307,20 +267,8 @@ class Produto(db.Model):
     model_name = db.Column(db.String(200), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    TYPE_LABELS = {
-        'processador': 'Processador',
-        'placa_mae': 'Placa-Mãe',
-        'ram': 'Memória RAM',
-        'ssd': 'SSD',
-        'fonte': 'Fonte',
-        'placa_de_video': 'Placa de Vídeo',
-        'gpu': 'GPU',
-        'gabinete': 'Gabinete',
-        'monitor': 'Monitor',
-        'cabo_de_forca': 'Cabo de Força'
-    }
-
-    TYPE_ORDER = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'gpu', 'gabinete', 'monitor', 'cabo_de_forca']
+    TYPE_LABELS = COMPONENT_LABELS
+    TYPE_ORDER = COMPONENT_ORDER
 
     def type_label(self):
         return self.TYPE_LABELS.get(self.component_type, self.component_type)

@@ -9,6 +9,10 @@ from app import db
 from app.models import Protocol, Component, Defect, User, WindowsKey, Produto
 from app.models import TBMaquina
 from app.forms import ProtocolForm, UserForm, CreateUserForm, MasterUserForm, MasterCreateUserForm, ChangePasswordForm
+from app.labels import (
+    COMPONENT_LABELS, DEFEITO_RESP_LABELS, DEFEITO_STATUS_LABELS,
+    PROTO_TYPE_LABELS, TEMPO_LABELS, peca_label,
+)
 
 protocols_bp = Blueprint('protocols', __name__, url_prefix='/protocolos')
 
@@ -799,12 +803,6 @@ def report():
             acc = tempo_por_tipo.setdefault(chave, {'soma': 0, 'n': 0})
             acc['soma'] += dias
             acc['n'] += 1
-    TEMPO_LABELS = {
-        'venda': 'Venda',
-        'ponta_entrega': 'Pronta-Entrega',
-        'nao_comprado': 'NTB',
-        'rma_servico': 'RMA / Serviço'
-    }
     tempo_medio = [{
         'tipo': TEMPO_LABELS.get(chave, chave),
         'dias': round(acc['soma'] / acc['n'], 1),
@@ -905,31 +903,6 @@ def edit_user(id):
         flash(f'Usuário {user.username} atualizado com sucesso!', 'success')
         return redirect(url_for('protocols.list_users'))
     return render_template('user_form.html', form=form, editing=True, user=user)
-
-RESP_LABELS = {
-    'loja': 'Loja',
-    'cliente': 'Cliente',
-    'terceiro': 'Terceiro'
-}
-
-COMP_LABELS = {
-    'processador': 'Processador',
-    'placa_mae': 'Placa-Mãe',
-    'ram': 'RAM',
-    'ssd': 'SSD',
-    'hdd': 'HD (mecânico)',
-    'fonte': 'Fonte',
-    'monitor': 'Monitor',
-    'outro': 'Outro'
-}
-
-DEFEITO_STATUS_LABELS = {
-    'aguardando_peca': 'Aguardando peça',
-    'em_teste': 'Em teste',
-    'trocado': 'Trocado',
-    'devolvido': 'Devolvido ao cliente',
-    'concluido': 'Concluído'
-}
 
 def build_defeitos_agrupados():
     """Aggregate defects grouped by situation.
@@ -1050,7 +1023,7 @@ def defeitos():
         for chave in grupos:
             grupos[chave] = [it for it in grupos[chave] if filtro(it)]
     return render_template('defeitos.html', grupos=grupos,
-        resp_labels=RESP_LABELS, status_labels=DEFEITO_STATUS_LABELS,
+        resp_labels=DEFEITO_RESP_LABELS, status_labels=DEFEITO_STATUS_LABELS,
         q_filter=q, status_filtro=f_status, resp_filtro=f_resp)
 
 @protocols_bp.route('/defeitos/exportar')
@@ -1087,23 +1060,10 @@ def exportar_defeitos_excel():
         cell.alignment = header_align
         cell.border = thin_border
 
-    comp_labels = {
-        'placa Mae': 'Placa Mãe', 'processador': 'Processador', 'memoria ram': 'Memória RAM',
-        'hd': 'HD', 'ssd': 'SSD', 'fonte': 'Fonte', 'placa de video': 'Placa de Vídeo',
-        'gabinete': 'Gabinete', 'cooling': 'Cooler', 'monitor': 'Monitor',
-        'mouse': 'Mouse', 'teclado': 'Teclado', 'mouse_teclado': 'Mouse + Teclado',
-        'webcam': 'Webcam', 'headset': 'Headset', 'fone': 'Fone', 'no_break': 'No-Break',
-        'cabo de rede': 'Cabo de Rede', 'cabo hdmi': 'Cabo HDMI', 'cabo displayport': 'Cabo DP',
-        'ssd notebook': 'SSD Notebook', 'SSD Notebook': 'SSD Notebook',
-        'placa Mae notebook': 'Placa Mãe Notebook', 'Placa Mae Notebook': 'Placa Mãe Notebook',
-        'memoria ram notebook': 'Memória RAM Notebook', 'memoria ram note': 'Memória RAM Notebook',
-    }
-
-    tipo_map = {'rma': 'RMA', 'servico': 'Serviço', 'venda': 'Venda',
-                'ponta_entrega': 'Pronta-Entrega', 'nao_comprado': 'NTB', 'estoque': 'Estoque'}
+    tipo_map = dict(PROTO_TYPE_LABELS, estoque='Estoque')
 
     for item in all_items:
-        comp = comp_labels.get(item.get('component', ''), item.get('component', ''))
+        comp = peca_label(item.get('component', ''))
         tipo = tipo_map.get(item.get('tipo', ''), item.get('tipo', ''))
         data_val = item.get('data')
         data_str = data_val.strftime('%d/%m/%Y') if data_val else ''
@@ -1151,7 +1111,7 @@ def _component_ocorrencias_protocolo(p, comp):
     if not comp:
         return []
     ocorrencias = []
-    label = COMP_LABELS.get(comp, comp)
+    label = peca_label(comp)
 
     for c in p.components:
         if (c.component_type or '') == comp:
@@ -1266,7 +1226,7 @@ def _ns_ocorrencias_protocolo(p, termo=None):
                     ocorrencias.append({
                         'local': 'Teste de mesa',
                         'valor': serial,
-                        'detalhe': (COMP_LABELS.get(item.get('component', ''), item.get('component', '')))
+                        'detalhe': peca_label(item.get('component', ''))
                                 + (' — ' + item.get('defeito', '') if item.get('defeito') else '')
                                 + (f' — Ped.: {item.get("pedido")}' if item.get('pedido') else '')
                                 + (f' — Compra: {item.get("data_compra")}' if item.get('data_compra') else '')
@@ -1302,7 +1262,7 @@ def _ns_ocorrencias_maquina(maq, termo):
     for item in maq.get_ns_itens():
         if item.get('ns') and termo in item['ns'].lower():
             ocorrencias.append({
-                'local': f'peça {COMP_LABELS.get(item.get("comp", ""), item.get("comp", ""))}',
+                'local': f'peça {peca_label(item.get("comp", ""))}',
                 'valor': item['ns'],
                 'detalhe': item.get('model') or ''
             })
@@ -1465,7 +1425,7 @@ def busca_avancada():
                 for item in maq.get_ns_itens():
                     if (item.get('comp') or '') == componente:
                         ocorrencias.append({
-                            'local': f'peça {COMP_LABELS.get(item.get("comp", ""), item.get("comp", ""))}',
+                            'local': f'peça {peca_label(item.get("comp", ""))}',
                             'valor': item.get('ns') or '',
                             'detalhe': item.get('model') or ''
                         })
@@ -1500,9 +1460,9 @@ def busca_avancada():
     tipos_componente = sorted({t[0] for t in db.session.query(Produto.component_type).distinct().all() if t[0]} |
                               {t[0] for t in db.session.query(Component.component_type).distinct().all() if t[0]} |
                               {t[0] for t in db.session.query(Defect.component_type).distinct().all() if t[0]})
-    comp_labels = dict(Produto.TYPE_LABELS)
+    comp_labels = dict(COMPONENT_LABELS)
     for t in tipos_componente:
-        comp_labels.setdefault(t, COMP_LABELS.get(t, t))
+        comp_labels.setdefault(t, peca_label(t))
 
     return render_template('protocols/busca.html',
         resultados=resultados, total=len(resultados),
@@ -1547,7 +1507,7 @@ def rastreio_ns():
             for item in maq.get_ns_itens():
                 if item.get('ns') and termo in item['ns'].lower():
                     ocorrencias.append({
-                        'local': f'{base_local} — peça {COMP_LABELS.get(item.get("comp", ""), item.get("comp", ""))}',
+                        'local': f'{base_local} — peça {peca_label(item.get("comp", ""))}',
                         'valor': item['ns'],
                         'detalhe': item.get('model') or ''
                     })
@@ -1720,9 +1680,9 @@ def rastreio_equipamento():
     tipos_componente = sorted({t[0] for t in db.session.query(Produto.component_type).distinct().all() if t[0]} |
                               {t[0] for t in db.session.query(Component.component_type).distinct().all() if t[0]} |
                               {t[0] for t in db.session.query(Defect.component_type).distinct().all() if t[0]})
-    comp_labels = dict(Produto.TYPE_LABELS)
+    comp_labels = dict(COMPONENT_LABELS)
     for t in tipos_componente:
-        comp_labels.setdefault(t, COMP_LABELS.get(t, t))
+        comp_labels.setdefault(t, peca_label(t))
 
     return render_template('protocols/rastreio_equipamento.html', busca=busca,
         resultados=resultados, total_resultados=len(resultados),

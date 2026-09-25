@@ -45,8 +45,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% set labels = {'venda': 'Venda', 'ponta_entrega': 'Pronta-Entrega', 'rma': 'RMA (Garantia)', 'servico': 'Serviço (Fora de Garantia)', 'nao_comprado': 'Não comprado na TechBuy'} %}
-                            {% for type_key, count in by_type.items() %}
+{% set labels = PROTO_TYPE_LABELS %}                            {% for type_key, count in by_type.items() %}
                             <tr>
                                 <td>{{ labels.get(type_key, type_key) }}</td>
                                 <td class="text-end"><strong>{{ count }}</strong></td>

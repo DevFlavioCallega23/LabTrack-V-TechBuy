@@ -21,7 +21,6 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% set COMP_LABELS = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'placa_de_video': 'Placa de Vídeo', 'gpu': 'GPU', 'gabinete': 'Gabinete', 'monitor': 'Monitor', 'outro': 'Outro'} %}
                     {% for item in itens %}
                     <tr class="clickable-row" data-href="{{ url_for('estoque.detail', id=item.id) }}">
                         <td>

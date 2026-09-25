@@ -24,12 +24,9 @@
                 <label class="form-label">Componente</label>
                 <select name="comp_type" class="form-select">
                     <option value="">Todos</option>
-                    <option value="processador" {{ 'selected' if comp_type_filter == 'processador' }}>Processador</option>
-                    <option value="placa_mae" {{ 'selected' if comp_type_filter == 'placa_mae' }}>Placa-Mãe</option>
-                    <option value="ram" {{ 'selected' if comp_type_filter == 'ram' }}>Memória RAM</option>
-                    <option value="ssd" {{ 'selected' if comp_type_filter == 'ssd' }}>SSD</option>
-                    <option value="fonte" {{ 'selected' if comp_type_filter == 'fonte' }}>Fonte</option>
-                    <option value="monitor" {{ 'selected' if comp_type_filter == 'monitor' }}>Monitor</option>
+                    {% for chave, rotulo in COMP_OPTIONS %}
+                    <option value="{{ chave }}" {{ 'selected' if comp_type_filter == chave }}>{{ rotulo }}</option>
+                    {% endfor %}
                 </select>
             </div>
             <div class="col-md-4">

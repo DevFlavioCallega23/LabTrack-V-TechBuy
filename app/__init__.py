@@ -148,6 +148,19 @@ def create_app():
         except (json.JSONDecodeError, TypeError):
             return []
 
+    from app.labels import (
+        COMPONENT_LABELS, COMPONENT_OPTIONS, DEFEITO_STATUS_LABELS,
+        DEFEITO_RESP_LABELS, PROTO_TYPE_LABELS, peca_label,
+    )
+    app.jinja_env.globals.update(
+        COMP_LABELS=COMPONENT_LABELS,
+        COMP_OPTIONS=COMPONENT_OPTIONS,
+        DEFEITO_STATUS_LABELS=DEFEITO_STATUS_LABELS,
+        RESP_LABELS=DEFEITO_RESP_LABELS,
+        PROTO_TYPE_LABELS=PROTO_TYPE_LABELS,
+        peca_label=peca_label,
+    )
+
     from app.routes.auth import auth_bp
     from app.routes.main import main_bp
     from app.routes.protocols import protocols_bp
