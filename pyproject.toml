@@ -1,0 +1,14 @@
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "B"]
+ignore = [
+    "E741",   # nomes de variáveis ambíguos (l, I, O)
+    "B006",   # default mutável (padrão legado)
+    "F841",   # variável local não usada
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B"]
+"tests/conftest.py" = ["E402"]

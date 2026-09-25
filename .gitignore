@@ -17,3 +17,5 @@ backup_config.json
 certs/
 generate_cert.py
 run_https.py
+
+error.log
