@@ -155,7 +155,7 @@ def create_protocol():
             rma_equip_itens=rma_equip_itens,
             rma_test_result=rma_test_result,
             rma_trocados=parse_rma_trocados(request.form),
-            rma_entry_date=form.rma_entry_date.data or None,
+            rma_entry_date=parse_date_br(form.rma_entry_date.data) if form.rma_entry_date.data else None,
             rma_in_warranty=form.type.data == 'rma',
             rma_passagens=rma_passagens,
             power_cables=parse_power_cables(request.form),
@@ -378,7 +378,7 @@ def edit_protocol(id):
         protocol.rma_equip_itens = parse_rma_equip(request.form)
         protocol.rma_test_result = parse_rma_test_items(request.form)
         protocol.rma_trocados = parse_rma_trocados(request.form)
-        protocol.rma_entry_date = form.rma_entry_date.data or None
+        protocol.rma_entry_date = parse_date_br(form.rma_entry_date.data) if form.rma_entry_date.data else None
         protocol.power_cables = parse_power_cables(request.form)
 
         Component.query.filter_by(protocol_id=protocol.id).delete()
@@ -419,7 +419,7 @@ def edit_protocol(id):
         win_keys_data = build_windows_key_data(protocol)
         form.entry_date.data = protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else ''
         form.exit_date.data = protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else ''
-        form.rma_entry_date.data = protocol.rma_entry_date or ''
+        form.rma_entry_date.data = protocol.rma_entry_date.strftime('%d/%m/%Y') if protocol.rma_entry_date else ''
     return render_template('protocols/create.html', form=form, editing=True, protocol=protocol,
         comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
         rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data,

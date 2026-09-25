@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 
 from app import db
+from app.datas import parse_date_br as parse_date_br  # noqa: F401  (reexportado)
 from app.models import Protocol, Component, Defect, WindowsKey
 
 def gerar_numero_protocolo():
@@ -17,17 +18,6 @@ def gerar_numero_protocolo():
         if sufixo.isdigit():
             maior = max(maior, int(sufixo))
     return f'{prefixo}{maior + 1:04d}'
-
-def parse_date_br(text):
-    if not text or not text.strip():
-        return None
-    text = text.strip().replace('/', '-')
-    for fmt in ['%d-%m-%Y', '%d-%m-%y', '%Y-%m-%d']:
-        try:
-            return datetime.strptime(text, fmt)
-        except ValueError:
-            continue
-    return None
 
 def build_validation_messages(form):
     """Gera lista de mensagens de erro específicas para exibição."""

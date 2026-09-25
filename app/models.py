@@ -71,7 +71,7 @@ class Protocol(db.Model):
     rma_in_warranty = db.Column(db.Boolean, default=True)
     rma_passagens = db.Column(db.Text)
     rma_trocados = db.Column(db.Text)
-    rma_entry_date = db.Column(db.String(10))
+    rma_entry_date = db.Column(db.DateTime)
     incomplete_ignored = db.Column(db.Boolean, default=False)
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

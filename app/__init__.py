@@ -51,6 +51,27 @@ def add_missing_columns():
             conn.execute(db.text('ALTER TABLE protocol ADD COLUMN rma_trocados TEXT'))
         if 'rma_entry_date' not in protocol_cols:
             conn.execute(db.text('ALTER TABLE protocol ADD COLUMN rma_entry_date VARCHAR(10)'))
+        # Padroniza rma_entry_date como DATETIME (antes texto 'DD/MM/AAAA').
+        rma_col = next((c for c in inspect(engine).get_columns('protocol')
+                        if c['name'] == 'rma_entry_date'), None)
+        if rma_col and 'VARCHAR' in str(rma_col['type']).upper():
+            from app.routes.protocols.helpers import parse_date_br
+            valores = conn.execute(db.text(
+                "SELECT id, rma_entry_date FROM protocol "
+                "WHERE rma_entry_date IS NOT NULL AND rma_entry_date <> ''")).fetchall()
+            conn.execute(db.text('ALTER TABLE protocol ADD COLUMN rma_entry_data_dt DATETIME'))
+            invalidos = []
+            for pid, valor in valores:
+                data = parse_date_br(valor)
+                if data is None:
+                    invalidos.append(f'{pid}={valor!r}')
+                    continue
+                conn.execute(db.text('UPDATE protocol SET rma_entry_data_dt = :d WHERE id = :i'),
+                             {'d': data.isoformat(sep=' '), 'i': pid})
+            if invalidos:
+                raise ValueError('rma_entry_date ilegivel: ' + ', '.join(invalidos))
+            conn.execute(db.text('ALTER TABLE protocol DROP COLUMN rma_entry_date'))
+            conn.execute(db.text('ALTER TABLE protocol RENAME COLUMN rma_entry_data_dt TO rma_entry_date'))
         if 'venda_pe' not in protocol_cols:
             conn.execute(db.text('ALTER TABLE protocol ADD COLUMN venda_pe BOOLEAN DEFAULT 0'))
         if 'incomplete_ignored' not in protocol_cols:

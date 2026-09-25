@@ -93,7 +93,7 @@
         {% endif %}
         <td><span class="lbl">Quantidade</span><br><span class="val">{{ protocol.lote or '—' }}</span></td>
         {% if protocol.type in ('rma', 'servico') %}
-        <td><span class="lbl">Entrada no Lab.</span><br><span class="val">{{ protocol.rma_entry_date or '—' }}</span></td>
+        <td><span class="lbl">Entrada no Lab.</span><br><span class="val">{{ protocol.rma_entry_date.strftime('%d/%m/%Y') if protocol.rma_entry_date else '—' }}</span></td>
         <td><span class="lbl">Garantia</span><br><span class="val">{{ 'Sim' if protocol.rma_in_warranty else 'Não' }}</span></td>
         {% else %}
         <td><span class="lbl">Ref. NS</span><br><span class="val">{{ protocol.ref_ns or '—' }}</span></td>

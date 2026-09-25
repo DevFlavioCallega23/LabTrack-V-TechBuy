@@ -1,6 +1,13 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SelectField, TextAreaField, SubmitField, BooleanField
-from wtforms.validators import DataRequired, Email, Length, Optional
+from wtforms.validators import DataRequired, Email, Length, Optional, ValidationError
+
+from app.datas import parse_date_br
+
+def valida_data_br(form, field):
+    """Aceita DD/MM/AAAA, DD/MM/AA ou AAAA-MM-DD; vazio passa pelo Optional()."""
+    if field.data and not parse_date_br(field.data):
+        raise ValidationError('Data inválida (use DD/MM/AAAA).')
 
 class LoginForm(FlaskForm):
     username = StringField('Usuário', validators=[DataRequired()])
@@ -71,14 +78,14 @@ class ProtocolForm(FlaskForm):
         ('concluido', 'Concluído'),
         ('cancelado', 'Cancelado')
     ], default='pendente')
-    entry_date = StringField('Data da Compra', validators=[Optional()])
-    exit_date = StringField('Data de Saída', validators=[Optional()])
+    entry_date = StringField('Data da Compra', validators=[Optional(), valida_data_br])
+    exit_date = StringField('Data de Saída', validators=[Optional(), valida_data_br])
     ref_ns = StringField('Referência NS', validators=[Optional(), Length(max=100)])
     base_defect = TextAreaField('Defeito de Base', validators=[Optional()])
     original_order = StringField('Pedido Original', validators=[Optional(), Length(max=100)])
     rma_extra_equip = StringField('Equipamento que chegou', validators=[Optional(), Length(max=200)])
     rma_test_result = TextAreaField('Resultado do Teste de Mesa', validators=[Optional()])
-    rma_entry_date = StringField('Data de Entrada (RMA)', validators=[Optional()])
+    rma_entry_date = StringField('Data de Entrada (RMA)', validators=[Optional(), valida_data_br])
     observations = TextAreaField('Observações', validators=[Optional()])
     submit = SubmitField('Salvar')
 
