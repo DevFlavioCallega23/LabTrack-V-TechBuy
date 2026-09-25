@@ -1,6 +1,6 @@
 import json
-import re
 import os
+from markupsafe import Markup, escape
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
@@ -15,7 +15,7 @@ def get_version():
     try:
         with open(version_file) as f:
             return f.read().strip()
-    except:
+    except OSError:
         return '2.0.0'
 login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Por favor, faça login para acessar o sistema.'
@@ -136,8 +136,8 @@ def create_app():
     @app.template_filter('nl2br')
     def nl2br_filter(text):
         if not text:
-            return ''
-        return re.sub(r'\n', '<br>', text)
+            return Markup('')
+        return Markup(escape(text).replace('\n', '<br>'))
 
     @app.template_filter('from_json')
     def from_json_filter(text):

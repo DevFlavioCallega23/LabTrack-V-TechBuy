@@ -427,13 +427,9 @@
                 <div class="col-12">
                     <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-chat-dots"></i> Observações</h6>
                 </div>
-                <div class="col-12 field-group" data-show-for="rma,servico">
-                    <label class="form-label text-warning"><i class="bi bi-exclamation-triangle"></i> Defeito Relatado / Observações Técnicas</label>
-                    {{ form.observations(class='form-control', rows=4, placeholder='Descreva o defeito relatado pelo cliente, peças necessárias, etc.') }}
-                </div>
-                <div class="col-12 field-group" data-show-for="venda,ponta_entrega,nao_comprado">
-                    <label class="form-label">{{ form.observations.label }}</label>
-                    {{ form.observations(class='form-control', rows=3, placeholder='Observações adicionais (opcional)') }}
+                <div class="col-12 field-group">
+                    <label class="form-label" id="obsLabel"><i class="bi bi-chat-dots"></i> Observações</label>
+                    {{ form.observations(class='form-control', rows=4, placeholder='Observações adicionais (opcional)') }}
                 </div>
             </div>
 
@@ -1581,6 +1577,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (rmaDataHeading) rmaDataHeading.textContent = type === 'servico' ? 'Dados do Serviço' : 'Dados do RMA';
         var rmaWarrantyInfo = document.getElementById('rmaWarrantyInfo');
         if (rmaWarrantyInfo) rmaWarrantyInfo.value = type === 'rma' ? 'Sim' : 'Não';
+        var obsLabel = document.getElementById('obsLabel');
+        if (obsLabel) {
+            obsLabel.innerHTML = (isRma
+                ? '<i class="bi bi-exclamation-triangle text-warning"></i> Defeito Relatado / Observações Técnicas'
+                : '<i class="bi bi-chat-dots"></i> Observações');
+        }
         updateRmaTestNsColumns();
     }
     if (typeSelect) { typeSelect.addEventListener('change', updateFields); updateFields(); }

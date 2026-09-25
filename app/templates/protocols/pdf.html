@@ -269,7 +269,7 @@
 
 {% if protocol.observations %}
 {{ secao('Observações') }}
-<table class="txtbox" cellspacing="0"><tr><td>{{ protocol.observations }}</td></tr></table>
+<table class="txtbox" cellspacing="0"><tr><td>{{ protocol.observations|nl2br }}</td></tr></table>
 {% endif %}
 
 <div id="pdf_footer">

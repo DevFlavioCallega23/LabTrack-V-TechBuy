@@ -43,6 +43,7 @@
                     <option value="pendente" {{ 'selected' if status_filter == 'pendente' }}>Pendente</option>
                     <option value="andamento" {{ 'selected' if status_filter == 'andamento' }}>Em Andamento</option>
                     <option value="concluido" {{ 'selected' if status_filter == 'concluido' }}>Concluído</option>
+                    <option value="cancelado" {{ 'selected' if status_filter == 'cancelado' }}>Cancelado</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -141,7 +142,7 @@
                 {% for page_num in protocols.iter_pages() %}
                     {% if page_num %}
                     <li class="page-item {{ 'active' if page_num == protocols.page }}">
-                        <a class="page-link" href="{{ url_for('protocols.list_protocols', page=page_num, search=search, search_mode=search_mode, comp_type=comp_type_filter, status=status_filter, mes=mes_filter) }}">{{ page_num }}</a>
+                        <a class="page-link" href="{{ url_for('protocols.list_protocols', page=page_num, search=search, search_mode=search_mode, comp_type=comp_type_filter, type=type_filter, status=status_filter, mes=mes_filter, incompletos=incompletos_filter) }}">{{ page_num }}</a>
                     </li>
                     {% else %}
                     <li class="page-item disabled"><span class="page-link">...</span></li>
@@ -175,7 +176,7 @@ document.getElementById('searchMode').addEventListener('change', function() {
 });
 </script>
 
-<form id="deleteForm" method="POST" style="display:none;" autocomplete="off">
+<form id="deleteForm" method="POST" style="display:none;" autocomplete="off"></form>
 
 <script>
 function confirmDelete(id, protocolNumber) {
