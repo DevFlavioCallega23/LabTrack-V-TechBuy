@@ -52,6 +52,22 @@ const RESP_OPTS = optionsHtml(CFG.respOptions);
 const statusOptsSelected = function(sel) { return optionsSelectedHtml(CFG.statusOptions, sel); };
 const respOptsSelected = function(sel) { return optionsSelectedHtml(CFG.respOptions, sel); };
 
+const COMP_LABELS = {};
+const COMP_ORDER = [];
+COMP_TYPES_DB.forEach(function(t) {
+    COMP_LABELS[t.key] = t.label;
+    COMP_ORDER.push(t.key);
+});
+const EXTRA_OPTS = '<option value="">-- Selecione --</option>' +
+    COMP_ORDER.map(function(k) { return `<option value="${k}">${COMP_LABELS[k]}</option>`; }).join('');
+
+const MACHINES_FROM_TEST = CFG.rmaTestData.map(function(it) { return it.machine; })
+    .filter(function(m, i, arr) { return m && arr.indexOf(m) === i; });
+const MACHINES = CFG.machines.concat(
+    MACHINES_FROM_TEST.filter(function(m) { return CFG.machines.indexOf(m) === -1; }));
+const MACHINE_OPTS = '<option value="">--</option>' +
+    MACHINES.map(function(m) { return `<option value="${m}">${m}</option>`; }).join('');
+
 function toggleMaterialComum() {
     const isComum = document.getElementById('materialComum').checked;
     document.querySelectorAll('.comp-row').forEach(function(row) {
