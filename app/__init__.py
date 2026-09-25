@@ -165,7 +165,7 @@ def create_app():
 
     from app.routes.auth import auth_bp
     from app.routes.main import main_bp
-    from app.routes.protocols import protocols_bp
+    from app.routes.protocols import protocols_bp, usuarios_bp, defeitos_bp, busca_bp
     from app.routes.maquinas import maquinas_bp
     from app.routes.backup_admin import backup_bp
     from app.routes.estoque import estoque_bp
@@ -174,6 +174,9 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(protocols_bp)
+    app.register_blueprint(usuarios_bp)
+    app.register_blueprint(defeitos_bp)
+    app.register_blueprint(busca_bp)
     app.register_blueprint(maquinas_bp)
     app.register_blueprint(backup_bp)
     app.register_blueprint(estoque_bp)

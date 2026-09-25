@@ -33,37 +33,37 @@ def _seed(app):
 
 def test_busca_por_cliente_parcial(logged_client, app):
     nums = _seed(app)
-    r = logged_client.get('/protocolos/busca?cliente=panela')
+    r = logged_client.get('/busca?cliente=panela')
     assert nums['a'].encode() in r.data and nums['b'].encode() not in r.data
 
 
 def test_busca_combinada_vendedor_tipo(logged_client, app):
     nums = _seed(app)
-    r = logged_client.get('/protocolos/busca?vendedor=Janay&tipo=servico')
+    r = logged_client.get('/busca?vendedor=Janay&tipo=servico')
     assert nums['b'].encode() in r.data and nums['a'].encode() not in r.data
-    r = logged_client.get('/protocolos/busca?vendedor=Janay&tipo=venda')
+    r = logged_client.get('/busca?vendedor=Janay&tipo=venda')
     assert nums['a'].encode() not in r.data and nums['b'].encode() not in r.data
 
 
 def test_busca_pedido_inclui_pedido_original(logged_client, app):
     nums = _seed(app)
-    r = logged_client.get('/protocolos/busca?pedido=PED-200')
+    r = logged_client.get('/busca?pedido=PED-200')
     assert nums['b'].encode() in r.data
 
 
 def test_busca_por_ns_e_periodo(logged_client, app):
     nums = _seed(app)
-    r = logged_client.get('/protocolos/busca?ns=nsbusca77')
+    r = logged_client.get('/busca?ns=nsbusca77')
     assert nums['b'].encode() in r.data
 
-    r = logged_client.get('/protocolos/busca?ns=nsbusca77&cliente=panela')
+    r = logged_client.get('/busca?ns=nsbusca77&cliente=panela')
     assert b'Nenhum protocolo encontrado' in r.data
 
-    r = logged_client.get('/protocolos/busca?data_de=01/07/2026&data_ate=31/07/2026')
+    r = logged_client.get('/busca?data_de=01/07/2026&data_ate=31/07/2026')
     assert nums['b'].encode() in r.data and nums['a'].encode() not in r.data
 
 
 def test_busca_sem_filtros_mostra_dica(logged_client):
-    r = logged_client.get('/protocolos/busca')
+    r = logged_client.get('/busca')
     assert r.status_code == 200
     assert b'Preencha pelo menos um filtro' in r.data

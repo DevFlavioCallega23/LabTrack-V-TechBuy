@@ -38,7 +38,7 @@ def _criar_rma_com_teste(app):
 
 def test_controle_defeitos_mostra_itens_do_teste_de_mesa(logged_client, app):
     pid = _criar_rma_com_teste(app)
-    r = logged_client.get('/protocolos/defeitos')
+    r = logged_client.get('/defeitos/')
     assert r.status_code == 200
     assert b'NSUNICO42' in r.data
 
@@ -48,14 +48,14 @@ def test_todos_os_ns_lista_e_filtra(logged_client, app):
     with app.app_context():
         ns = json.loads(Protocol.query.get(pid).rma_test_result)[0]['serial']
 
-    r = logged_client.get('/protocolos/ns/todos')
+    r = logged_client.get('/ns/todos')
     assert r.status_code == 200
     assert ns.encode() in r.data
 
-    r = logged_client.get(f'/protocolos/ns/todos?q={ns.lower()}')
+    r = logged_client.get(f'/ns/todos?q={ns.lower()}')
     assert ns.encode() in r.data
 
-    r = logged_client.get('/protocolos/ns/todos?q=zzzinexistente999')
+    r = logged_client.get('/ns/todos?q=zzzinexistente999')
     assert ns.encode() not in r.data
 
 

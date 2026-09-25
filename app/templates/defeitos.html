@@ -3,8 +3,8 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3><i class="bi bi-exclamation-triangle text-danger"></i> Controle de Defeitos</h3>
     <div class="d-flex gap-2">
-        <a href="{{ url_for('protocols.exportar_defeitos_excel') }}" class="btn btn-outline-success btn-sm"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</a>
-        <a href="{{ url_for('protocols.ns_todos') }}" class="btn btn-outline-info btn-sm"><i class="bi bi-upc-scan"></i> Todos os NS</a>
+        <a href="{{ url_for('defeitos.exportar_defeitos_excel') }}" class="btn btn-outline-success btn-sm"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</a>
+        <a href="{{ url_for('busca.ns_todos') }}" class="btn btn-outline-info btn-sm"><i class="bi bi-upc-scan"></i> Todos os NS</a>
     </div>
 </div>
 
@@ -35,7 +35,7 @@
             </div>
             <div class="col-md-3 d-flex gap-2">
                 <button type="submit" class="btn btn-outline-info flex-grow-1"><i class="bi bi-funnel"></i> Filtrar</button>
-                <a href="{{ url_for('protocols.defeitos') }}" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+                <a href="{{ url_for('defeitos.defeitos') }}" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
             </div>
         </form>
     </div>
