@@ -1,17 +1,11 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
-from flask_login import login_required, current_user
+from flask_login import login_required
 from app import db
 from app.models import EstoqueUso, Defect, Component
+from app.decorators import master_required
 import json
 
 estoque_bp = Blueprint('estoque', __name__, url_prefix='/estoque')
-
-
-def master_required():
-    if not current_user.is_master():
-        flash('Acesso restrito ao Master.', 'danger')
-        return redirect(url_for('main.dashboard'))
-    return None
 
 
 def normalize_date_br(text):
@@ -116,10 +110,13 @@ def novo():
         components = parse_estoque_components(request.form)
         for c in components:
             c.estoque_uso_id = item.id
+        if components:
+            item.tipo_componente = components[0].component_type
+            item.ns = components[0].serial_number or None
         db.session.add_all(components)
 
         db.session.commit()
-        flash(f'Registro de uso criado!', 'success')
+        flash('Registro de uso criado!', 'success')
         return redirect(url_for('estoque.detail', id=item.id))
     return render_template('estoque/form.html', item=None)
 
@@ -157,6 +154,9 @@ def editar(id):
         components = parse_estoque_components(request.form)
         for c in components:
             c.estoque_uso_id = item.id
+        if components:
+            item.tipo_componente = components[0].component_type
+            item.ns = components[0].serial_number or None
         db.session.add_all(components)
 
         db.session.commit()

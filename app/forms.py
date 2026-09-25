@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SelectField, TextAreaField, DateField, SubmitField, BooleanField
+from wtforms import StringField, PasswordField, SelectField, TextAreaField, SubmitField, BooleanField
 from wtforms.validators import DataRequired, Email, Length, Optional
 
 class LoginForm(FlaskForm):
@@ -68,7 +68,8 @@ class ProtocolForm(FlaskForm):
     status = SelectField('Status', choices=[
         ('pendente', 'Pendente'),
         ('andamento', 'Em Andamento'),
-        ('concluido', 'Concluído')
+        ('concluido', 'Concluído'),
+        ('cancelado', 'Cancelado')
     ], default='pendente')
     entry_date = StringField('Data da Compra', validators=[Optional()])
     exit_date = StringField('Data de Saída', validators=[Optional()])

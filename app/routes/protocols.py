@@ -2,14 +2,13 @@ import json
 import re
 import io
 import os
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file, current_app, jsonify
 from flask_login import login_required, current_user
 from app import db
 from app.models import Protocol, Component, Defect, User, WindowsKey, Produto
-from app.models import TBRegistro, TBMaquina, TBTroca, TBDefeito, TBPassagem
+from app.models import TBMaquina
 from app.forms import ProtocolForm, UserForm, CreateUserForm, MasterUserForm, MasterCreateUserForm, ChangePasswordForm
-from sqlalchemy import func
 
 protocols_bp = Blueprint('protocols', __name__, url_prefix='/protocolos')
 
@@ -37,15 +36,7 @@ def parse_date_br(text):
             continue
     return None
 
-def parse_int_or_none(val):
-    if not val or not str(val).strip():
-        return None
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return None
-
-def build_validation_messages(form, components_is_none=False):
+def build_validation_messages(form):
     """Gera lista de mensagens de erro específicas para exibição."""
     msgs = []
     if not form.type.data:
@@ -152,18 +143,6 @@ def build_rma_equip_data_from_form(request_form):
                     })
             data[unit] = {'name': machine_name, 'components': comps}
     return json.dumps(data)
-
-def parse_rma_equip(request_form):
-    """Parse RMA equipment JSON from form."""
-    raw = request_form.get('rma_equip_json', '').strip()
-    if not raw:
-        return None
-    try:
-        data = json.loads(raw)
-        cleaned = {k: v for k, v in data.items() if v.get('components')}
-        return json.dumps(cleaned) if cleaned else None
-    except (json.JSONDecodeError, TypeError):
-        return None
 
 def parse_rma_test_items(request_form):
     """Parse RMA test items from JSON hidden field."""
@@ -399,8 +378,11 @@ def list_protocols():
         except ValueError:
             pass
 
+    all_protocols = Protocol.query.all()
+    incomplete_ids = [p.id for p in all_protocols if get_incomplete_fields(p)]
+    incomplete_count = len(incomplete_ids)
+
     if incompletos_filter:
-        incomplete_ids = [p.id for p in Protocol.query.all() if get_incomplete_fields(p)]
         if incomplete_ids:
             query = query.filter(Protocol.id.in_(incomplete_ids))
         else:
@@ -412,11 +394,8 @@ def list_protocols():
 
     incomplete_map = {}
     for p in protocols.items:
-        fields = get_incomplete_fields(p)
-        if fields:
-            incomplete_map[p.id] = fields
-
-    incomplete_count = len([p for p in Protocol.query.all() if get_incomplete_fields(p)])
+        if p.id in incomplete_ids:
+            incomplete_map[p.id] = get_incomplete_fields(p)
 
     return render_template('protocols/list.html',
         protocols=protocols, search=search, search_mode=search_mode,
@@ -952,14 +931,6 @@ DEFEITO_STATUS_LABELS = {
     'concluido': 'Concluído'
 }
 
-def situacao_protocolo(p):
-    """Classify a protocol into one of the defect situations."""
-    if p.type in ('rma', 'servico'):
-        return 'rma_garantia' if p.rma_in_warranty else 'rma_fora'
-    if p.type == 'nao_comprado':
-        return 'ntb'
-    return 'venda'
-
 def build_defeitos_agrupados():
     """Aggregate defects grouped by situation.
 
@@ -1087,7 +1058,6 @@ def defeitos():
 def exportar_defeitos_excel():
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    from app.models import EstoqueUso
 
     grupos = build_defeitos_agrupados()
     all_items = []
@@ -1110,7 +1080,7 @@ def exportar_defeitos_excel():
                'Responsável', 'Status', 'Cliente', 'Protocolo', 'Data Entrada', 'Fonte']
     ws.append(headers)
 
-    for col_idx, header in enumerate(headers, 1):
+    for col_idx, _header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col_idx)
         cell.font = header_font
         cell.fill = header_fill
@@ -1206,7 +1176,7 @@ def _component_ocorrencias_protocolo(p, comp):
             continue
         try:
             data = json.loads(raw)
-            for unit, info in data.items():
+            for _unit, info in data.items():
                 for item in info.get('components', []):
                     if (item.get('type') or '') == comp:
                         ocorrencias.append({
@@ -1276,7 +1246,7 @@ def _ns_ocorrencias_protocolo(p, termo=None):
             continue
         try:
             data = json.loads(raw)
-            for unit, info in data.items():
+            for _unit, info in data.items():
                 for comp in info.get('components', []):
                     serial = comp.get('serial')
                     if casa(serial):
@@ -1645,7 +1615,7 @@ def _modelo_ocorrencias_protocolo(p, termo):
             continue
         try:
             data = json.loads(raw)
-            for unit, info in data.items():
+            for _unit, info in data.items():
                 for comp in info.get('components', []):
                     if comp.get('model') and termo in comp['model'].lower():
                         ocorrencias.append({

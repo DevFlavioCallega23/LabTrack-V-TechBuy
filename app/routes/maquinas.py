@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
-from flask_login import login_required, current_user
+from flask_login import login_required
 from app import db
 from app.models import TBRegistro, TBMaquina, TBTroca, TBDefeito, TBPassagem, Produto
+from app.decorators import master_required
 import json
 
 maquinas_bp = Blueprint('maquinas', __name__, url_prefix='/maquinas')
@@ -21,13 +22,6 @@ def get_catalog_context():
         produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]),
         component_types=json.dumps([{'key': t, 'label': labels.get(t, t)} for t in order]),
     )
-
-
-def master_required():
-    if not current_user.is_master():
-        flash('Acesso restrito ao Master.', 'danger')
-        return redirect(url_for('main.dashboard'))
-    return None
 
 
 def get_or_abort_master():

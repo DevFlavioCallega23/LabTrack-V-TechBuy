@@ -23,9 +23,6 @@ class User(UserMixin, db.Model):
     def is_master(self):
         return self.role == 'master'
 
-    def is_admin(self):
-        return self.role in ('master', 'admin')
-
     def is_manager(self):
         return self.role in ('master', 'admin')
 
@@ -52,7 +49,6 @@ class Protocol(db.Model):
     type = db.Column(db.String(30), nullable=False)
     venda_pe = db.Column(db.Boolean, default=False)
     client_name = db.Column(db.String(200))
-    contact = db.Column(db.String(100))
     lote = db.Column(db.String(50))
     order_number = db.Column(db.String(100))
     seller = db.Column(db.String(50))
@@ -60,8 +56,6 @@ class Protocol(db.Model):
     entry_date = db.Column(db.DateTime, default=datetime.utcnow)
     exit_date = db.Column(db.DateTime, nullable=True)
     observations = db.Column(db.Text)
-    power_cable = db.Column(db.String(10))
-    power_cable_fonte_serial = db.Column(db.String(100))
     power_cables = db.Column(db.Text)
     ref_ns = db.Column(db.String(100))
     base_defect = db.Column(db.Text)
@@ -69,7 +63,6 @@ class Protocol(db.Model):
     rma_extra_equip = db.Column(db.String(200))
     rma_equip_itens = db.Column(db.Text)
     rma_test_result = db.Column(db.Text)
-    rma_test_component = db.Column(db.String(50))
     rma_test_serial = db.Column(db.String(100))
     rma_in_warranty = db.Column(db.Boolean, default=True)
     rma_passagens = db.Column(db.Text)
