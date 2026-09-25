@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file, current_app, jsonify
 from flask_login import login_required, current_user
 from app import db
+from app.decorators import master_required
 from app.models import Protocol, Component, Defect, User, WindowsKey, Produto
 from app.models import TBMaquina
 from app.forms import ProtocolForm, UserForm, CreateUserForm, MasterUserForm, MasterCreateUserForm, ChangePasswordForm
@@ -729,9 +730,9 @@ def edit_protocol(id):
 @protocols_bp.route('/<int:id>/excluir', methods=['POST'])
 @login_required
 def delete_protocol(id):
-    if not current_user.is_master():
-        flash('Acesso restrito ao Master.', 'danger')
-        return redirect(url_for('protocols.list_protocols'))
+    bloqueio = master_required()
+    if bloqueio:
+        return bloqueio
     protocol = Protocol.query.get_or_404(id)
     protocol_number = protocol.protocol_number
     Component.query.filter_by(protocol_id=protocol.id).delete()
@@ -818,18 +819,18 @@ def report():
 @protocols_bp.route('/usuarios')
 @login_required
 def list_users():
-    if not current_user.is_master():
-        flash('Acesso restrito ao Master.', 'danger')
-        return redirect(url_for('main.dashboard'))
+    bloqueio = master_required()
+    if bloqueio:
+        return bloqueio
     users = User.query.all()
     return render_template('users.html', users=users)
 
 @protocols_bp.route('/usuarios/novo', methods=['GET', 'POST'])
 @login_required
 def create_user():
-    if not current_user.is_master():
-        flash('Acesso restrito ao Master.', 'danger')
-        return redirect(url_for('main.dashboard'))
+    bloqueio = master_required()
+    if bloqueio:
+        return bloqueio
     form = MasterCreateUserForm() if current_user.is_master() else CreateUserForm()
     if form.validate_on_submit():
         user = User(
@@ -890,9 +891,9 @@ def update_status(id):
 @protocols_bp.route('/usuarios/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
 def edit_user(id):
-    if not current_user.is_master():
-        flash('Acesso restrito ao Master.', 'danger')
-        return redirect(url_for('main.dashboard'))
+    bloqueio = master_required()
+    if bloqueio:
+        return bloqueio
     user = User.query.get_or_404(id)
     form = MasterUserForm(obj=user) if current_user.is_master() else UserForm(obj=user)
     if form.validate_on_submit():

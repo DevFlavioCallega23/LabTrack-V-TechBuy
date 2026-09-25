@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
-from flask_login import login_required, current_user
+from flask_login import login_required
 from app import db
+from app.decorators import master_required
 from app.models import Produto
 
 produtos_bp = Blueprint('produtos', __name__, url_prefix='/produtos')
@@ -28,9 +29,9 @@ def get_tipos_choices():
 @produtos_bp.route('/')
 @login_required
 def index():
-    if not current_user.is_master():
-        flash('Acesso negado.', 'danger')
-        return redirect(url_for('main.dashboard'))
+    bloqueio = master_required()
+    if bloqueio:
+        return bloqueio
     
     f_tipo = request.args.get('tipo', '').strip()
     q = Produto.query
@@ -51,9 +52,9 @@ def index():
 @produtos_bp.route('/novo', methods=['GET', 'POST'])
 @login_required
 def novo():
-    if not current_user.is_master():
-        flash('Acesso negado.', 'danger')
-        return redirect(url_for('main.dashboard'))
+    bloqueio = master_required()
+    if bloqueio:
+        return bloqueio
     
     if request.method == 'POST':
         component_type = request.form.get('component_type', '').strip()
@@ -79,9 +80,9 @@ def novo():
 @produtos_bp.route('/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
 def editar(id):
-    if not current_user.is_master():
-        flash('Acesso negado.', 'danger')
-        return redirect(url_for('main.dashboard'))
+    bloqueio = master_required()
+    if bloqueio:
+        return bloqueio
     
     p = Produto.query.get_or_404(id)
     
@@ -113,9 +114,9 @@ def editar(id):
 @produtos_bp.route('/<int:id>/excluir', methods=['POST'])
 @login_required
 def excluir(id):
-    if not current_user.is_master():
-        flash('Acesso negado.', 'danger')
-        return redirect(url_for('main.dashboard'))
+    bloqueio = master_required()
+    if bloqueio:
+        return bloqueio
     
     p = Produto.query.get_or_404(id)
     

@@ -3,8 +3,9 @@ import zipfile
 import tempfile
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, abort
-from flask_login import login_required, current_user
+from flask_login import login_required
 from app import db
+from app.decorators import master_required
 
 backup_bp = Blueprint('backup_admin', __name__)
 
@@ -30,9 +31,9 @@ def _listar():
 @backup_bp.route('/admin/backup', methods=['GET'])
 @login_required
 def index():
-    if not current_user.is_master():
-        flash('Apenas o Master acessa backups.', 'danger')
-        return redirect(url_for('main.dashboard'))
+    bloqueio = master_required()
+    if bloqueio:
+        return bloqueio
     import backup
     return render_template('admin/backup.html', backups=_listar(), backup_dir=backup.get_backup_dir())
 
@@ -40,9 +41,9 @@ def index():
 @backup_bp.route('/admin/backup/config', methods=['POST'])
 @login_required
 def salvar_config():
-    if not current_user.is_master():
-        flash('Apenas o Master acessa backups.', 'danger')
-        return redirect(url_for('main.dashboard'))
+    bloqueio = master_required()
+    if bloqueio:
+        return bloqueio
     import backup
     novo_caminho = request.form.get('backup_dir', '').strip()
     if not novo_caminho:
@@ -59,9 +60,9 @@ def salvar_config():
 @backup_bp.route('/admin/backup/criar', methods=['POST'])
 @login_required
 def criar():
-    if not current_user.is_master():
-        flash('Apenas o Master acessa backups.', 'danger')
-        return redirect(url_for('main.dashboard'))
+    bloqueio = master_required()
+    if bloqueio:
+        return bloqueio
     import backup
     ok = backup.fazer_backup_one_drive()
     if ok:
@@ -74,9 +75,9 @@ def criar():
 @backup_bp.route('/admin/backup/baixar/<nome>')
 @login_required
 def baixar(nome):
-    if not current_user.is_master():
-        flash('Apenas o Master acessa backups.', 'danger')
-        return redirect(url_for('main.dashboard'))
+    bloqueio = master_required()
+    if bloqueio:
+        return bloqueio
     import backup
     if nome not in {i['nome'] for i in _listar()}:
         abort(404)
@@ -86,9 +87,9 @@ def baixar(nome):
 @backup_bp.route('/admin/backup/restaurar', methods=['POST'])
 @login_required
 def restaurar():
-    if not current_user.is_master():
-        flash('Apenas o Master acessa backups.', 'danger')
-        return redirect(url_for('main.dashboard'))
+    bloqueio = master_required()
+    if bloqueio:
+        return bloqueio
     import backup
     if request.form.get('confirmacao', '').strip() != 'RESTAURAR':
         flash('Confirmação inválida: digite RESTAURAR para confirmar.', 'warning')
