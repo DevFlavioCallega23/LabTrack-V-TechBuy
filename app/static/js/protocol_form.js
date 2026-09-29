@@ -11,6 +11,15 @@ function safeParse(texto, fallback) {
     }
 }
 
+function escHtml(valor) {
+    if (valor === null || valor === undefined) return '';
+    return String(valor)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 function mapFromPairs(pairs) {
     const map = {};
     (pairs || []).forEach(function(par) { map[par[0]] = par[1]; });
@@ -59,14 +68,14 @@ COMP_TYPES_DB.forEach(function(t) {
     COMP_ORDER.push(t.key);
 });
 const EXTRA_OPTS = '<option value="">-- Selecione --</option>' +
-    COMP_ORDER.map(function(k) { return `<option value="${k}">${COMP_LABELS[k]}</option>`; }).join('');
+    COMP_ORDER.map(function(k) { return `<option value="${escHtml(k)}">${escHtml(COMP_LABELS[k])}</option>`; }).join('');
 
 const MACHINES_FROM_TEST = CFG.rmaTestData.map(function(it) { return it.machine; })
     .filter(function(m, i, arr) { return m && arr.indexOf(m) === i; });
 const MACHINES = CFG.machines.concat(
     MACHINES_FROM_TEST.filter(function(m) { return CFG.machines.indexOf(m) === -1; }));
 const MACHINE_OPTS = '<option value="">--</option>' +
-    MACHINES.map(function(m) { return `<option value="${m}">${m}</option>`; }).join('');
+    MACHINES.map(function(m) { return `<option value="${escHtml(m)}">${escHtml(m)}</option>`; }).join('');
 
 function toggleMaterialComum() {
     const isComum = document.getElementById('materialComum').checked;
@@ -92,7 +101,7 @@ function loadCatalogSelect(typeSelect, modelInput, produtoIdInput) {
     const tiposCatalogo = [...new Set(produtosCatalogo.map(p => p.component_type))];
     const tipos = COMP_ORDER.filter(t => tiposCatalogo.includes(t));
     typeSelect.innerHTML = '<option value="">-- Selecione --</option>' +
-        tipos.map(t => `<option value="${t}">${COMP_LABELS[t] || t}</option>`).join('');
+        tipos.map(t => `<option value="${escHtml(t)}">${escHtml(COMP_LABELS[t] || t)}</option>`).join('');
     if (currentType) typeSelect.value = currentType;
     typeSelect.onchange = function() {
         updateModelOptions(typeSelect, modelInput, produtoIdInput);
@@ -117,7 +126,7 @@ function updateModelOptions(typeSelect, modelInput, produtoIdInput) {
         datalist.id = datalistId;
         document.body.appendChild(datalist);
     }
-    datalist.innerHTML = produtos.map(p => `<option value="${p.model_name}" data-id="${p.id}">${p.model_name}</option>`).join('');
+    datalist.innerHTML = produtos.map(p => `<option value="${escHtml(p.model_name)}" data-id="${p.id}">${escHtml(p.model_name)}</option>`).join('');
     modelInput.setAttribute('list', datalistId);
     modelInput.placeholder = 'Selecione ou digite...';
     modelInput.oninput = function() {
@@ -144,7 +153,7 @@ function syncDefectMachines() {
     document.querySelectorAll('select[name="defect_maquina[]"]').forEach(function(sel) {
         const cur = sel.value;
         sel.innerHTML = '<option value="">--</option>' +
-            names.map(n => `<option value="${n}">${n}</option>`).join('');
+            names.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
         if (cur) sel.value = cur;
     });
 }
@@ -177,7 +186,7 @@ function syncRmaTestMachines() {
     document.querySelectorAll('select[name="rma_test_machine[]"]').forEach(function(sel) {
         const cur = sel.value;
         sel.innerHTML = '<option value="">--</option>' +
-            names.map(n => `<option value="${n}">${n}</option>`).join('');
+            names.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
         if (cur) sel.value = cur;
     });
 }
@@ -194,7 +203,7 @@ function machineHTML(num, name, isPrebuilt, powerCableVal) {
     <div class="card bg-dark border-secondary mb-3 machine-block" data-machine="${n}">
         <div class="card-header d-flex justify-content-between align-items-center py-2 flex-wrap gap-2">
             <div class="d-flex align-items-center gap-3 flex-wrap">
-                <input type="text" name="machine_name_${n}" class="form-control form-control-sm bg-dark text-light border-secondary fw-bold" style="width:auto;min-width:200px;display:inline-block" value="${label}">
+                <input type="text" name="machine_name_${n}" class="form-control form-control-sm bg-dark text-light border-secondary fw-bold" style="width:auto;min-width:200px;display:inline-block" value="${escHtml(label)}">
                 <div class="form-check form-switch mb-0">
                     <input class="form-check-input" type="checkbox" id="peSwitch_${n}" name="pe_switch_${n}" ${checked} onchange="togglePE(this)">
                     <label class="form-check-label small text-secondary" for="peSwitch_${n}">Pronta-Entrega</label>
@@ -240,7 +249,7 @@ function rmaMachineHTML(num, name) {
     return `
     <div class="card bg-dark border-secondary mb-3 rma-machine-block" data-rma-machine="${n}">
         <div class="card-header d-flex justify-content-between align-items-center py-2">
-            <input type="text" name="rma_machine_name_${n}" class="form-control form-control-sm bg-dark text-light border-secondary fw-bold" style="width:auto;min-width:200px;display:inline-block" value="${label}">
+            <input type="text" name="rma_machine_name_${n}" class="form-control form-control-sm bg-dark text-light border-secondary fw-bold" style="width:auto;min-width:200px;display:inline-block" value="${escHtml(label)}">
             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRmaMachine(this)">
                 <i class="bi bi-x-lg"></i>
             </button>
@@ -312,11 +321,11 @@ function replicateMachine(btn) {
         const showInput = (!isPE || serial) ? '' : 'style="display:none"';
         tr.innerHTML = `
             <td><select name="comp_type_${dstMachine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
-            <td><input type="text" name="comp_model_${dstMachine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${srcModel ? srcModel.value : ''}"></td>
+            <td><input type="text" name="comp_model_${dstMachine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${escHtml(srcModel ? srcModel.value : '')}"></td>
             <td>
                 <div class="d-flex align-items-center gap-1">
                     <button type="button" class="btn btn-sm btn-outline-warning pe-ref-btn py-0 px-1" ${showBtn} onclick="addRefSerial(this)" title="Adicionar NS de referência"><i class="bi bi-plus-lg"></i></button>
-                    <input type="text" name="comp_serial_${dstMachine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" ${showInput} value="${serial}">
+                    <input type="text" name="comp_serial_${dstMachine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" ${showInput} value="${escHtml(serial)}">
                     <button type="button" class="btn btn-sm btn-outline-danger remove-ref-btn py-0 px-1" onclick="removeRefSerial(this)" title="Remover NS" style="display:none"><i class="bi bi-x"></i></button>
                 </div>
             </td>
@@ -419,11 +428,11 @@ function replicateRmaMachine(btn) {
             const showInput = hasSerial ? '' : 'style="display:none"';
             tr.innerHTML = `
                 <td><select name="rma_comp_type_${dstMachine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
-                <td><input type="text" name="rma_comp_model_${dstMachine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${srcModel ? srcModel.value : ''}"></td>
+                <td><input type="text" name="rma_comp_model_${dstMachine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${escHtml(srcModel ? srcModel.value : '')}"></td>
                 <td>
                     <div class="d-flex align-items-center gap-1">
                         <button type="button" class="btn btn-sm btn-outline-warning rma-ref-btn py-0 px-1" ${showBtn} onclick="addRmaRefSerial(this)" title="Adicionar NS"><i class="bi bi-plus-lg"></i></button>
-                        <input type="text" name="rma_comp_serial_${dstMachine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" ${showInput} value="${serial}">
+                        <input type="text" name="rma_comp_serial_${dstMachine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" ${showInput} value="${escHtml(serial)}">
                         <button type="button" class="btn btn-sm btn-outline-danger remove-ref-btn py-0 px-1" onclick="removeRmaRefSerial(this)" title="Remover NS" style="display:none"><i class="bi bi-x"></i></button>
                     </div>
                 </td>
@@ -466,13 +475,13 @@ function currentRmaMachineOpts() {
         if (names.indexOf(m) === -1) names.push(m);
     });
     return '<option value="">--</option>' +
-        names.map(n => `<option value="${n}">${n}</option>`).join('');
+        names.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
 }
 
 function addRmaTestRow() {
     const tbody = document.querySelector('#rmaTestTable tbody');
     const opts = '<option value="">-- Selecione --</option>' +
-        Object.entries(COMP_LABELS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+        Object.entries(COMP_LABELS).map(([k, v]) => `<option value="${escHtml(k)}">${escHtml(v)}</option>`).join('');
     const tr = document.createElement('tr');
     tr.className = 'rma-test-row';
     tr.innerHTML = `
@@ -510,7 +519,7 @@ function currentTrocadoMachineOpts(selected) {
     if (selected && names.indexOf(selected) === -1) names.push(selected);
     if (!names.length) names.push('Computador 01');
     return '<option value="">--</option>' +
-        names.map(n => `<option value="${n}"${n === selected ? ' selected' : ''}>${n}</option>`).join('');
+        names.map(n => `<option value="${escHtml(n)}"${n === selected ? ' selected' : ''}>${escHtml(n)}</option>`).join('');
 }
 
 function syncTrocadoMachines() {
@@ -527,7 +536,7 @@ function trocadoMachineHTML(num, name) {
     return `
     <div class="card bg-dark border-secondary mb-3 trocado-machine-block" data-trocado-machine="${n}">
         <div class="card-header d-flex justify-content-between align-items-center py-2">
-            <input type="text" name="trocado_machine_name_${n}" class="form-control form-control-sm bg-dark text-light border-secondary fw-bold" style="width:auto;min-width:200px;display:inline-block" value="${label}" oninput="syncTrocadoMachines()">
+            <input type="text" name="trocado_machine_name_${n}" class="form-control form-control-sm bg-dark text-light border-secondary fw-bold" style="width:auto;min-width:200px;display:inline-block" value="${escHtml(label)}" oninput="syncTrocadoMachines()">
             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTrocadoMachine(this)">
                 <i class="bi bi-x-lg"></i>
             </button>
@@ -616,8 +625,8 @@ function replicateTrocadoMachine(btn) {
         tr.innerHTML = `
             <td><select name="trocado_row_machine[]" class="form-select form-select-sm">${currentTrocadoMachineOpts(dstName)}</select></td>
             <td><select name="trocado_comp_type_${dstMachine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
-            <td><input type="text" name="trocado_comp_model_${dstMachine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${srcModel ? srcModel.value : ''}"></td>
-            <td><input type="text" name="trocado_comp_serial_${dstMachine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="3" value="${serial}"></td>
+            <td><input type="text" name="trocado_comp_model_${dstMachine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${escHtml(srcModel ? srcModel.value : '')}"></td>
+            <td><input type="text" name="trocado_comp_serial_${dstMachine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="3" value="${escHtml(serial)}"></td>
             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
         `;
         const selects = tr.querySelectorAll('select');
@@ -650,8 +659,8 @@ function loadTrocadoMachines(data) {
             tr.innerHTML = `
                 <td><select name="trocado_row_machine[]" class="form-select form-select-sm">${currentTrocadoMachineOpts(entry.name || null)}</select></td>
                 <td><select name="trocado_comp_type_${m}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
-                <td><input type="text" name="trocado_comp_model_${m}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${item.model || ''}"></td>
-                <td><input type="text" name="trocado_comp_serial_${m}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="3" value="${item.serial || ''}"></td>
+                <td><input type="text" name="trocado_comp_model_${m}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${escHtml(item.model)}"></td>
+                <td><input type="text" name="trocado_comp_serial_${m}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="3" value="${escHtml(item.serial)}"></td>
                 <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
             `;
             const selects = tr.querySelectorAll('select');
@@ -785,11 +794,11 @@ function loadMachines(data) {
                     <select name="comp_type_${m}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select>
                     <input type="hidden" name="comp_product_id_${m}[]" value="${item.product_id || ''}">
                 </td>
-                <td><input type="text" name="comp_model_${m}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${item.model || ''}"></td>
+                <td><input type="text" name="comp_model_${m}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${escHtml(item.model)}"></td>
                 <td>
                     <div class="d-flex align-items-center gap-1">
                         <button type="button" class="btn btn-sm btn-outline-warning pe-ref-btn py-0 px-1" ${showBtn} onclick="addRefSerial(this)" title="Adicionar NS de referência"><i class="bi bi-plus-lg"></i></button>
-                        <input type="text" name="comp_serial_${m}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" ${showInput} value="${item.serial || ''}">
+                        <input type="text" name="comp_serial_${m}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" ${showInput} value="${escHtml(item.serial)}">
                         <button type="button" class="btn btn-sm btn-outline-danger remove-ref-btn py-0 px-1" onclick="removeRefSerial(this)" title="Remover NS" style="display:none"><i class="bi bi-x"></i></button>
                     </div>
                 </td>
@@ -821,7 +830,7 @@ function loadMachines(data) {
 function addDefectRow() {
     const tbody = document.querySelector('#defectsTable tbody');
     const opts = '<option value="">-- Selecione --</option>' +
-        Object.entries(COMP_LABELS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+        Object.entries(COMP_LABELS).map(([k, v]) => `<option value="${escHtml(k)}">${escHtml(v)}</option>`).join('');
     const tr = document.createElement('tr');
     tr.className = 'defect-row';
     tr.innerHTML = `
@@ -895,27 +904,27 @@ function loadPassagens(passagens) {
             <div class="row g-2">
                 <div class="col-md-2">
                     <label class="form-label small mb-0">Protocolo</label>
-                    <input type="text" name="passagem_protocolo[]" class="form-control form-control-sm" placeholder="Opcional" value="${p.protocolo || ''}">
+                    <input type="text" name="passagem_protocolo[]" class="form-control form-control-sm" placeholder="Opcional" value="${escHtml(p.protocolo)}">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small mb-0">Data Entrada</label>
-                    <input type="text" name="passagem_data_entrada[]" class="form-control form-control-sm" placeholder="DD/MM/AAAA" value="${p.data_entrada || ''}">
+                    <input type="text" name="passagem_data_entrada[]" class="form-control form-control-sm" placeholder="DD/MM/AAAA" value="${escHtml(p.data_entrada)}">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small mb-0">Data Saída</label>
-                    <input type="text" name="passagem_data_saida[]" class="form-control form-control-sm" placeholder="DD/MM/AAAA" value="${p.data_saida || ''}">
+                    <input type="text" name="passagem_data_saida[]" class="form-control form-control-sm" placeholder="DD/MM/AAAA" value="${escHtml(p.data_saida)}">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small mb-0">Pedido do produto com defeito</label>
-                    <input type="text" name="passagem_pedido[]" class="form-control form-control-sm" placeholder="Pedido do defeito" value="${p.pedido || ''}">
+                    <input type="text" name="passagem_pedido[]" class="form-control form-control-sm" placeholder="Pedido do defeito" value="${escHtml(p.pedido)}">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small mb-0">NS do produto com defeito</label>
-                    <input type="text" name="passagem_ns[]" class="form-control form-control-sm" placeholder="NS do defeito" value="${p.ns || ''}">
+                    <input type="text" name="passagem_ns[]" class="form-control form-control-sm" placeholder="NS do defeito" value="${escHtml(p.ns)}">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small mb-0">NS do novo produto</label>
-                    <input type="text" name="passagem_ns_novo[]" class="form-control form-control-sm" placeholder="NS do novo" value="${p.ns_novo || ''}">
+                    <input type="text" name="passagem_ns_novo[]" class="form-control form-control-sm" placeholder="NS do novo" value="${escHtml(p.ns_novo)}">
                 </div>
             </div>
         `;
@@ -949,11 +958,11 @@ function loadRmaMachines(data) {
             const showInput = hasSerial ? '' : 'style="display:none"';
             tr.innerHTML = `
                 <td><select name="rma_comp_type_${m}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
-                <td><input type="text" name="rma_comp_model_${m}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${item.model || ''}"></td>
+                <td><input type="text" name="rma_comp_model_${m}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${escHtml(item.model)}"></td>
                 <td>
                     <div class="d-flex align-items-center gap-1">
                         <button type="button" class="btn btn-sm btn-outline-warning rma-ref-btn py-0 px-1" ${showBtn} onclick="addRmaRefSerial(this)" title="Adicionar NS"><i class="bi bi-plus-lg"></i></button>
-                        <input type="text" name="rma_comp_serial_${m}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" ${showInput} value="${item.serial || ''}">
+                        <input type="text" name="rma_comp_serial_${m}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" ${showInput} value="${escHtml(item.serial)}">
                         <button type="button" class="btn btn-sm btn-outline-danger remove-ref-btn py-0 px-1" onclick="removeRmaRefSerial(this)" title="Remover NS" style="display:none"><i class="bi bi-x"></i></button>
                     </div>
                 </td>
@@ -972,18 +981,18 @@ function loadRmaTestItems(items) {
     if (!items || items.length === 0) return;
     const tbody = document.querySelector('#rmaTestTable tbody');
     const opts = '<option value="">-- Selecione --</option>' +
-        Object.entries(COMP_LABELS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+        Object.entries(COMP_LABELS).map(([k, v]) => `<option value="${escHtml(k)}">${escHtml(v)}</option>`).join('');
     items.forEach(function(item) {
         const tr = document.createElement('tr');
         tr.className = 'rma-test-row';
         tr.innerHTML = `
             <td><select name="rma_test_machine[]" class="form-select form-select-sm">${MACHINE_OPTS}</select></td>
             <td><select name="rma_test_comp[]" class="form-select form-select-sm">${opts}</select></td>
-            <td><input type="text" name="rma_test_model[]" class="form-control form-control-sm" value="${item.model || ''}"></td>
-            <td class="rma-test-ns-cell" style="display:${rmaTestHasNs() ? '' : 'none'}"><input type="text" name="rma_test_serial[]" class="form-control form-control-sm" placeholder="Nº de Série" value="${item.serial || ''}"></td>
-            <td><input type="text" name="rma_test_defeito[]" class="form-control form-control-sm" value="${item.defeito || ''}"></td>
-            <td><input type="text" name="rma_test_pedido[]" class="form-control form-control-sm" value="${item.pedido || ''}"></td>
-            <td><input type="text" name="rma_test_data_compra[]" class="form-control form-control-sm date-mask" value="${item.data_compra || ''}"></td>
+            <td><input type="text" name="rma_test_model[]" class="form-control form-control-sm" value="${escHtml(item.model)}"></td>
+            <td class="rma-test-ns-cell" style="display:${rmaTestHasNs() ? '' : 'none'}"><input type="text" name="rma_test_serial[]" class="form-control form-control-sm" placeholder="Nº de Série" value="${escHtml(item.serial)}"></td>
+            <td><input type="text" name="rma_test_defeito[]" class="form-control form-control-sm" value="${escHtml(item.defeito)}"></td>
+            <td><input type="text" name="rma_test_pedido[]" class="form-control form-control-sm" value="${escHtml(item.pedido)}"></td>
+            <td><input type="text" name="rma_test_data_compra[]" class="form-control form-control-sm date-mask" value="${escHtml(item.data_compra)}"></td>
             <td>
                 <select name="rma_test_status[]" class="form-select form-select-sm">
                     <option value="">--</option>
@@ -1030,8 +1039,8 @@ function loadRmaTrocadosItems(data) {
             tr.innerHTML = `
                 <td><select name="trocado_row_machine[]" class="form-select form-select-sm">${currentTrocadoMachineOpts(entry.name || null)}</select></td>
                 <td><select name="trocado_comp_type_${m}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
-                <td><input type="text" name="trocado_comp_model_${m}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${item.model || ''}"></td>
-                <td><input type="text" name="trocado_comp_serial_${m}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="3" value="${item.serial || ''}"></td>
+                <td><input type="text" name="trocado_comp_model_${m}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${escHtml(item.model)}"></td>
+                <td><input type="text" name="trocado_comp_serial_${m}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" minlength="3" value="${escHtml(item.serial)}"></td>
                 <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
             `;
             const selects = tr.querySelectorAll('select');
@@ -1068,8 +1077,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const tr = document.createElement('tr');
         tr.className = 'win-key-row';
         tr.innerHTML = `
-            <td><input type="text" class="form-control form-control-sm win-key-chave" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" value="${chave || ''}"></td>
-            <td><input type="text" class="form-control form-control-sm win-key-fonte" placeholder="NS da Fonte" value="${fonte || ''}"></td>
+            <td><input type="text" class="form-control form-control-sm win-key-chave" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" value="${escHtml(chave)}"></td>
+            <td><input type="text" class="form-control form-control-sm win-key-fonte" placeholder="NS da Fonte" value="${escHtml(fonte)}"></td>
             <td>
                 <div class="form-check">
                     <input type="checkbox" class="form-check-input win-key-ativo" ${ativo ? 'checked' : ''}>
