@@ -7,3 +7,4 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         'sqlite:///' + os.path.join(basedir, 'labtrack.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    WTF_CSRF_TIME_LIMIT = None
