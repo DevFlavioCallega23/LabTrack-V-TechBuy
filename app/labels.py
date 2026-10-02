@@ -69,6 +69,45 @@ COMPONENT_LABELS = {
 # Lista (chave, rótulo) na ordem de exibição — usada em <select>.
 COMPONENT_OPTIONS = [(k, COMPONENT_LABELS[k]) for k in COMPONENT_ORDER]
 
+# --- Formulário de protocolo --------------------------------------------
+# Rótulos dos campos do ProtocolForm (forms.py) e títulos das seções do
+# create/edit. Edite aqui: forms.py, create.html e o JS leem daqui.
+
+PROTO_FIELD_LABELS = {
+    'type': 'Tipo de Protocolo',
+    'venda_pe': 'Venda Pronta-Entrega (PE)',
+    'client_name': 'Cliente',
+    'lote': 'Quantidade',
+    'order_number': 'Número do Pedido',
+    'seller': 'Vendedor',
+    'status': 'Status',
+    'entry_date': 'Data da Compra',
+    'exit_date': 'Data de Saída',
+    'ref_ns': 'NS de Referência',
+    'base_defect': 'Defeito de Base',
+    'original_order': 'Pedido Original',
+    'rma_extra_equip': 'Equipamento extra do cliente',
+    'rma_test_result': 'Resultado do Teste de Mesa',
+    'rma_entry_date': 'Data de Entrada',
+    'observations': 'Observações',
+    'submit': 'Salvar',
+}
+
+PROTO_SECTION_TITLES = {
+    'cliente': 'Dados do Cliente',
+    'rma': 'Dados do RMA',
+    'rma_servico': 'Dados do Serviço',
+    'equipamento_cliente': 'Equipamento do Cliente',
+    'teste_mesa': 'Resultado do Teste de Mesa / Defeitos encontrados',
+    'equipamentos_mudados': 'Equipamentos Mudados',
+    'identificacao': 'Dados da Venda',
+    'numeros_serie': 'Números de Série',
+    'chave_windows': 'Chave do Windows',
+    'defeitos': 'Defeitos Encontrados',
+    'observacoes': 'Observações',
+    'defeito_relatado': 'Defeito Relatado / Observações Técnicas',
+}
+
 # --- Defeitos ----------------------------------------------------------
 
 DEFEITO_STATUS_LABELS = {

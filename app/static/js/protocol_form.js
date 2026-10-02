@@ -38,7 +38,9 @@ const CFG = {
     winKeys: safeParse(PF.winKeys, []),
     passagens: safeParse(PF.passagens, null),
     statusOptions: mapFromPairs(PF.statusOptions),
-    respOptions: mapFromPairs(PF.respOptions)
+    respOptions: mapFromPairs(PF.respOptions),
+    titles: PF.titles || {},
+    fields: PF.fields || {}
 };
 
 function optionsHtml(map) {
@@ -1143,20 +1145,22 @@ document.addEventListener('DOMContentLoaded', function() {
             el.querySelectorAll('select').forEach(function(f) { f.disabled = false; });
         });
         // Dynamic heading: "Dados do Equipamento do Cliente" only for NTB
-        var equipHeading = document.getElementById('equipClientHeading');
-        if (equipHeading) equipHeading.style.display = isNaoComprado ? '' : 'none';
         var entryLabel = document.getElementById('entryDateLabel');
-        if (entryLabel) entryLabel.textContent = type === 'nao_comprado' ? 'Data de Entrada' : 'Data da Compra';
+        if (entryLabel) entryLabel.textContent = type === 'nao_comprado'
+            ? (CFG.fields.rma_entry_date || 'Data de Entrada')
+            : (CFG.fields.entry_date || 'Data da Compra');
         if (sectionClient) sectionClient.style.display = type === 'ponta_entrega' ? 'none' : 'block';
         var rmaDataHeading = document.getElementById('rmaDataHeading');
-        if (rmaDataHeading) rmaDataHeading.textContent = type === 'servico' ? 'Dados do Serviço' : 'Dados do RMA';
+        if (rmaDataHeading) rmaDataHeading.textContent = type === 'servico'
+            ? (CFG.titles.rma_servico || 'Dados do Serviço')
+            : (CFG.titles.rma || 'Dados do RMA');
         var rmaWarrantyInfo = document.getElementById('rmaWarrantyInfo');
         if (rmaWarrantyInfo) rmaWarrantyInfo.value = type === 'rma' ? 'Sim' : 'Não';
         var obsLabel = document.getElementById('obsLabel');
         if (obsLabel) {
             obsLabel.innerHTML = (isRma
-                ? '<i class="bi bi-exclamation-triangle text-warning"></i> Defeito Relatado / Observações Técnicas'
-                : '<i class="bi bi-chat-dots"></i> Observações');
+                ? '<i class="bi bi-exclamation-triangle text-warning"></i> ' + (CFG.titles.defeito_relatado || 'Defeito Relatado / Observações Técnicas')
+                : '<i class="bi bi-chat-dots"></i> ' + (CFG.titles.observacoes || 'Observações'));
         }
         updateRmaTestNsColumns();
     }

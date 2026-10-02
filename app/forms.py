@@ -3,6 +3,7 @@ from wtforms import StringField, PasswordField, SelectField, TextAreaField, Subm
 from wtforms.validators import DataRequired, Email, Length, Optional, ValidationError
 
 from app.datas import parse_date_br
+from app.labels import PROTO_FIELD_LABELS as PL
 
 def valida_data_br(form, field):
     """Aceita DD/MM/AAAA, DD/MM/AA ou AAAA-MM-DD; vazio passa pelo Optional()."""
@@ -50,7 +51,7 @@ class ChangePasswordForm(FlaskForm):
     submit = SubmitField('Alterar Senha')
 
 class ProtocolForm(FlaskForm):
-    type = SelectField('Tipo de Protocolo', choices=[
+    type = SelectField(PL['type'], choices=[
         ('', 'Selecione...'),
         ('venda', 'Venda'),
         ('ponta_entrega', 'Pronta-Entrega'),
@@ -58,11 +59,11 @@ class ProtocolForm(FlaskForm):
         ('servico', 'Serviço (Fora de Garantia)'),
         ('nao_comprado', 'Não comprado na TechBuy')
     ], default='')
-    venda_pe = BooleanField('Venda Pronta-Entrega (PE)', default=False)
-    client_name = StringField('Cliente / Nome', validators=[Optional(), Length(max=200)])
-    lote = StringField('Quantidade', validators=[Optional(), Length(max=50)])
-    order_number = StringField('Número do Pedido', validators=[Optional(), Length(max=100)])
-    seller = SelectField('Vendedor', choices=[
+    venda_pe = BooleanField(PL['venda_pe'], default=False)
+    client_name = StringField(PL['client_name'], validators=[Optional(), Length(max=200)])
+    lote = StringField(PL['lote'], validators=[Optional(), Length(max=50)])
+    order_number = StringField(PL['order_number'], validators=[Optional(), Length(max=100)])
+    seller = SelectField(PL['seller'], choices=[
         ('', 'Selecione...'),
         ('Myris', 'Myris'),
         ('Janay', 'Janay'),
@@ -72,21 +73,21 @@ class ProtocolForm(FlaskForm):
         ('TechBuy', 'TechBuy'),
         ('NIL', 'NIL (Não informado ao Laboratório)')
     ], default='')
-    status = SelectField('Status', choices=[
+    status = SelectField(PL['status'], choices=[
         ('pendente', 'Pendente'),
         ('andamento', 'Em Andamento'),
         ('concluido', 'Concluído'),
         ('cancelado', 'Cancelado')
     ], default='pendente')
-    entry_date = StringField('Data da Compra', validators=[Optional(), valida_data_br])
-    exit_date = StringField('Data de Saída', validators=[Optional(), valida_data_br])
-    ref_ns = StringField('Referência NS', validators=[Optional(), Length(max=100)])
-    base_defect = TextAreaField('Defeito de Base', validators=[Optional()])
-    original_order = StringField('Pedido Original', validators=[Optional(), Length(max=100)])
-    rma_extra_equip = StringField('Equipamento que chegou', validators=[Optional(), Length(max=200)])
-    rma_test_result = TextAreaField('Resultado do Teste de Mesa', validators=[Optional()])
-    rma_entry_date = StringField('Data de Entrada (RMA)', validators=[Optional(), valida_data_br])
-    observations = TextAreaField('Observações', validators=[Optional()])
-    submit = SubmitField('Salvar')
+    entry_date = StringField(PL['entry_date'], validators=[Optional(), valida_data_br])
+    exit_date = StringField(PL['exit_date'], validators=[Optional(), valida_data_br])
+    ref_ns = StringField(PL['ref_ns'], validators=[Optional(), Length(max=100)])
+    base_defect = TextAreaField(PL['base_defect'], validators=[Optional()])
+    original_order = StringField(PL['original_order'], validators=[Optional(), Length(max=100)])
+    rma_extra_equip = StringField(PL['rma_extra_equip'], validators=[Optional(), Length(max=200)])
+    rma_test_result = TextAreaField(PL['rma_test_result'], validators=[Optional()])
+    rma_entry_date = StringField(PL['rma_entry_date'], validators=[Optional(), valida_data_br])
+    observations = TextAreaField(PL['observations'], validators=[Optional()])
+    submit = SubmitField(PL['submit'])
 
 

@@ -68,7 +68,7 @@
 
             <div class="row g-3">
                 <div class="col-12">
-                    <h6 class="text-secondary border-bottom pb-2" id="sectionClientLabel"><i class="bi bi-person"></i> Dados do Cliente</h6>
+                    <h6 class="text-secondary border-bottom pb-2" id="sectionClientLabel"><i class="bi bi-person"></i> {{ PROTO_SECTION_TITLES.cliente }}</h6>
                 </div>
 
                 <div class="col-md-4 field-group" data-show-for="venda,rma,servico,nao_comprado">
@@ -100,10 +100,10 @@
             <!-- RMA: campos específicos -->
             <div class="row g-3 mt-2" data-show-for="rma,servico" style="display:none">
                 <div class="col-12">
-                    <h6 class="text-secondary border-bottom pb-2" id="rmaDataHeading"><i class="bi bi-info-circle"></i> Dados do RMA</h6>
+                    <h6 class="text-secondary border-bottom pb-2" id="rmaDataHeading"><i class="bi bi-info-circle"></i> {{ PROTO_SECTION_TITLES.rma }}</h6>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Na Garantia?</label>
+                    <label class="form-label">Em Garantia</label>
                     <input type="text" class="form-control" id="rmaWarrantyInfo" value="{{ 'Sim' if editing and protocol.rma_in_warranty else 'Não' }}" readonly tabindex="-1">
                 </div>
                 <div class="col-md-4">
@@ -112,15 +112,12 @@
                 </div>
             </div>
 
-            <!-- RMA / NTB: Dados do Equipamento do Cliente -->
+            <!-- RMA / NTB: Equipamento do Cliente -->
             <div class="row g-3 mt-2 rma-field" data-show-for="rma,servico,nao_comprado" style="display:none">
-                <div class="col-12">
-                    <h6 class="text-secondary border-bottom pb-2" id="equipClientHeading"><i class="bi bi-box-seam"></i> Dados do Equipamento do Cliente</h6>
-                </div>
                 <div class="col-12 mt-0">
-                    <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-pc-display"></i> Equipamento que chegou
+                    <h6 class="text-secondary border-bottom pb-2" id="equipClientHeading"><i class="bi bi-pc-display"></i> {{ PROTO_SECTION_TITLES.equipamento_cliente }}
                         <button type="button" class="btn btn-sm btn-outline-success ms-2" onclick="addRmaMachine()">
-                            <i class="bi bi-plus-lg"></i> Adicionar
+                            <i class="bi bi-plus-lg"></i> Adicionar Máquina
                         </button>
                     </h6>
                     <div id="rmaMachinesContainer"></div>
@@ -130,7 +127,7 @@
                     <textarea name="rma_extra_equip" class="form-control" rows="2" placeholder="Ex: saco plástico, cabo de força, etc...">{{ protocol.rma_extra_equip or '' if editing else '' }}</textarea>
                 </div>
                 <div class="col-12 mt-2">
-                    <label class="form-label text-secondary"><i class="bi bi-exclamation-triangle"></i> Defeito de Base</label>
+                    <label class="form-label text-secondary"><i class="bi bi-exclamation-triangle"></i> {{ PROTO_FIELD_LABELS.base_defect }}</label>
                     {{ form.base_defect(class='form-control', rows=2, placeholder='Defeito informado pelo cliente') }}
                 </div>
             </div>
@@ -138,7 +135,7 @@
             <!-- RMA / NTB: Resultado do Teste de Mesa -->
             <div class="row g-3 mt-2 rma-field" data-show-for="rma,servico,nao_comprado" style="display:none">
                 <div class="col-12">
-                    <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-tools"></i> Resultado do Teste de Mesa / Defeitos encontrados
+                    <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-tools"></i> {{ PROTO_SECTION_TITLES.teste_mesa }}
                         <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="addRmaTestRow()">
                             <i class="bi bi-plus-lg"></i> Adicionar
                         </button>
@@ -170,7 +167,7 @@
             <!-- RMA / NTB: Equipamentos Mudados -->
             <div class="row g-3 mt-2 rma-field" data-show-for="rma,servico,nao_comprado" style="display:none">
                 <div class="col-12">
-                    <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-arrow-repeat"></i> Equipamentos Mudados
+                    <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-arrow-repeat"></i> {{ PROTO_SECTION_TITLES.equipamentos_mudados }}
                         <button type="button" class="btn btn-sm btn-outline-info ms-2" onclick="addTrocadoMachine()">
                             <i class="bi bi-plus-lg"></i> Adicionar
                         </button>
@@ -181,7 +178,7 @@
 
             <div class="row g-3 mt-2 hide-for-rma hide-for-nao-comprado">
                 <div class="col-12">
-                    <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-box-seam"></i> Identificação</h6>
+                    <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-box-seam"></i> {{ PROTO_SECTION_TITLES.identificacao }}</h6>
                 </div>
 
                 <div class="col-md-2 field-group hide-for-rma" data-show-for="rma,servico" style="display:none">
@@ -212,7 +209,7 @@
             <div class="row g-3 mt-2 hide-for-rma hide-for-nao-comprado">
                 <div class="col-12">
                     <h6 class="text-secondary border-bottom pb-2">
-                        <i class="bi bi-upc-scan"></i> Números de Série
+                        <i class="bi bi-upc-scan"></i> {{ PROTO_SECTION_TITLES.numeros_serie }}
                         <div class="form-check form-switch d-inline-block ms-3">
                             <input class="form-check-input" type="checkbox" id="materialComum" name="material_comum" onchange="toggleMaterialComum()">
                             <label class="form-check-label small" for="materialComum">Material comum da casa</label>
@@ -232,7 +229,7 @@
                     <div class="d-flex align-items-center gap-2 mb-2">
                         <div class="form-check form-switch mb-0">
                             <input class="form-check-input" type="checkbox" id="toggleWindowsKeys">
-                            <label class="form-check-label fw-bold" for="toggleWindowsKeys"><i class="bi bi-windows"></i> Chave do Windows</label>
+                            <label class="form-check-label fw-bold" for="toggleWindowsKeys"><i class="bi bi-windows"></i> {{ PROTO_SECTION_TITLES.chave_windows }}</label>
                         </div>
                     </div>
                     <div id="windowsKeysSection" style="display:none;">
@@ -262,7 +259,7 @@
 {% set labels = COMP_LABELS %}            <div class="row g-3 mt-2">
                 <div class="col-12">
                     <h6 class="text-secondary border-bottom pb-2">
-                        <i class="bi bi-exclamation-triangle"></i> Defeitos Encontrados
+                        <i class="bi bi-exclamation-triangle"></i> {{ PROTO_SECTION_TITLES.defeitos }}
                         <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="addDefectRow()">
                             <i class="bi bi-plus-lg"></i> Adicionar
                         </button>
@@ -406,10 +403,10 @@
 
             <div class="row g-3 mt-2">
                 <div class="col-12">
-                    <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-chat-dots"></i> Observações</h6>
+                    <h6 class="text-secondary border-bottom pb-2"><i class="bi bi-chat-dots"></i> {{ PROTO_SECTION_TITLES.observacoes }}</h6>
                 </div>
                 <div class="col-12 field-group">
-                    <label class="form-label" id="obsLabel"><i class="bi bi-chat-dots"></i> Observações</label>
+                    <label class="form-label" id="obsLabel"><i class="bi bi-chat-dots"></i> {{ PROTO_SECTION_TITLES.observacoes }}</label>
                     {{ form.observations(class='form-control', rows=4, placeholder='Observações adicionais (opcional)') }}
                 </div>
             </div>
@@ -438,7 +435,9 @@ window.PF_FORM = {
     winKeys: {{ (win_keys_data or '[]')|tojson }},
     passagens: {{ (protocol.rma_passagens if editing and protocol and protocol.rma_passagens else '')|tojson }},
     statusOptions: {{ DEFEITO_STATUS_LABELS.items()|list|tojson }},
-    respOptions: {{ RESP_LABELS.items()|list|tojson }}
+    respOptions: {{ RESP_LABELS.items()|list|tojson }},
+    titles: {{ PROTO_SECTION_TITLES|tojson }},
+    fields: {{ PROTO_FIELD_LABELS|tojson }}
 };
 </script>
 <script src="{{ url_for('static', filename='js/protocol_form.js') }}"></script>

@@ -42,14 +42,12 @@
 </div>
 
 {% macro resp_badge(r) %}
-{% if r == 'loja' %}<span class="badge bg-success">Loja</span>
-{% elif r == 'cliente' %}<span class="badge bg-warning text-dark">Cliente</span>
-{% elif r == 'terceiro' %}<span class="badge bg-info text-dark">Terceiro</span>
+{% if r %}<span class="badge {{ RESP_BADGES.get(r, 'bg-secondary') }}">{{ RESP_LABELS.get(r, r) }}</span>
 {% else %}<span class="text-secondary">-</span>{% endif %}
 {% endmacro %}
 
 {% macro tipo_badge(tipo, venda_pe) %}
-{% set labels = PROTO_TYPE_LABELS %}<span class="badge {% if tipo == 'venda' or tipo == 'ponta_entrega' %}bg-success{% elif tipo == 'rma' %}bg-primary{% elif tipo == 'servico' %}bg-danger{% else %}bg-secondary{% endif %}">{{ labels.get(tipo, tipo) }}</span>{% if venda_pe %} <span class="badge bg-info">PE</span>{% endif %}
+<span class="badge {{ PROTO_TYPE_BADGES.get(tipo, 'bg-secondary') }}">{{ PROTO_TYPE_LABELS.get(tipo, tipo) }}</span>{% if venda_pe %} <span class="badge bg-info">PE</span>{% endif %}
 {% endmacro %}
 
 {% macro defeitos_table(itens) %}
@@ -81,10 +79,7 @@
                 <td>{{ tipo_badge(d.tipo, d.venda_pe) }}</td>
                 <td>{{ resp_badge(d.responsavel) }}</td>
                 <td style="white-space:nowrap">
-                    {% if d.protocolo_status == 'pendente' %}<span class="badge bg-warning text-dark">Pendente</span>
-                    {% elif d.protocolo_status == 'andamento' %}<span class="badge bg-dark">Em Andamento</span>
-                    {% elif d.protocolo_status == 'concluido' %}<span class="badge bg-info text-dark">Concluído</span>
-                    {% elif d.protocolo_status == 'cancelado' %}<span class="badge bg-danger">Cancelado</span>
+                    {% if d.protocolo_status %}<span class="badge {{ PROTO_STATUS_BADGES.get(d.protocolo_status, 'bg-secondary') }}">{{ PROTO_STATUS_LABELS.get(d.protocolo_status, d.protocolo_status) }}</span>
                     {% else %}<span class="text-secondary">-</span>{% endif %}
                 </td>
                 <td>{{ d.cliente or '-' }}</td>

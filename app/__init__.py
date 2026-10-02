@@ -94,6 +94,37 @@ def add_missing_columns():
             conn.execute(db.text('ALTER TABLE defect ADD COLUMN estoque_uso_id INTEGER REFERENCES estoque_uso(id)'))
         if 'vindo_estoque' not in defect_cols:
             conn.execute(db.text('ALTER TABLE defect ADD COLUMN vindo_estoque BOOLEAN DEFAULT 0'))
+
+        # defect.protocol_id nasceu NOT NULL (época em que só havia defeito de
+        # protocolo); o model já aceita NULL para defeitos de estoque, mas o
+        # SQLite não tem ALTER COLUMN — recria a tabela com a constraint certa.
+        defect_now = {c['name']: c for c in inspect(engine).get_columns('defect')}
+        if defect_now.get('protocol_id', {}).get('nullable') is False:
+            conn.execute(db.text('ALTER TABLE defect RENAME TO defect_legacy'))
+            conn.execute(db.text('''CREATE TABLE defect (
+                id INTEGER NOT NULL,
+                protocol_id INTEGER,
+                component_type VARCHAR(50) NOT NULL,
+                serial_number VARCHAR(100),
+                description TEXT,
+                sort_order INTEGER,
+                specification VARCHAR(200),
+                responsavel VARCHAR(20),
+                defeito_status VARCHAR(30),
+                maquina VARCHAR(50),
+                estoque_uso_id INTEGER REFERENCES estoque_uso(id),
+                vindo_estoque BOOLEAN DEFAULT 0,
+                PRIMARY KEY (id),
+                FOREIGN KEY(protocol_id) REFERENCES protocol (id)
+            )'''))
+            conn.execute(db.text('''INSERT INTO defect (
+                id, protocol_id, component_type, serial_number, description,
+                sort_order, specification, responsavel, defeito_status, maquina,
+                estoque_uso_id, vindo_estoque)
+                SELECT id, protocol_id, component_type, serial_number, description,
+                sort_order, specification, responsavel, defeito_status, maquina,
+                estoque_uso_id, vindo_estoque FROM defect_legacy'''))
+            conn.execute(db.text('DROP TABLE defect_legacy'))
         try:
             estoque_cols = [c['name'] for c in inspector.get_columns('estoque_uso')]
             if 'tipo_componente' not in estoque_cols:
@@ -172,6 +203,8 @@ def create_app():
     from app.labels import (
         COMPONENT_LABELS, COMPONENT_OPTIONS, DEFEITO_RESP_BADGES, DEFEITO_RESP_LABELS,
         DEFEITO_STATUS_BADGES, DEFEITO_STATUS_LABELS, PROTO_TYPE_LABELS, peca_label,
+        PROTO_TYPE_BADGES, PROTO_STATUS_LABELS, PROTO_STATUS_BADGES,
+        PROTO_FIELD_LABELS, PROTO_SECTION_TITLES,
     )
     app.jinja_env.globals.update(
         COMP_LABELS=COMPONENT_LABELS,
@@ -181,6 +214,11 @@ def create_app():
         RESP_LABELS=DEFEITO_RESP_LABELS,
         RESP_BADGES=DEFEITO_RESP_BADGES,
         PROTO_TYPE_LABELS=PROTO_TYPE_LABELS,
+        PROTO_TYPE_BADGES=PROTO_TYPE_BADGES,
+        PROTO_STATUS_LABELS=PROTO_STATUS_LABELS,
+        PROTO_STATUS_BADGES=PROTO_STATUS_BADGES,
+        PROTO_FIELD_LABELS=PROTO_FIELD_LABELS,
+        PROTO_SECTION_TITLES=PROTO_SECTION_TITLES,
         peca_label=peca_label,
     )
 
