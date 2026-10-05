@@ -77,7 +77,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% set comp_labels = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor', 'outro': 'Outro'} %}
+                            {% set comp_labels = COMP_LABELS %}
                             {% for comp, count in defect_totals | dictsort(by='value', reverse=True) %}
                             <tr>
                                 <td>{{ comp_labels.get(comp, comp) }}</td>

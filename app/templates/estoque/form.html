@@ -171,11 +171,7 @@
 </form>
 
 <script>
-var COMP_LABELS_JS = {
-    'processador': 'Processador', 'placa_mae': 'Placa-Mãe', 'ram': 'Memória RAM',
-    'ssd': 'SSD', 'fonte': 'Fonte', 'placa_de_video': 'Placa de Vídeo',
-    'gpu': 'GPU', 'gabinete': 'Gabinete', 'monitor': 'Monitor', 'cabo_de_forca': 'Cabo de Força'
-};
+var COMP_LABELS_JS = {{ COMP_LABELS | tojson }};
 var COMP_OPTS = '<option value="">-- Selecione --</option>' +
     Object.entries(COMP_LABELS_JS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
 

@@ -2,9 +2,29 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required
 from app import db
 from app.decorators import master_required
-from app.models import Produto
+from app.labels import COMPONENT_KEYS_OFICIAIS, carregar_tipos_custom
+from app.models import Produto, ComponenteTipo
 
 produtos_bp = Blueprint('produtos', __name__, url_prefix='/produtos')
+
+
+def sync_tipo_custom(component_type, label_novo):
+    """Prepara o tipo digitado no botão + para salvar junto do produto.
+
+    Retorna o objeto ComponenteTipo a persistir (novo ou com label
+    atualizado), ou None quando não há nada a fazer.
+    """
+    if not component_type or not label_novo:
+        return None
+    if component_type in COMPONENT_KEYS_OFICIAIS:
+        return None
+    row = ComponenteTipo.query.get(component_type)
+    if row:
+        if row.label != label_novo:
+            row.label = label_novo
+            return row
+        return None
+    return ComponenteTipo(key=component_type, label=label_novo)
 
 
 def get_tipos_choices():
@@ -68,10 +88,17 @@ def novo():
         if existe:
             flash('Este produto já está cadastrado.', 'warning')
             return render_template('produtos/form.html', produto=None, tipos=get_tipos_choices())
-        
+
+        novo_tipo = sync_tipo_custom(
+            component_type, request.form.get('component_type_label', '').strip())
+        if novo_tipo:
+            db.session.add(novo_tipo)
+
         p = Produto(component_type=component_type, model_name=model_name)
         db.session.add(p)
         db.session.commit()
+        if novo_tipo:
+            carregar_tipos_custom([(component_type, novo_tipo.label)])
         flash('Produto cadastrado com sucesso!', 'success')
         return redirect(url_for('produtos.index'))
     
@@ -102,10 +129,17 @@ def editar(id):
         if existe:
             flash('Este produto já está cadastrado.', 'warning')
             return render_template('produtos/form.html', produto=p, tipos=get_tipos_choices())
-        
+
+        novo_tipo = sync_tipo_custom(
+            component_type, request.form.get('component_type_label', '').strip())
+        if novo_tipo:
+            db.session.add(novo_tipo)
+
         p.component_type = component_type
         p.model_name = model_name
         db.session.commit()
+        if novo_tipo:
+            carregar_tipos_custom([(component_type, novo_tipo.label)])
         flash('Produto atualizado com sucesso!', 'success')
         return redirect(url_for('produtos.index'))
     

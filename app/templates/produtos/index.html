@@ -13,7 +13,7 @@
                 <select name="tipo" class="form-select form-select-sm">
                     <option value="">Todos</option>
                     {% for t in tipos %}
-                    <option value="{{ t }}" {% if f_tipo == t %}selected{% endif %}>{{ t }}</option>
+                    <option value="{{ t }}" {% if f_tipo == t %}selected{% endif %}>{{ COMP_LABELS.get(t, t) }}</option>
                     {% endfor %}
                 </select>
             </div>

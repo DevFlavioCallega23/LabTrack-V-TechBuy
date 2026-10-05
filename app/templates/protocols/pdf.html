@@ -108,7 +108,7 @@
 
 {% if rma_test %}
 {{ secao('Itens enviados ao laboratório (Teste de Mesa)') }}
-{% set comp_labels = {'processador': 'Processador', 'placa_mae': 'Placa-Mãe', 'ram': 'RAM', 'ssd': 'SSD', 'fonte': 'Fonte', 'monitor': 'Monitor', 'outro': 'Outro'} %}
+{% set comp_labels = COMP_LABELS %}
 {% set status_labels = DEFEITO_STATUS_LABELS %}
 {% set pdf_test_machines = [] %}
 {% for item in rma_test %}

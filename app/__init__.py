@@ -245,5 +245,10 @@ def create_app():
         db.create_all()
         add_missing_columns()
         User.create_admin()
+        from app.models import ComponenteTipo
+        from app.labels import carregar_tipos_custom
+        carregar_tipos_custom(
+            db.session.query(ComponenteTipo.key, ComponenteTipo.label).all()
+        )
 
     return app

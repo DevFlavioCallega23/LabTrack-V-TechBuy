@@ -69,6 +69,31 @@ COMPONENT_LABELS = {
 # Lista (chave, rótulo) na ordem de exibição — usada em <select>.
 COMPONENT_OPTIONS = [(k, COMPONENT_LABELS[k]) for k in COMPONENT_ORDER]
 
+# Snapshot das chaves oficiais — tipos cadastrados pelo usuário nunca
+# sobrescrevem o rótulo de um tipo fixo (ex.: digitar "RAM" em "ram").
+COMPONENT_KEYS_OFICIAIS = frozenset(COMPONENT_LABELS)
+
+
+def carregar_tipos_custom(rows):
+    """Registra tipos de componente cadastrados pelo usuário (botão +).
+
+    `rows` é uma lista de (key, label). Os dicts/listas desta fonte única
+    são mutados no lugar: todos os templates e rotas que já importam
+    COMPONENT_LABELS/COMPONENT_ORDER/COMPONENT_OPTIONS enxergam o tipo
+    novo sem precisar de mais nada.
+    """
+    for key, label in rows:
+        if not key or not label:
+            continue
+        key = str(key).strip()
+        label = str(label).strip()
+        if key in COMPONENT_LABELS and COMPONENT_LABELS[key] == label:
+            continue
+        COMPONENT_LABELS[key] = label
+        if key not in COMPONENT_ORDER:
+            COMPONENT_ORDER.append(key)
+    COMPONENT_OPTIONS[:] = [(k, COMPONENT_LABELS[k]) for k in COMPONENT_ORDER]
+
 # --- Formulário de protocolo --------------------------------------------
 # Rótulos dos campos do ProtocolForm (forms.py) e títulos das seções do
 # create/edit. Edite aqui: forms.py, create.html e o JS leem daqui.
@@ -183,6 +208,8 @@ def peca_label(text):
     if key in COMPONENT_LABELS:
         return COMPONENT_LABELS[key]
     for candidate in (key, key.replace('_', ' '), key.replace(' ', '_')):
+        if candidate in COMPONENT_LABELS:
+            return COMPONENT_LABELS[candidate]
         if candidate in DEFEITO_PECA_LABELS:
             return DEFEITO_PECA_LABELS[candidate]
     return raw

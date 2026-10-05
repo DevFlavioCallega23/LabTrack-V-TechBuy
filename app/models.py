@@ -275,3 +275,14 @@ class Produto(db.Model):
 
     def __repr__(self):
         return f'<Produto {self.component_type}: {self.model_name}>'
+
+
+class ComponenteTipo(db.Model):
+    """Tipos de componente cadastrados pelo usuário pelo botão +."""
+    __tablename__ = 'componente_tipo'
+    key = db.Column(db.String(64), primary_key=True)
+    label = db.Column(db.String(120), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<ComponenteTipo {self.key}: {self.label}>'

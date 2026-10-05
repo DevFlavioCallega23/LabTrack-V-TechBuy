@@ -12,6 +12,7 @@
                 <form method="POST" autocomplete="off">
                     <div class="mb-3">
                         <label class="form-label">Componente *</label>
+                        <input type="hidden" name="component_type_label" id="componentTypeLabel">
                         <div class="input-group">
                             <select name="component_type" id="componentType" class="form-select" required>
                                 <option value="">Selecione...</option>
@@ -70,9 +71,14 @@
 </div>
 
 <script>
+document.getElementById('componentType').addEventListener('change', function() {
+    document.getElementById('componentTypeLabel').value = '';
+});
+
 document.getElementById('novoTipoLabel').addEventListener('input', function() {
     const key = this.value.toLowerCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/-/g, '')
         .replace(/[^a-z0-9]+/g, '_')
         .replace(/^_|_$/g, '');
     document.getElementById('novoTipoKey').value = key;
@@ -93,6 +99,7 @@ function adicionarNovoTipo() {
     }
     const option = new Option(label, key, true, true);
     select.add(option);
+    document.getElementById('componentTypeLabel').value = label;
     bootstrap.Modal.getInstance(document.getElementById('novoTipoModal')).hide();
     document.getElementById('novoTipoLabel').value = '';
     document.getElementById('novoTipoKey').value = '';
