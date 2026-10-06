@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required
+from sqlalchemy.orm import selectinload
 from app import db
 from app.models import EstoqueUso, Defect, Component
 from app.decorators import master_required
@@ -82,7 +83,10 @@ def index():
     bloqueio = master_required()
     if bloqueio:
         return bloqueio
-    itens = EstoqueUso.query.order_by(EstoqueUso.id.desc()).all()
+    itens = EstoqueUso.query.options(
+        selectinload(EstoqueUso.components),
+        selectinload(EstoqueUso.defeitos),
+    ).order_by(EstoqueUso.id.desc()).all()
     return render_template('estoque/index.html', itens=itens)
 
 

@@ -77,6 +77,10 @@
             <div class="card-header"><i class="bi bi-clock-history"></i> Registro</div>
             <div class="card-body">
                 <div class="mb-2">
+                    <label class="text-secondary small d-block">Equipamento</label>
+                    <strong>{{ item.equipamento or '-' }}</strong>
+                </div>
+                <div class="mb-2">
                     <label class="text-secondary small d-block">Criado em</label>
                     <strong>{{ item.created_at.strftime('%d/%m/%Y %H:%M') if item.created_at else '-' }}</strong>
                 </div>

@@ -16,6 +16,15 @@
 
     <div class="card mb-4">
         <div class="card-body">
+            <h6 class="text-secondary border-bottom pb-2 mb-3"><i class="bi bi-laptop"></i> Equipamento</h6>
+            <input type="text" name="equipamento" class="form-control"
+                   placeholder="Ex: Notebook Dell Inspiron, Desktop Gamer..."
+                   value="{{ item.equipamento if item and item.equipamento and item.equipamento != '-' else '' }}">
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
             <h6 class="text-secondary border-bottom pb-2 mb-3">
                 <i class="bi bi-cpu"></i> Componente
                 <button type="button" class="btn btn-sm btn-outline-success ms-2" onclick="addEstoqueCompRow()">
