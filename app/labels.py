@@ -47,8 +47,8 @@ TEMPO_LABELS = {
 # --- Componentes -------------------------------------------------------
 
 COMPONENT_ORDER = [
-    'processador', 'placa_mae', 'ram', 'ssd', 'hdd', 'fonte',
-    'placa_de_video', 'gpu', 'gabinete', 'monitor', 'cabo_de_forca', 'outro',
+    'processador', 'placa_mae', 'ram', 'ssd', 'gpu', 'fonte',
+    'hdd', 'placa_de_video', 'gabinete', 'monitor', 'cabo_de_forca', 'outro',
 ]
 
 COMPONENT_LABELS = {
@@ -56,10 +56,10 @@ COMPONENT_LABELS = {
     'placa_mae': 'Placa-Mãe',
     'ram': 'Memória RAM',
     'ssd': 'SSD',
-    'hdd': 'HD (mecânico)',
-    'fonte': 'Fonte',
-    'placa_de_video': 'Placa de Vídeo',
     'gpu': 'GPU',
+    'fonte': 'Fonte',
+    'hdd': 'HD (mecânico)',
+    'placa_de_video': 'Placa de Vídeo',
     'gabinete': 'Gabinete',
     'monitor': 'Monitor',
     'cabo_de_forca': 'Cabo de Força',
@@ -93,6 +93,46 @@ def carregar_tipos_custom(rows):
         if key not in COMPONENT_ORDER:
             COMPONENT_ORDER.append(key)
     COMPONENT_OPTIONS[:] = [(k, COMPONENT_LABELS[k]) for k in COMPONENT_ORDER]
+
+
+def aplicar_ordem_custom(rows):
+    """Reordena COMPONENT_ORDER/dict conforme a ordem definida em Produtos.
+
+    `rows` é uma lista de (key, posicao). Chaves sem posição ficam no fim
+    na ordem original. A lista e o dict são mutados no lugar — todos os
+    selects e listagens enxergam a nova ordem.
+    """
+    pos = {}
+    for key, p in rows:
+        try:
+            pos[str(key)] = int(p)
+        except (TypeError, ValueError):
+            continue
+    if not pos:
+        return
+    com_ordem = sorted((k for k in COMPONENT_ORDER if k in pos),
+                       key=lambda k: (pos[k], k))
+    extras = sorted((k for k in pos if k not in COMPONENT_ORDER),
+                    key=lambda k: (pos[k], k))
+    sem_ordem = [k for k in COMPONENT_ORDER if k not in pos]
+    nova = com_ordem + extras + sem_ordem
+    COMPONENT_ORDER[:] = nova
+
+    visto = set()
+    itens = []
+    for k in nova:
+        if k in COMPONENT_LABELS and k not in visto:
+            itens.append((k, COMPONENT_LABELS[k]))
+            visto.add(k)
+    for k, v in COMPONENT_LABELS.items():
+        if k not in visto:
+            itens.append((k, v))
+    COMPONENT_LABELS.clear()
+    COMPONENT_LABELS.update(itens)
+
+    COMPONENT_OPTIONS[:] = [
+        (k, COMPONENT_LABELS[k]) for k in COMPONENT_ORDER if k in COMPONENT_LABELS
+    ]
 
 # --- Formulário de protocolo --------------------------------------------
 # Rótulos dos campos do ProtocolForm (forms.py) e títulos das seções do
@@ -135,7 +175,15 @@ PROTO_SECTION_TITLES = {
 
 # --- Defeitos ----------------------------------------------------------
 
+# Opções oferecidas nos formulários (status atuais).
 DEFEITO_STATUS_LABELS = {
+    'aguardando_peca': 'Aguardando peça',
+    'trocado': 'Trocado',
+}
+
+# Todos os status, incluindo os antigos — usado só para exibir registros
+# gravados antes da redução das opções (não aparecem nos selects).
+DEFEITO_STATUS_TODOS = {
     'aguardando_peca': 'Aguardando peça',
     'em_teste': 'Em teste',
     'trocado': 'Trocado',

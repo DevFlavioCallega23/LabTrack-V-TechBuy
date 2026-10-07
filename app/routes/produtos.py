@@ -2,8 +2,8 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required
 from app import db
 from app.decorators import master_required
-from app.labels import COMPONENT_KEYS_OFICIAIS, carregar_tipos_custom
-from app.models import Produto, ComponenteTipo
+from app.labels import COMPONENT_KEYS_OFICIAIS, COMPONENT_LABELS, COMPONENT_ORDER, carregar_tipos_custom, aplicar_ordem_custom
+from app.models import Produto, ComponenteTipo, TipoOrdem
 
 produtos_bp = Blueprint('produtos', __name__, url_prefix='/produtos')
 
@@ -163,6 +163,31 @@ def excluir(id):
     flash('Produto excluído com sucesso!', 'success')
     return redirect(url_for('produtos.index'))
 
+@produtos_bp.route('/api/criar', methods=['POST'])
+@login_required
+def api_criar():
+    bloqueio = master_required()
+    if bloqueio:
+        return bloqueio, 403
+    data = request.get_json(silent=True) or {}
+    component_type = str(data.get('component_type') or '').strip()
+    model_name = str(data.get('model_name') or '').strip()
+    if not component_type or not model_name:
+        return {'erro': 'Informe o tipo e o modelo do componente.'}, 400
+    existe = Produto.query.filter(
+        Produto.component_type == component_type,
+        db.func.lower(Produto.model_name) == model_name.lower(),
+    ).first()
+    if existe:
+        return {'id': existe.id, 'component_type': existe.component_type,
+                'model_name': existe.model_name, 'ja_existia': True}
+    p = Produto(component_type=component_type, model_name=model_name)
+    db.session.add(p)
+    db.session.commit()
+    return {'id': p.id, 'component_type': p.component_type,
+            'model_name': p.model_name, 'ja_existia': False}
+
+
 @produtos_bp.route('/api/listar')
 @login_required
 def api_listar():
@@ -172,3 +197,31 @@ def api_listar():
         q = q.filter_by(component_type=tipo)
     produtos = q.order_by(Produto.model_name).all()
     return [{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name, 'type_label': p.type_label()} for p in produtos]
+
+
+def ordem_atual():
+    """(chave, rótulo) dos componentes com produto no catálogo, na ordem vigente."""
+    com_produto = {
+        t for (t,) in db.session.query(Produto.component_type).distinct() if t
+    }
+    chaves = [k for k in COMPONENT_ORDER if k in com_produto]
+    chaves += sorted(t for t in com_produto if t not in chaves)
+    return [(k, COMPONENT_LABELS.get(k, k)) for k in chaves]
+
+
+@produtos_bp.route('/ordem', methods=['GET', 'POST'])
+@login_required
+def ordem():
+    bloqueio = master_required()
+    if bloqueio:
+        return bloqueio
+    if request.method == 'POST':
+        chaves = [k.strip() for k in request.form.getlist('ordem[]') if k.strip()]
+        TipoOrdem.query.delete()
+        for i, k in enumerate(chaves):
+            db.session.add(TipoOrdem(key=k, posicao=i))
+        db.session.commit()
+        aplicar_ordem_custom([(k, i) for i, k in enumerate(chaves)])
+        flash('Ordem dos componentes salva!', 'success')
+        return redirect(url_for('produtos.index'))
+    return render_template('produtos/ordem.html', itens=ordem_atual())

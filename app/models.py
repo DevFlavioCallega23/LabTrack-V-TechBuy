@@ -286,3 +286,13 @@ class ComponenteTipo(db.Model):
 
     def __repr__(self):
         return f'<ComponenteTipo {self.key}: {self.label}>'
+
+
+class TipoOrdem(db.Model):
+    """Ordem dos componentes definida pelo usuário em Produtos."""
+    __tablename__ = 'tipo_ordem'
+    key = db.Column(db.String(64), primary_key=True)
+    posicao = db.Column(db.Integer, nullable=False, default=0)
+
+    def __repr__(self):
+        return f'<TipoOrdem {self.key}: {self.posicao}>'

@@ -13,19 +13,22 @@
             <table class="table table-dark table-hover mb-0">
                 <thead>
                     <tr>
+                        <th>Registro</th>
                         <th>Componente</th>
-                        <th>Equipamento</th>
+                        <th>Modelo</th>
                         <th>Laudo</th>
                         <th>Defeitos</th>
                         <th>Entrada</th>
                         <th>Última Saída</th>
-                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in itens %}
                     {% set _pass = item.passagens|from_json if item.passagens else [] %}
                     <tr class="clickable-row" data-href="{{ url_for('estoque.detail', id=item.id) }}">
+                        <td>
+                            <strong>#{{ item.id }}</strong>
+                        </td>
                         <td>
                             {% if item.components %}
                             {% for c in item.components %}
@@ -41,7 +44,15 @@
                             -
                             {% endif %}
                         </td>
-                        <td>{{ item.equipamento or '-' }}</td>
+                        <td>
+                            {% if item.components %}
+                            {% for c in item.components %}
+                            <code>{{ c.specification or '-' }}</code>{% if not loop.last %}<br>{% endif %}
+                            {% endfor %}
+                            {% else %}
+                            <span class="text-secondary">-</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if item.laudo == 'OK' %}
                             <span class="badge bg-success">OK</span>
@@ -69,11 +80,6 @@
                             {% else %}
                             <span class="badge bg-success">Em uso</span>
                             {% endif %}
-                        </td>
-                        <td class="action-btns">
-                            <a href="{{ url_for('estoque.detail', id=item.id) }}" class="btn btn-sm btn-outline-secondary">
-                                <i class="bi bi-eye"></i>
-                            </a>
                         </td>
                     </tr>
                     {% else %}

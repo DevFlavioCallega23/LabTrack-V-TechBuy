@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models import Protocol, Defect, EstoqueUso
 from app.labels import (
-    DEFEITO_RESP_LABELS, DEFEITO_STATUS_LABELS,
+    DEFEITO_STATUS_LABELS,
     PROTO_TYPE_LABELS, peca_label,
 )
 
@@ -113,9 +113,8 @@ def build_defeitos_agrupados():
 def defeitos():
     q = request.args.get('q', '').strip().lower()
     f_status = request.args.get('status', '')
-    f_resp = request.args.get('resp', '')
     grupos = build_defeitos_agrupados()
-    if q or f_status or f_resp:
+    if q or f_status:
         def filtro(item):
             if q:
                 alvo = ' '.join(str(item.get(k, '') or '') for k in (
@@ -125,14 +124,12 @@ def defeitos():
                     return False
             if f_status and item.get('status', '') != f_status:
                 return False
-            if f_resp and item.get('responsavel', '') != f_resp:
-                return False
             return True
         for chave in grupos:
             grupos[chave] = [it for it in grupos[chave] if filtro(it)]
     return render_template('defeitos.html', grupos=grupos,
-        resp_labels=DEFEITO_RESP_LABELS, status_labels=DEFEITO_STATUS_LABELS,
-        q_filter=q, status_filtro=f_status, resp_filtro=f_resp)
+        status_labels=DEFEITO_STATUS_LABELS,
+        q_filter=q, status_filtro=f_status)
 
 @defeitos_bp.route('/exportar')
 @login_required
@@ -158,7 +155,7 @@ def exportar_defeitos_excel():
     )
 
     headers = ['Componente', 'Máquina', 'Modelo', 'NS', 'Defeito', 'Tipo',
-               'Responsável', 'Status', 'Cliente', 'Protocolo', 'Data Entrada', 'Fonte']
+               'Status', 'Cliente', 'Protocolo', 'Data Entrada', 'Fonte']
     ws.append(headers)
 
     for col_idx, _header in enumerate(headers, 1):
@@ -188,7 +185,6 @@ def exportar_defeitos_excel():
             item.get('serial', ''),
             item.get('desc', ''),
             tipo,
-            item.get('responsavel', ''),
             item.get('status', ''),
             item.get('cliente', ''),
             protocolo,
@@ -199,7 +195,7 @@ def exportar_defeitos_excel():
         for col_idx in range(1, len(row) + 1):
             ws.cell(row=len(ws['A']), column=col_idx).border = thin_border
 
-    col_widths = [18, 14, 18, 20, 25, 16, 14, 14, 18, 20, 14, 12]
+    col_widths = [18, 14, 18, 20, 25, 16, 14, 18, 20, 14, 12]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[chr(64 + i)].width = w
 

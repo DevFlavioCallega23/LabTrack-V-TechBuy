@@ -208,9 +208,8 @@ def build_component_types():
     """Build component types list from Produto table for dynamic dropdowns."""
     tipos_db = db.session.query(Produto.component_type).distinct().all()
     tipos_existentes = {t[0] for t in tipos_db}
-    default_order = ['processador', 'placa_mae', 'ram', 'ssd', 'fonte', 'placa_de_video', 'gpu', 'gabinete', 'monitor']
-    order = [t for t in default_order if t in tipos_existentes]
-    for t in tipos_existentes:
+    order = [t for t in Produto.TYPE_ORDER if t in tipos_existentes]
+    for t in sorted(tipos_existentes):
         if t not in order:
             order.append(t)
     labels = Produto.TYPE_LABELS

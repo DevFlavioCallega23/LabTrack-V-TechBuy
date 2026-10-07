@@ -201,15 +201,18 @@ def create_app():
             return []
 
     from app.labels import (
-        COMPONENT_LABELS, COMPONENT_OPTIONS, DEFEITO_RESP_BADGES, DEFEITO_RESP_LABELS,
-        DEFEITO_STATUS_BADGES, DEFEITO_STATUS_LABELS, PROTO_TYPE_LABELS, peca_label,
-        PROTO_TYPE_BADGES, PROTO_STATUS_LABELS, PROTO_STATUS_BADGES,
-        PROTO_FIELD_LABELS, PROTO_SECTION_TITLES,
+        COMPONENT_LABELS, COMPONENT_OPTIONS, COMPONENT_ORDER, DEFEITO_RESP_BADGES,
+        DEFEITO_RESP_LABELS, DEFEITO_STATUS_BADGES, DEFEITO_STATUS_LABELS,
+        DEFEITO_STATUS_TODOS,
+        PROTO_TYPE_LABELS, peca_label, PROTO_TYPE_BADGES, PROTO_STATUS_LABELS,
+        PROTO_STATUS_BADGES, PROTO_FIELD_LABELS, PROTO_SECTION_TITLES,
     )
     app.jinja_env.globals.update(
         COMP_LABELS=COMPONENT_LABELS,
         COMP_OPTIONS=COMPONENT_OPTIONS,
+        COMP_ORDER=COMPONENT_ORDER,
         DEFEITO_STATUS_LABELS=DEFEITO_STATUS_LABELS,
+        DEFEITO_STATUS_TODOS=DEFEITO_STATUS_TODOS,
         DEFEITO_STATUS_BADGES=DEFEITO_STATUS_BADGES,
         RESP_LABELS=DEFEITO_RESP_LABELS,
         RESP_BADGES=DEFEITO_RESP_BADGES,
@@ -245,10 +248,13 @@ def create_app():
         db.create_all()
         add_missing_columns()
         User.create_admin()
-        from app.models import ComponenteTipo
-        from app.labels import carregar_tipos_custom
+        from app.models import ComponenteTipo, TipoOrdem
+        from app.labels import carregar_tipos_custom, aplicar_ordem_custom
         carregar_tipos_custom(
             db.session.query(ComponenteTipo.key, ComponenteTipo.label).all()
+        )
+        aplicar_ordem_custom(
+            db.session.query(TipoOrdem.key, TipoOrdem.posicao).all()
         )
 
     return app

@@ -15,7 +15,7 @@
                 <label class="form-label"><i class="bi bi-search"></i> Buscar (NS, componente, defeito, protocolo, cliente)</label>
                 <input type="text" name="q" class="form-control" placeholder="Digite para buscar..." value="{{ q_filter }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <label class="form-label">Status do defeito</label>
                 <select name="status" class="form-select">
                     <option value="">Todos</option>
@@ -24,27 +24,13 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2">
-                <label class="form-label">Responsável</label>
-                <select name="resp" class="form-select">
-                    <option value="">Todos</option>
-                    {% for k, v in resp_labels.items() %}
-                    <option value="{{ k }}" {{ 'selected' if resp_filtro == k }}>{{ v }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3 d-flex gap-2">
+            <div class="col-md-4 d-flex gap-2">
                 <button type="submit" class="btn btn-outline-info flex-grow-1"><i class="bi bi-funnel"></i> Filtrar</button>
                 <a href="{{ url_for('defeitos.defeitos') }}" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
             </div>
         </form>
     </div>
 </div>
-
-{% macro resp_badge(r) %}
-{% if r %}<span class="badge {{ RESP_BADGES.get(r, 'bg-secondary') }}">{{ RESP_LABELS.get(r, r) }}</span>
-{% else %}<span class="text-secondary">-</span>{% endif %}
-{% endmacro %}
 
 {% macro tipo_badge(tipo, venda_pe) %}
 <span class="badge {{ PROTO_TYPE_BADGES.get(tipo, 'bg-secondary') }}">{{ PROTO_TYPE_LABELS.get(tipo, tipo) }}</span>{% if venda_pe %} <span class="badge bg-info">PE</span>{% endif %}
@@ -61,7 +47,6 @@
                 <th>NS</th>
                 <th>Defeito</th>
                 <th>Tipo</th>
-                <th>Responsável</th>
                 <th>Status</th>
                 <th>Cliente</th>
                 <th>Protocolo</th>
@@ -77,7 +62,6 @@
                 <td><code>{{ d.serial or '-' }}</code></td>
                 <td class="text-danger">{{ d.desc or '-' }}</td>
                 <td>{{ tipo_badge(d.tipo, d.venda_pe) }}</td>
-                <td>{{ resp_badge(d.responsavel) }}</td>
                 <td style="white-space:nowrap">
                     {% if d.protocolo_status %}<span class="badge {{ PROTO_STATUS_BADGES.get(d.protocolo_status, 'bg-secondary') }}">{{ PROTO_STATUS_LABELS.get(d.protocolo_status, d.protocolo_status) }}</span>
                     {% else %}<span class="text-secondary">-</span>{% endif %}
@@ -99,7 +83,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="11" class="text-center text-secondary">Nenhum defeito nesta situação.</td>
+                <td colspan="10" class="text-center text-secondary">Nenhum defeito nesta situação.</td>
             </tr>
             {% endfor %}
         </tbody>

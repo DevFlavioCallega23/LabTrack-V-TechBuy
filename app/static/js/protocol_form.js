@@ -38,7 +38,6 @@ const CFG = {
     winKeys: safeParse(PF.winKeys, []),
     passagens: safeParse(PF.passagens, null),
     statusOptions: mapFromPairs(PF.statusOptions),
-    respOptions: mapFromPairs(PF.respOptions),
     titles: PF.titles || {},
     fields: PF.fields || {}
 };
@@ -59,9 +58,7 @@ function optionsSelectedHtml(map, selected) {
 let COMP_TYPES_DB = CFG.compTypes;
 let produtosCatalogo = CFG.produtos;
 const STATUS_OPTS = optionsHtml(CFG.statusOptions);
-const RESP_OPTS = optionsHtml(CFG.respOptions);
 const statusOptsSelected = function(sel) { return optionsSelectedHtml(CFG.statusOptions, sel); };
-const respOptsSelected = function(sel) { return optionsSelectedHtml(CFG.respOptions, sel); };
 
 const COMP_LABELS = {};
 const COMP_ORDER = [];
@@ -114,6 +111,11 @@ function loadCatalogSelect(typeSelect, modelInput, produtoIdInput) {
 function updateModelOptions(typeSelect, modelInput, produtoIdInput) {
     if (!modelInput || !typeSelect) return;
     const tipo = typeSelect.value;
+    modelInput.onchange = function() {
+        const v = (modelInput.value || '').trim();
+        if (!v || !tipo) return;
+        tentarAdicionarModelo(tipo, v, produtosCatalogo, modelInput, produtoIdInput);
+    };
     const produtos = produtosCatalogo.filter(p => p.component_type === tipo);
     if (produtos.length === 0) {
         modelInput.placeholder = 'Modelo não encontrado no catálogo';
@@ -159,6 +161,111 @@ function syncDefectMachines() {
         if (cur) sel.value = cur;
     });
 }
+
+// Ao escolher Máquina + Componente no defeito, copia o Modelo da linha da
+// máquina (mesmo modelo, sem limpar lá) e move o NS: ele vai pro defeito e a
+// máquina fica com NS vazio pro novo componente.
+function syncDefeitoNs(tr) {
+    if (!tr) return;
+    const selMaquina = tr.querySelector('select[name="defect_maquina[]"]');
+    const selTipo = tr.querySelector('select[name="defect_type[]"]');
+    const inpNs = tr.querySelector('input[name="defect_serial[]"]');
+    const inpModelo = tr.querySelector('input[name="defect_model[]"]');
+    if (!selMaquina || !selTipo || !inpNs) return;
+    const nomeDefeito = selMaquina.value;
+    const tipo = selTipo.value;
+    if (!nomeDefeito || !tipo) return;
+
+    let unit = null;
+    document.querySelectorAll('input[name^="machine_name_"]').forEach(function(inp) {
+        const m = inp.name.match(/^machine_name_(.+)$/);
+        if (!m || unit !== null) return;
+        const nomeMaq = (inp.value || '').trim();
+        if (!nomeMaq) return;
+        if (nomeDefeito === nomeMaq ||
+            nomeDefeito === nomeMaq + ' (unid. ' + m[1] + ')') {
+            unit = m[1];
+        }
+    });
+    if (unit === null) return;
+
+    const tipos = document.querySelectorAll('select[name="comp_type_' + unit + '[]"]');
+    for (let i = 0; i < tipos.length; i++) {
+        if (tipos[i].value !== tipo) continue;
+        const linha = tipos[i].closest('tr');
+        const serial = linha && linha.querySelector(
+            'input[name="comp_serial_' + unit + '[]"]');
+        const modelo = linha && linha.querySelector(
+            'input[name="comp_model_' + unit + '[]"]');
+        if (inpModelo && modelo && modelo.value.trim()) {
+            inpModelo.value = modelo.value;
+        }
+        if (!serial || !serial.value.trim()) continue;
+        inpNs.value = serial.value;
+        serial.value = '';
+        break;
+    }
+}
+
+document.addEventListener('change', function(e) {
+    const alvo = e.target;
+    if (!alvo || !alvo.name) return;
+    if (alvo.name === 'defect_maquina[]' || alvo.name === 'defect_type[]') {
+        syncDefeitoNs(alvo.closest('tr'));
+    }
+});
+
+// Componentes registrados neste protocolo (máquinas, RMA e trocados).
+function compRegistradosTipos() {
+    const set = new Set();
+    document.querySelectorAll(
+        '#machinesContainer select[name^="comp_type_"], ' +
+        '#rmaMachinesContainer select[name^="rma_comp_type_"], ' +
+        '#rmaTrocadosContainer select[name^="trocado_comp_type_"]'
+    ).forEach(function(sel) {
+        if (sel.value) set.add(sel.value);
+    });
+    return set;
+}
+
+// Opções do select "Componente com Defeito": só o que está no protocolo
+// (mais o valor já escolhido na linha, pra não perder dado salvo).
+function defectOptsHtml(selected) {
+    const set = compRegistradosTipos();
+    if (selected) set.add(selected);
+    const keys = COMP_ORDER.filter(function(k) { return set.has(k); });
+    set.forEach(function(k) { if (keys.indexOf(k) === -1) keys.push(k); });
+    let html = '<option value="">-- Selecione --</option>';
+    keys.forEach(function(k) {
+        html += `<option value="${escHtml(k)}"${selected === k ? ' selected' : ''}>` +
+            `${escHtml(COMP_LABELS[k] || k)}</option>`;
+    });
+    return html;
+}
+
+function syncDefectTipos() {
+    document.querySelectorAll('#defectsTable select[name="defect_type[]"]')
+        .forEach(function(sel) {
+            sel.innerHTML = defectOptsHtml(sel.value);
+        });
+}
+
+let defectTiposPending = false;
+function scheduleSyncDefectTipos() {
+    if (defectTiposPending) return;
+    defectTiposPending = true;
+    setTimeout(function() {
+        defectTiposPending = false;
+        syncDefectTipos();
+    }, 0);
+}
+
+document.addEventListener('change', function(e) {
+    if (e.target && e.target.closest &&
+        e.target.closest('#machinesContainer, #rmaMachinesContainer, #rmaTrocadosContainer')) {
+        scheduleSyncDefectTipos();
+    }
+});
 document.addEventListener('input', function(e) {
     if (e.target && e.target.name && e.target.name.indexOf('machine_name_') === 0) {
         syncDefectMachines();
@@ -831,8 +938,7 @@ function loadMachines(data) {
 
 function addDefectRow() {
     const tbody = document.querySelector('#defectsTable tbody');
-    const opts = '<option value="">-- Selecione --</option>' +
-        Object.entries(COMP_LABELS).map(([k, v]) => `<option value="${escHtml(k)}">${escHtml(v)}</option>`).join('');
+    const opts = defectOptsHtml('');
     const tr = document.createElement('tr');
     tr.className = 'defect-row';
     tr.innerHTML = `
@@ -841,12 +947,6 @@ function addDefectRow() {
         <td><input type="text" name="defect_model[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..."></td>
         <td><input type="text" name="defect_serial[]" class="form-control form-control-sm" placeholder="NS do componente com defeito"></td>
         <td><input type="text" name="defect_desc[]" class="form-control form-control-sm" placeholder="Ex: Não liga, não dá vídeo..."></td>
-        <td>
-            <select name="defect_resp[]" class="form-select form-select-sm">
-                <option value=\"\">--</option>
-                ${RESP_OPTS}
-            </select>
-        </td>
         <td>
             <select name="defect_status[]" class="form-select form-select-sm">
                 <option value=\"\">--</option>
@@ -1066,6 +1166,15 @@ document.addEventListener('DOMContentLoaded', function() {
     loadRmaTestItems(CFG.rmaTestData);
     syncRmaTestMachines();
     loadRmaTrocadosItems(CFG.rmaTrocados);
+
+    syncDefectTipos();
+    ['#machinesContainer', '#rmaMachinesContainer', '#rmaTrocadosContainer'].forEach(function(sel) {
+        const el = document.querySelector(sel);
+        if (el && typeof MutationObserver !== 'undefined') {
+            new MutationObserver(function() { scheduleSyncDefectTipos(); })
+                .observe(el, { childList: true, subtree: true });
+        }
+    });
 
     function toggleWindowsKeys() {
         const checked = document.getElementById('toggleWindowsKeys').checked;

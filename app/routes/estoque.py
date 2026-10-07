@@ -2,9 +2,37 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required
 from sqlalchemy.orm import selectinload
 from app import db
-from app.models import EstoqueUso, Defect, Component
+from app.models import EstoqueUso, Defect, Component, Produto
 from app.decorators import master_required
 import json
+
+
+def produtos_catalogo_json():
+    """Catálogo de produtos no mesmo formato usado pelos protocolos."""
+    return json.dumps([
+        {'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name}
+        for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()
+    ], ensure_ascii=False)
+
+
+def componentes_select(item=None):
+    """(chave, rótulo) apenas dos tipos com produto no catálogo.
+
+    Registros antigos com tipo fora do catálogo entram no fim para a
+    edição não perder a informação.
+    """
+    from app.labels import COMPONENT_LABELS, COMPONENT_ORDER
+    tipos = {t for (t,) in db.session.query(Produto.component_type).distinct() if t}
+    atuais = set()
+    if item:
+        atuais = {c.component_type for c in item.components if c.component_type}
+        atuais |= {d.component_type for d in item.defeitos if d.component_type}
+        if item.tipo_componente:
+            atuais.add(item.tipo_componente)
+    ordem = [t for t in COMPONENT_ORDER if t in tipos]
+    ordem += sorted(t for t in tipos if t not in ordem)
+    ordem += sorted(atuais - set(ordem))
+    return [(t, COMPONENT_LABELS.get(t, t)) for t in ordem]
 
 estoque_bp = Blueprint('estoque', __name__, url_prefix='/estoque')
 
@@ -48,12 +76,15 @@ def parse_estoque_components(request_form):
     types = request_form.getlist('comp_type[]')
     models = request_form.getlist('comp_model[]')
     serials = request_form.getlist('comp_serial[]')
+    pids = request_form.getlist('comp_product_id[]')
     for i in range(len(types)):
         if types[i].strip():
+            pid = pids[i].strip() if i < len(pids) else ''
             components.append(Component(
                 component_type=types[i].strip(),
                 specification=models[i].strip() if i < len(models) else '',
                 serial_number=serials[i].strip() if i < len(serials) else '',
+                product_id=int(pid) if pid.isdigit() else None,
                 sort_order=i
             ))
     return components
@@ -122,7 +153,9 @@ def novo():
         db.session.commit()
         flash('Registro de uso criado!', 'success')
         return redirect(url_for('estoque.detail', id=item.id))
-    return render_template('estoque/form.html', item=None)
+    return render_template('estoque/form.html', item=None,
+                           produtos_catalogo=produtos_catalogo_json(),
+                           componentes_select=componentes_select())
 
 
 @estoque_bp.route('/<int:id>')
@@ -166,7 +199,9 @@ def editar(id):
         db.session.commit()
         flash('Registro atualizado!', 'success')
         return redirect(url_for('estoque.detail', id=item.id))
-    return render_template('estoque/form.html', item=item)
+    return render_template('estoque/form.html', item=item,
+                           produtos_catalogo=produtos_catalogo_json(),
+                           componentes_select=componentes_select(item))
 
 
 @estoque_bp.route('/<int:id>/excluir', methods=['POST'])

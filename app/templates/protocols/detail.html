@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3><i class="bi bi-file-text"></i> Protocolo {{ protocol.protocol_number }}</h3>
@@ -9,7 +9,7 @@
             <select class="form-select form-select-sm status-select" data-id="{{ protocol.id }}" data-original="{{ protocol.status }}" style="width:auto">
                 <option value="pendente" {{ 'selected' if protocol.status == 'pendente' }}>Pendente</option>
                 <option value="andamento" {{ 'selected' if protocol.status == 'andamento' }}>Em Andamento</option>
-                <option value="concluido" {{ 'selected' if protocol.status == 'concluido' }}>Concluído</option>
+                <option value="concluido" {{ 'selected' if protocol.status == 'concluido' }}>ConcluÃ­do</option>
                 <option value="cancelado" {{ 'selected' if protocol.status == 'cancelado' }}>Cancelado</option>
             </select>
         </div>
@@ -36,14 +36,14 @@
         {% if protocol.seller and protocol.seller != 'NIL' %}{% set _ = wa_parts.append('_Vendedor:_ ' + protocol.seller) %}{% endif %}
         {% set _ = wa_parts.append('_Status do protocolo:_ ' + (protocol.status_label() or '-')) %}
         {% if protocol.type in ('rma', 'servico') %}
-            {% if protocol.rma_in_warranty is not none %}{% set _ = wa_parts.append('_Garantia:_ ' + ('Sim, coberto pela garantia' if protocol.rma_in_warranty else 'Não, fora da garantia')) %}{% endif %}
+            {% if protocol.rma_in_warranty is not none %}{% set _ = wa_parts.append('_Garantia:_ ' + ('Sim, coberto pela garantia' if protocol.rma_in_warranty else 'NÃ£o, fora da garantia')) %}{% endif %}
             {% if protocol.original_order or protocol.order_number %}{% set _ = wa_parts.append('_Pedido:_ ' + (protocol.original_order or protocol.order_number)) %}{% endif %}
-            {% if protocol.rma_entry_date %}{% set _ = wa_parts.append('_Entrada no laboratório:_ ' + protocol.rma_entry_date.strftime('%d/%m/%Y')) %}{% endif %}
+            {% if protocol.rma_entry_date %}{% set _ = wa_parts.append('_Entrada no laboratÃ³rio:_ ' + protocol.rma_entry_date.strftime('%d/%m/%Y')) %}{% endif %}
             {% if protocol.entry_date %}{% set _ = wa_parts.append('_Data da compra:_ ' + protocol.entry_date.strftime('%d/%m/%Y')) %}{% endif %}
-            {% if protocol.exit_date %}{% set _ = wa_parts.append('_Saída:_ ' + protocol.exit_date.strftime('%d/%m/%Y')) %}{% endif %}
+            {% if protocol.exit_date %}{% set _ = wa_parts.append('_SaÃ­da:_ ' + protocol.exit_date.strftime('%d/%m/%Y')) %}{% endif %}
         {% elif protocol.type == 'nao_comprado' %}
             {% if protocol.entry_date %}{% set _ = wa_parts.append('_Data de entrada:_ ' + protocol.entry_date.strftime('%d/%m/%Y')) %}{% endif %}
-            {% if protocol.exit_date %}{% set _ = wa_parts.append('_Saída:_ ' + protocol.exit_date.strftime('%d/%m/%Y')) %}{% endif %}
+            {% if protocol.exit_date %}{% set _ = wa_parts.append('_SaÃ­da:_ ' + protocol.exit_date.strftime('%d/%m/%Y')) %}{% endif %}
         {% elif protocol.type in ('venda', 'ponta_entrega') %}
             {% if protocol.order_number or protocol.original_order %}{% set _ = wa_parts.append('_Pedido:_ ' + (protocol.order_number or protocol.original_order)) %}{% endif %}
         {% endif %}
@@ -51,7 +51,7 @@
             {% set rma_test = protocol.rma_test_result|from_json %}
             {% if rma_test %}
                 {% set _ = wa_parts.append('') %}
-                {% set _ = wa_parts.append('*Itens enviados ao laboratório:*') %}
+                {% set _ = wa_parts.append('*Itens enviados ao laboratÃ³rio:*') %}
                 {% set wa_machines = [] %}
                 {% for item in rma_test %}
                     {% if item.machine and item.machine not in wa_machines %}
@@ -70,11 +70,11 @@
                             {% set comp = COMP_LABELS.get(item.component, '') if item.component and item.component != 'outro' and (item.component.lower() not in (item.model or '').lower()) else '' %}
                             {% set nome = (comp + ' ' if comp else '') + ((item.model or '').strip()) %}
                             {% if not nome %}{% set nome = 'Item ' + (idx|length|string) %}{% endif %}
-                            {% set st = DEFEITO_STATUS_LABELS.get(item.status, item.status or 'Em análise') %}
+                            {% set st = DEFEITO_STATUS_TODOS.get(item.status, item.status or 'Em anÃ¡lise') %}
                             {% if item.pedido and item.data_compra %}{% set origem = ' (compra em ' + item.data_compra.strip() + ')' %}{% else %}{% set origem = '' %}{% endif %}
                             {% set _ = wa_parts.append((idx|length|string) + ') *' + nome + '*') %}
                             {% if item.defeito %}{% set _ = wa_parts.append('   Defeito: ' + item.defeito.strip()) %}{% endif %}
-                            {% set _ = wa_parts.append('   Situação: ' + st) %}
+                            {% set _ = wa_parts.append('   SituaÃ§Ã£o: ' + st) %}
                         {% endfor %}
                     {% endfor %}
                 {% else %}
@@ -84,18 +84,18 @@
                         {% set comp = COMP_LABELS.get(item.component, '') if item.component and item.component != 'outro' and (item.component.lower() not in (item.model or '').lower()) else '' %}
                         {% set nome = (comp + ' ' if comp else '') + ((item.model or '').strip()) %}
                         {% if not nome %}{% set nome = 'Item ' + (loop.index|string) %}{% endif %}
-                        {% set st = DEFEITO_STATUS_LABELS.get(item.status, item.status or 'Em análise') %}
+                        {% set st = DEFEITO_STATUS_TODOS.get(item.status, item.status or 'Em anÃ¡lise') %}
                         {% if item.pedido and item.data_compra %}{% set origem = ' (compra em ' + item.data_compra.strip() + ')' %}{% else %}{% set origem = '' %}{% endif %}
                         {% set _ = wa_parts.append('') %}
                         {% set _ = wa_parts.append((loop.index|string) + ') *' + nome + '*') %}
                         {% set _ = wa_parts.append('   Pedido: ' + ped + origem) %}
                         {% set _ = wa_parts.append('   NS: ' + ns) %}
                         {% if item.defeito %}{% set _ = wa_parts.append('   Defeito: ' + item.defeito.strip()) %}{% endif %}
-                        {% set _ = wa_parts.append('   Situação: ' + st) %}
+                        {% set _ = wa_parts.append('   SituaÃ§Ã£o: ' + st) %}
                     {% endfor %}
                 {% endif %}
                 {% set _ = wa_parts.append('') %}
-                {% set _ = wa_parts.append('Total: ' + (rma_test|length|string) + ' item(ns) em análise.') %}
+                {% set _ = wa_parts.append('Total: ' + (rma_test|length|string) + ' item(ns) em anÃ¡lise.') %}
             {% endif %}
         {% endif %}
         {% if protocol.rma_passagens and protocol.type in ('rma', 'servico') %}
@@ -110,7 +110,7 @@
                     {% if pas.ns_novo %}{% set _ = bits.append('Novo NS ' ~ pas.ns_novo) %}{% endif %}
                     {% if pas.pedido %}{% set _ = bits.append('Pedido ' ~ pas.pedido) %}{% endif %}
                     {% if pas.data_entrada %}{% set _ = bits.append('Entrada ' ~ pas.data_entrada) %}{% endif %}
-                    {% if pas.data_saida %}{% set _ = bits.append('Saída ' ~ pas.data_saida) %}{% endif %}
+                    {% if pas.data_saida %}{% set _ = bits.append('SaÃ­da ' ~ pas.data_saida) %}{% endif %}
                     {% if not bits %}{% set _ = bits.append('Passagem sem detalhes') %}{% endif %}
                     {% set _ = wa_parts.append('- ' + bits|join(' | ')) %}
                 {% endfor %}
@@ -168,7 +168,7 @@
             {% set comps_by_unit = protocol.components|sort(attribute='sort_order')|groupby('unit') %}
             {% for unit_group in comps_by_unit %}
                 {% set first = unit_group.list[0] %}
-                {% set _ = wa_parts.append('*' + (first.machine_name or 'Máquina ' + unit_group.grouper) + ':*') %}
+                {% set _ = wa_parts.append('*' + (first.machine_name or 'MÃ¡quina ' + unit_group.grouper) + ':*') %}
                 {% for comp in unit_group.list %}
                     {% set cl = COMP_LABELS.get(comp.component_type, comp.component_type or '') %}
                     {% set _ = wa_parts.append('- ' + cl + ' ' + (comp.specification or '') + ' | NS: ' + (comp.serial_number or 'sem NS')) %}
@@ -237,7 +237,7 @@
 <div class="row g-3">
     <div class="col-md-8">
         <div class="card h-100">
-            <div class="card-header"><i class="bi bi-info-circle"></i> Informações do Protocolo</div>
+            <div class="card-header"><i class="bi bi-info-circle"></i> InformaÃ§Ãµes do Protocolo</div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-3">
@@ -274,8 +274,8 @@
                     {% endif %}
                     {% if protocol.type not in ('rma', 'servico', 'ponta_entrega', 'nao_comprado') %}
                     <div class="col-md-2">
-                        <label class="text-secondary small d-block">Nº do Pedido</label>
-                        <strong>{{ protocol.order_number if protocol.order_number else 'Não Informado ao Laboratório' }}</strong>
+                        <label class="text-secondary small d-block">NÂº do Pedido</label>
+                        <strong>{{ protocol.order_number if protocol.order_number else 'NÃ£o Informado ao LaboratÃ³rio' }}</strong>
                     </div>
                     {% endif %}
                     <div class="col-md-2">
@@ -284,11 +284,11 @@
                     </div>
                     {% if protocol.type != 'rma' and protocol.windows_keys %}
                     <div class="col-12 mt-2">
-                        <label class="text-secondary small d-block mb-1"><i class="bi bi-windows"></i> Ativação Windows</label>
+                        <label class="text-secondary small d-block mb-1"><i class="bi bi-windows"></i> AtivaÃ§Ã£o Windows</label>
                         {% for wk in protocol.windows_keys|sort(attribute='sort_order') %}
                         <div class="d-flex align-items-center gap-2 mb-1">
                             <code class="small">{{ wk.chave }}</code>
-                            {% if wk.fonte %}<span class="text-secondary small">— NS: <code class="small">{{ wk.fonte }}</code></span>{% endif %}
+                            {% if wk.fonte %}<span class="text-secondary small">â€” NS: <code class="small">{{ wk.fonte }}</code></span>{% endif %}
                             {% if wk.ativo %}
                             <span class="badge bg-success" style="font-size:9px">Ativo</span>
                             {% else %}
@@ -303,7 +303,7 @@
                 {% if protocol.ref_ns %}
                 <hr>
                 <div class="mb-2">
-                    <label class="text-secondary small d-block">Referência NS</label>
+                    <label class="text-secondary small d-block">ReferÃªncia NS</label>
                     <strong><code>{{ protocol.ref_ns }}</code></strong>
                 </div>
                 {% endif %}
@@ -319,7 +319,7 @@
                 {% if protocol.rma_in_warranty is not none and protocol.type in ('rma', 'servico') %}
                 <div class="mb-2">
                     <label class="text-secondary small d-block">Na Garantia?</label>
-                    <strong>{{ 'Sim' if protocol.rma_in_warranty else 'Não' }}</strong>
+                    <strong>{{ 'Sim' if protocol.rma_in_warranty else 'NÃ£o' }}</strong>
                 </div>
                 {% endif %}
                 {% if protocol.rma_equip_itens %}
@@ -336,7 +336,7 @@
                                     <tr>
                                         <th>Componente</th>
                                         <th>Modelo</th>
-                                        <th>Nº de Série</th>
+                                        <th>NÂº de SÃ©rie</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -425,17 +425,17 @@
                     {% for unit_group in comps_by_unit %}
                     {% set first = unit_group.list[0] %}
                     <div class="mb-3">
-                        <strong class="text-info"><i class="bi bi-pc-display"></i> {{ first.machine_name or 'Máquina ' + unit_group.grouper }}</strong>
+                        <strong class="text-info"><i class="bi bi-pc-display"></i> {{ first.machine_name or 'MÃ¡quina ' + unit_group.grouper }}</strong>
                         {% if first.is_prebuilt %}
                         <span class="badge bg-warning text-dark ms-2">PE</span>
                         {% endif %}
                         <div class="mt-1 small text-secondary">
-                            <strong>Cabo de Força:</strong>
+                            <strong>Cabo de ForÃ§a:</strong>
                             {% set pc_data = protocol.get_power_cables() %}
                             {% set unit_pc = pc_data.get(unit_group.grouper, {}) %}
                             {% set pc_val = unit_pc.get('cable', 'OK') %}
-                            {% if pc_val in ('Vai sem cabo de força', 'Foi sem Cabo de Força') %}
-                            <span class="text-warning">Foi sem Cabo de Força</span>
+                            {% if pc_val in ('Vai sem cabo de forÃ§a', 'Foi sem Cabo de ForÃ§a') %}
+                            <span class="text-warning">Foi sem Cabo de ForÃ§a</span>
                             {% else %}
                             {{ pc_val }}
                             {% endif %}
@@ -446,7 +446,7 @@
                                     <tr>
                                         <th>Componente</th>
                                         <th>Modelo</th>
-                                        <th>Nº de Série</th>
+                                        <th>NÂº de SÃ©rie</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -499,9 +499,8 @@
                                         <tr>
                                             <th>Componente</th>
                                             <th>Modelo</th>
-                                            <th>Nº Série</th>
+                                            <th>NÂº SÃ©rie</th>
                                             <th>Defeito</th>
-                                            <th>Responsável</th>
                                             <th>Status</th>
                                         </tr>
                                     </thead>
@@ -513,10 +512,7 @@
                                             <td><code>{{ defect.serial_number or '-' }}</code></td>
                                             <td class="text-danger">{{ defect.description or '-' }}</td>
                                             <td>
-                                                {% if defect.responsavel %}<span class="badge {{ RESP_BADGES.get(defect.responsavel, 'bg-secondary') }}">{{ RESP_LABELS.get(defect.responsavel, defect.responsavel) }}</span>{% else %}<span class="text-secondary">-</span>{% endif %}
-                                            </td>
-                                            <td>
-                                                {% if defect.defeito_status %}<span class="badge {{ DEFEITO_STATUS_BADGES.get(defect.defeito_status, 'bg-secondary') }}">{{ DEFEITO_STATUS_LABELS.get(defect.defeito_status, defect.defeito_status) }}</span>{% else %}<span class="text-secondary">-</span>{% endif %}
+                                                {% if defect.defeito_status %}<span class="badge {{ DEFEITO_STATUS_BADGES.get(defect.defeito_status, 'bg-secondary') }}">{{ DEFEITO_STATUS_TODOS.get(defect.defeito_status, defect.defeito_status) }}</span>{% else %}<span class="text-secondary">-</span>{% endif %}
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -531,11 +527,10 @@
                             <thead>
                                 <tr>
                                     <th>Componente</th>
-                                    <th>Máquina</th>
+                                    <th>MÃ¡quina</th>
                                     <th>Modelo</th>
-                                    <th>Nº Série</th>
+                                    <th>NÂº SÃ©rie</th>
                                     <th>Defeito</th>
-                                    <th>Responsável</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
@@ -548,10 +543,7 @@
                                     <td><code>{{ defect.serial_number or '-' }}</code></td>
                                     <td class="text-danger">{{ defect.description or '-' }}</td>
                                     <td>
-                                        {% if defect.responsavel %}<span class="badge {{ RESP_BADGES.get(defect.responsavel, 'bg-secondary') }}">{{ RESP_LABELS.get(defect.responsavel, defect.responsavel) }}</span>{% else %}<span class="text-secondary">-</span>{% endif %}
-                                    </td>
-                                    <td>
-                                        {% if defect.defeito_status %}<span class="badge {{ DEFEITO_STATUS_BADGES.get(defect.defeito_status, 'bg-secondary') }}">{{ DEFEITO_STATUS_LABELS.get(defect.defeito_status, defect.defeito_status) }}</span>{% else %}<span class="text-secondary">-</span>{% endif %}
+                                        {% if defect.defeito_status %}<span class="badge {{ DEFEITO_STATUS_BADGES.get(defect.defeito_status, 'bg-secondary') }}">{{ DEFEITO_STATUS_TODOS.get(defect.defeito_status, defect.defeito_status) }}</span>{% else %}<span class="text-secondary">-</span>{% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -581,7 +573,7 @@
                                     <tr>
                                         <th>Componente</th>
                                         <th>Modelo</th>
-                                        <th>Nº de Série</th>
+                                        <th>NÂº de SÃ©rie</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -612,7 +604,7 @@
                                 <tr>
                                     <th>Protocolo</th>
                                     <th>Data Entrada</th>
-                                    <th>Data Saída</th>
+                                    <th>Data SaÃ­da</th>
                                     <th>Pedido do produto com defeito</th>
                                     <th>NS Produto com Defeito</th>
                                     <th>NS Novo Produto</th>
@@ -639,7 +631,7 @@
                 {% if protocol.observations %}
                 <hr>
                 <div>
-                    <label class="text-secondary small d-block mb-2">Observações</label>
+                    <label class="text-secondary small d-block mb-2">ObservaÃ§Ãµes</label>
                     <div class="p-3 bg-dark rounded">
                         {{ protocol.observations | nl2br }}
                     </div>
@@ -670,7 +662,7 @@
                 {% endif %}
                 {% if protocol.exit_date %}
                 <div class="mb-3">
-                    <label class="text-secondary small d-block">Data de Saída</label>
+                    <label class="text-secondary small d-block">Data de SaÃ­da</label>
                     <strong>{{ protocol.exit_date.strftime('%d/%m/%Y') }}</strong>
                 </div>
                 {% endif %}
@@ -679,7 +671,7 @@
                     <strong>{{ protocol.created_at.strftime('%d/%m/%Y') }}</strong>
                 </div>
                 <div class="mb-3">
-                    <label class="text-secondary small d-block">Última atualização</label>
+                    <label class="text-secondary small d-block">Ãšltima atualizaÃ§Ã£o</label>
                     <strong>{{ protocol.updated_at.strftime('%d/%m/%Y') }}</strong>
                 </div>
             </div>
@@ -691,7 +683,7 @@
 
 <script>
 function confirmDelete(id, protocolNumber) {
-    if (confirm(`Tem certeza que deseja excluir o protocolo ${protocolNumber}? Esta ação não pode ser desfeita.`)) {
+    if (confirm(`Tem certeza que deseja excluir o protocolo ${protocolNumber}? Esta aÃ§Ã£o nÃ£o pode ser desfeita.`)) {
         var form = document.getElementById('deleteForm');
         form.action = '/protocolos/' + id + '/excluir';
         form.submit();
@@ -713,7 +705,7 @@ document.querySelectorAll('.status-select').forEach(function(sel) {
                 this.value = this.dataset.original;
             }
         }.bind(this)).catch(function() {
-            alert('Erro de conexão ao atualizar status.');
+            alert('Erro de conexÃ£o ao atualizar status.');
             this.value = this.dataset.original;
         }.bind(this));
     });

@@ -16,15 +16,6 @@
 
     <div class="card mb-4">
         <div class="card-body">
-            <h6 class="text-secondary border-bottom pb-2 mb-3"><i class="bi bi-laptop"></i> Equipamento</h6>
-            <input type="text" name="equipamento" class="form-control"
-                   placeholder="Ex: Notebook Dell Inspiron, Desktop Gamer..."
-                   value="{{ item.equipamento if item and item.equipamento and item.equipamento != '-' else '' }}">
-        </div>
-    </div>
-
-    <div class="card mb-4">
-        <div class="card-body">
             <h6 class="text-secondary border-bottom pb-2 mb-3">
                 <i class="bi bi-cpu"></i> Componente
                 <button type="button" class="btn btn-sm btn-outline-success ms-2" onclick="addEstoqueCompRow()">
@@ -48,10 +39,11 @@
                                 <td>
                                     <select name="comp_type[]" class="form-select form-select-sm">
                                         <option value="">-- Selecione --</option>
-                                        {% for val, label in COMP_LABELS.items() %}
+                                        {% for val, label in componentes_select %}
                                         <option value="{{ val }}" {{ 'selected' if c.component_type == val }}>{{ label }}</option>
                                         {% endfor %}
                                     </select>
+                                    <input type="hidden" name="comp_product_id[]" value="{{ c.product_id or '' }}">
                                 </td>
                                 <td><input type="text" name="comp_model[]" class="form-control form-control-sm" value="{{ c.specification or '' }}" placeholder="Modelo"></td>
                                 <td><input type="text" name="comp_serial[]" class="form-control form-control-sm" value="{{ c.serial_number or '' }}" placeholder="Nº de Série"></td>
@@ -149,8 +141,8 @@
                                 <td>
                                     <select name="defect_type[]" class="form-select form-select-sm">
                                         <option value="">-- Selecione --</option>
-                                        {% for k, v in COMP_LABELS.items() %}
-                                        <option value="{{ k }}" {{ 'selected' if d.component_type == k }}>{{ v }}</option>
+                                        {% for k, label in componentes_select %}
+                                        <option value="{{ k }}" {{ 'selected' if d.component_type == k }}>{{ label }}</option>
                                         {% endfor %}
                                     </select>
                                 </td>
@@ -181,19 +173,82 @@
 
 <script>
 var COMP_LABELS_JS = {{ COMP_LABELS | tojson }};
-var COMP_OPTS = '<option value="">-- Selecione --</option>' +
-    Object.entries(COMP_LABELS_JS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+var COMP_ORDER_JS = {{ COMP_ORDER | tojson }};
+var produtosCatalogo = {{ produtos_catalogo | safe }};
+
+function escAttr(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+}
+
+function catalogTipoOpts(selected) {
+    var chaves = [...new Set(produtosCatalogo.map(p => p.component_type))];
+    var ordem = COMP_ORDER_JS.filter(k => chaves.includes(k));
+    chaves.filter(k => !ordem.includes(k)).forEach(k => ordem.push(k));
+    if (selected && !ordem.includes(selected)) ordem.unshift(selected);
+    return '<option value="">-- Selecione --</option>' +
+        ordem.map(k => `<option value="${escAttr(k)}"${k === selected ? ' selected' : ''}>${escAttr(COMP_LABELS_JS[k] || k)}</option>`).join('');
+}
+
+function updateEstoqueModelOptions(typeSelect, modelInput, produtoIdInput) {
+    if (!modelInput || !typeSelect) return;
+    var tipo = typeSelect.value;
+    modelInput.onchange = function() {
+        var v = (modelInput.value || '').trim();
+        if (!v || !tipo) return;
+        tentarAdicionarModelo(tipo, v, produtosCatalogo, modelInput, produtoIdInput);
+    };
+    var produtos = produtosCatalogo.filter(p => p.component_type === tipo);
+    if (!produtos.length) {
+        modelInput.removeAttribute('list');
+        modelInput.placeholder = 'Modelo';
+        if (produtoIdInput) produtoIdInput.value = '';
+        return;
+    }
+    var datalistId = 'dl_' + typeSelect.name + '_' + Math.random().toString(36).substr(2, 9);
+    var datalist = document.getElementById(datalistId);
+    if (!datalist) {
+        datalist = document.createElement('datalist');
+        datalist.id = datalistId;
+        document.body.appendChild(datalist);
+    }
+    datalist.innerHTML = '';
+    produtos.forEach(function(p) {
+        var o = document.createElement('option');
+        o.value = p.model_name;
+        datalist.appendChild(o);
+    });
+    modelInput.setAttribute('list', datalistId);
+    modelInput.placeholder = 'Selecione ou digite...';
+    modelInput.oninput = function() {
+        var match = produtos.find(p => p.model_name.toLowerCase() === modelInput.value.toLowerCase());
+        if (produtoIdInput) produtoIdInput.value = match ? match.id : '';
+    };
+    var match = produtos.find(p => p.model_name.toLowerCase() === modelInput.value.toLowerCase());
+    if (produtoIdInput) produtoIdInput.value = match ? match.id : '';
+}
+
+function attachCompRow(row) {
+    var typeSelect = row.querySelector('select[name="comp_type[]"]');
+    var modelInput = row.querySelector('input[name="comp_model[]"]');
+    var produtoIdInput = row.querySelector('input[name="comp_product_id[]"]');
+    if (!typeSelect) return;
+    typeSelect.innerHTML = catalogTipoOpts(typeSelect.dataset.selected || typeSelect.value);
+    typeSelect.onchange = function() { updateEstoqueModelOptions(typeSelect, modelInput, produtoIdInput); };
+    if (typeSelect.value) updateEstoqueModelOptions(typeSelect, modelInput, produtoIdInput);
+}
 
 function addEstoqueCompRow() {
     var tbody = document.querySelector('#estoqueCompTable tbody');
     var tr = document.createElement('tr');
     tr.className = 'comp-row';
     tr.innerHTML =
-        '<td><select name="comp_type[]" class="form-select form-select-sm">' + COMP_OPTS + '</select></td>' +
+        '<td><select name="comp_type[]" class="form-select form-select-sm">' + catalogTipoOpts('') + '</select>' +
+        '<input type="hidden" name="comp_product_id[]" value=""></td>' +
         '<td><input type="text" name="comp_model[]" class="form-control form-control-sm" placeholder="Modelo"></td>' +
         '<td><input type="text" name="comp_serial[]" class="form-control form-control-sm" placeholder="Nº de Série"></td>' +
         '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()"><i class="bi bi-x"></i></button></td>';
     tbody.appendChild(tr);
+    attachCompRow(tr);
 }
 
 function addPassagemRow() {
@@ -214,7 +269,7 @@ function addDefectRow() {
     var tr = document.createElement('tr');
     tr.className = 'defect-row';
     tr.innerHTML =
-        '<td><select name="defect_type[]" class="form-select form-select-sm">' + COMP_OPTS + '</select></td>' +
+        '<td><select name="defect_type[]" class="form-select form-select-sm">' + catalogTipoOpts('') + '</select></td>' +
         '<td><input type="text" name="defect_model[]" class="form-control form-control-sm" placeholder="Modelo"></td>' +
         '<td><input type="text" name="defect_serial[]" class="form-control form-control-sm" placeholder="NS"></td>' +
         '<td><input type="text" name="defect_desc[]" class="form-control form-control-sm" placeholder="Descreva o defeito"></td>' +
@@ -223,5 +278,7 @@ function addDefectRow() {
         '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()"><i class="bi bi-x"></i></button></td>';
     tbody.appendChild(tr);
 }
+
+document.querySelectorAll('#estoqueCompTable tbody .comp-row').forEach(attachCompRow);
 </script>
 {% endblock %}
