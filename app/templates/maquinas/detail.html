@@ -3,14 +3,17 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3><i class="bi bi-person-badge"></i> {{ registro.nome }} <small class="text-secondary fs-6">({{ registro.data or 'sem data' }})</small></h3>
     <div class="d-flex gap-2">
+        <a href="{{ url_for('maquinas.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Voltar
+        </a>
         <a href="{{ url_for('maquinas.maquina_novo', id=registro.id) }}" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Nova Máquina
         </a>
-        <a href="{{ url_for('maquinas.editar', id=registro.id) }}" class="btn btn-outline-warning">
-            <i class="bi bi-pencil"></i>
+        <a href="{{ url_for('maquinas.editar', id=registro.id) }}" class="btn btn-warning">
+            <i class="bi bi-pencil"></i> Editar
         </a>
-        <button onclick="confirmDeleteRegistro({{ registro.id }}, '{{ registro.nome }}')" class="btn btn-outline-danger">
-            <i class="bi bi-trash"></i>
+        <button onclick="confirmDeleteRegistro({{ registro.id }}, '{{ registro.nome }}')" class="btn btn-danger">
+            <i class="bi bi-trash"></i> Excluir
         </button>
     </div>
 </div>

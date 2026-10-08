@@ -1,7 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
+{% set MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'] %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h3><i class="bi bi-house-door"></i> Home</h3>
+    <div>
+        <h3 class="dashboard-title mb-1"><i class="bi bi-house-door"></i> Home</h3>
+        <small class="text-secondary">Visão geral dos protocolos</small>
+    </div>
     {% if current_user.is_manager() %}
     <a href="{{ url_for('protocols.create_protocol') }}" class="btn btn-primary">
         <i class="bi bi-plus-circle"></i> Novo Protocolo
@@ -10,66 +15,104 @@
 </div>
 
 <div class="card mb-4">
-    <div class="card-body py-2">
-        <form method="GET" class="row g-2 align-items-end">
-            <div class="col-auto">
-                <label class="form-label mb-0 small">Ano</label>
-                <select name="ano" class="form-select form-select-sm">
+    <div class="card-header"><i class="bi bi-funnel"></i> Período</div>
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end" autocomplete="off">
+            <div class="col-md-3">
+                <label class="form-label" for="fAno"><i class="bi bi-calendar3"></i> Ano</label>
+                <select name="ano" id="fAno" class="form-select">
                     <option value="">Todos</option>
                     {% for a in anos_disponiveis %}
-                    <option value="{{ a }}" {% if f_ano == a|string %}selected{% endif %}>{{ a }}</option>
+                    <option value="{{ a }}" {{ 'selected' if f_ano == a|string }}>{{ a }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-auto">
-                <label class="form-label mb-0 small">Mês</label>
-                <select name="mes" class="form-select form-select-sm">
+            <div class="col-md-3">
+                <label class="form-label" for="fMes"><i class="bi bi-calendar-month"></i> Mês</label>
+                <select name="mes" id="fMes" class="form-select">
                     <option value="">Todos</option>
                     {% for m in range(1, 13) %}
-                    <option value="{{ m }}" {% if f_mes == m|string %}selected{% endif %}>{{ '%02d'|format(m) }}</option>
+                    <option value="{{ m }}" {{ 'selected' if f_mes == m|string }}>{{ MESES[m - 1] }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-auto">
-                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i> Filtrar</button>
+            <div class="col-md-6 d-flex gap-2">
+                <button type="submit" class="btn btn-outline-info flex-grow-1">
+                    <i class="bi bi-funnel"></i> Filtrar
+                </button>
                 {% if f_ano or f_mes %}
-                <a href="{{ url_for('main.dashboard') }}" class="btn btn-sm btn-outline-secondary">Limpar</a>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary"
+                   title="Limpar filtro"><i class="bi bi-x-lg"></i></a>
                 {% endif %}
             </div>
         </form>
+        {% if f_ano or f_mes %}
+        <hr class="border-secondary my-3">
+        <div class="d-flex align-items-center flex-wrap gap-2">
+            <span class="text-secondary small">Filtro ativo:</span>
+            {% if f_ano %}
+            <span class="badge bg-primary"><i class="bi bi-calendar3"></i> {{ f_ano }}</span>
+            {% endif %}
+            {% if f_mes %}
+            <span class="badge bg-primary"><i class="bi bi-calendar-month"></i> {{ MESES[f_mes|int - 1] }}</span>
+            {% endif %}
+            <span class="text-secondary small ms-1">Exibindo
+                <span class="text-white fw-bold">{{ total }}</span> protocolo(s)
+            </span>
+        </div>
+        {% endif %}
     </div>
 </div>
 
 <div class="row g-3 mb-4">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <a href="{{ url_for('protocols.list_protocols') }}" class="text-decoration-none d-block h-100">
             <div class="card border-primary h-100 card-link-hover">
-                <div class="card-body text-center">
-                    <h1 class="text-primary mb-0">{{ total }}</h1>
-                    <p class="text-secondary mb-0">Total de Protocolos</p>
-                    <small class="text-muted"><i class="bi bi-arrow-right"></i> ver todos</small>
+                <div class="card-body d-flex align-items-center gap-3">
+                    <span class="dash-icon text-primary"><i class="bi bi-folder2"></i></span>
+                    <div>
+                        <h2 class="mb-0 text-primary">{{ total }}</h2>
+                        <small class="text-secondary">Total de Protocolos</small>
+                    </div>
                 </div>
             </div>
         </a>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <a href="{{ url_for('protocols.list_protocols', status='andamento') }}" class="text-decoration-none d-block h-100">
             <div class="card border-info h-100 card-link-hover">
-                <div class="card-body text-center">
-                    <h1 class="text-info mb-0">{{ andamento }}</h1>
-                    <p class="text-secondary mb-0">Em Andamento</p>
-                    <small class="text-muted"><i class="bi bi-arrow-right"></i> ver todos</small>
+                <div class="card-body d-flex align-items-center gap-3">
+                    <span class="dash-icon text-info"><i class="bi bi-arrow-repeat"></i></span>
+                    <div>
+                        <h2 class="mb-0 text-info">{{ andamento }}</h2>
+                        <small class="text-secondary">Em Andamento</small>
+                    </div>
                 </div>
             </div>
         </a>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <a href="{{ url_for('protocols.list_protocols', status='concluido') }}" class="text-decoration-none d-block h-100">
             <div class="card border-success h-100 card-link-hover">
-                <div class="card-body text-center">
-                    <h1 class="text-success mb-0">{{ concluidos }}</h1>
-                    <p class="text-secondary mb-0">Concluídos</p>
-                    <small class="text-muted"><i class="bi bi-arrow-right"></i> ver todos</small>
+                <div class="card-body d-flex align-items-center gap-3">
+                    <span class="dash-icon text-success"><i class="bi bi-check2-circle"></i></span>
+                    <div>
+                        <h2 class="mb-0 text-success">{{ concluidos }}</h2>
+                        <small class="text-secondary">Concluídos</small>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="#parados" class="text-decoration-none d-block h-100">
+            <div class="card border-warning h-100 card-link-hover">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <span class="dash-icon text-warning"><i class="bi bi-hourglass-split"></i></span>
+                    <div>
+                        <h2 class="mb-0 text-warning">{{ parados|length }}</h2>
+                        <small class="text-secondary">Parados há {{ dias_alerta }} dias</small>
+                    </div>
                 </div>
             </div>
         </a>
@@ -78,7 +121,8 @@
 
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-clock-history"></i> Protocolos Recentes</span>
+        <span><i class="bi bi-clock-history"></i> Protocolos Recentes
+            <span class="badge bg-secondary ms-1">{{ recentes|length }}</span></span>
         <a href="{{ url_for('protocols.list_protocols') }}" class="btn btn-sm btn-outline-secondary">Ver todos</a>
     </div>
     <div class="card-body p-0">
@@ -98,7 +142,8 @@
                 </thead>
                 <tbody>
                     {% for p in recentes %}
-                    <tr class="clickable-row" data-href="{{ url_for('protocols.detail_protocol', id=p.id) }}">
+                    <tr class="clickable-row{% if p.id in parados_ids %} linha-parada{% endif %}"
+                        data-href="{{ url_for('protocols.detail_protocol', id=p.id) }}">
                         <td><strong>{{ p.protocol_number }}</strong></td>
                         <td><span class="badge {{ p.type_badge() }}">{{ p.type_label() }}</span></td>
                         <td>{{ p.client_name or '-' }}</td>
@@ -126,10 +171,10 @@
 </div>
 
 {% if parados %}
-<div class="card border-secondary mt-4">
+<div class="card border-warning mt-4" id="parados">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="bi bi-hourglass-split"></i> Protocolos parados há mais de {{ dias_alerta }} dias</span>
-        <span class="badge bg-secondary">{{ parados|length }}</span>
+        <span class="badge bg-warning text-dark">{{ parados|length }}</span>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -153,7 +198,7 @@
                         <td>{{ p.client_name or '-' }}</td>
                         <td><span class="badge {{ p.status_badge() }}">{{ p.status_label() }}</span></td>
                         <td>{{ p.entry_date.strftime('%d/%m/%Y') if p.entry_date else '-' }}</td>
-                        <td><span class="badge bg-secondary">{{ p.dias_parado }} dias</span></td>
+                        <td><span class="badge bg-warning text-dark">{{ p.dias_parado }} dias</span></td>
                         <td><a href="{{ url_for('protocols.detail_protocol', id=p.id) }}" class="btn btn-sm btn-outline-secondary">Ver</a></td>
                     </tr>
                     {% endfor %}

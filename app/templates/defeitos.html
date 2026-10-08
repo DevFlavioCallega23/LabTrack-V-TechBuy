@@ -48,6 +48,7 @@
                 <th>Defeito</th>
                 <th>Tipo</th>
                 <th>Status</th>
+                <th>Status Prot.</th>
                 <th>Cliente</th>
                 <th>Protocolo</th>
                 <th>Data</th>
@@ -62,6 +63,11 @@
                 <td><code>{{ d.serial or '-' }}</code></td>
                 <td class="text-danger">{{ d.desc or '-' }}</td>
                 <td>{{ tipo_badge(d.tipo, d.venda_pe) }}</td>
+                <td style="white-space:nowrap">
+                    {% if d.status %}
+                    <span class="badge {{ DEFEITO_STATUS_BADGES.get(d.status, 'bg-secondary') }}">{{ DEFEITO_STATUS_TODOS.get(d.status, d.status) }}</span>
+                    {% else %}<span class="text-secondary">-</span>{% endif %}
+                </td>
                 <td style="white-space:nowrap">
                     {% if d.protocolo_status %}<span class="badge {{ PROTO_STATUS_BADGES.get(d.protocolo_status, 'bg-secondary') }}">{{ PROTO_STATUS_LABELS.get(d.protocolo_status, d.protocolo_status) }}</span>
                     {% else %}<span class="text-secondary">-</span>{% endif %}
@@ -83,7 +89,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="10" class="text-center text-secondary">Nenhum defeito nesta situação.</td>
+                <td colspan="11" class="text-center text-secondary">Nenhum defeito nesta situação.</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -91,53 +97,43 @@
 </div>
 {% endmacro %}
 
-<div class="row g-3">
-    <div class="col-12">
-        <div class="card h-100 border-primary">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-shield-check text-primary"></i> RMA em Garantia — <span class="text-primary">responsabilidade da Loja</span> <span class="text-secondary small">(produto que voltou do cliente)</span></span>
-                <span class="badge bg-primary">{{ grupos['rma_garantia']|length }}</span>
-            </div>
-            <div class="card-body p-0">
-                {{ defeitos_table(grupos['rma_garantia']) }}
-            </div>
-        </div>
+{% macro grupo_card(chave, titulo_html, borda, badge_cls, itens) %}
+{% set aberto = True if (q_filter or status_filtro) else False %}
+<div class="card mb-3 {{ borda }}">
+    <div class="card-header p-0">
+        <button type="button"
+                class="btn btn-grp w-100 d-flex align-items-center justify-content-between gap-2 py-2 px-3 text-start {{ '' if aberto else 'collapsed' }}"
+                data-bs-toggle="collapse" data-bs-target="#grupo-{{ chave }}"
+                aria-expanded="{{ 'true' if aberto else 'false' }}"
+                aria-controls="grupo-{{ chave }}">
+            <span class="d-flex align-items-center gap-2 flex-wrap">{{ titulo_html|safe }}</span>
+            <span class="d-flex align-items-center gap-2 text-nowrap">
+                <span class="badge {{ badge_cls }}">{{ itens|length }}</span>
+                <i class="bi bi-chevron-down chev-rot"></i>
+            </span>
+        </button>
     </div>
-    <div class="col-12">
-        <div class="card h-100 border-warning">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-shield-exclamation text-warning"></i> Fora de Garantia — <span class="text-warning">responsabilidade do Cliente</span> <span class="text-secondary small">(produto que voltou do cliente)</span></span>
-                <span class="badge bg-warning text-dark">{{ grupos['rma_fora']|length }}</span>
-            </div>
-            <div class="card-body p-0">
-                {{ defeitos_table(grupos['rma_fora']) }}
-            </div>
+    <div class="collapse {{ 'show' if aberto }}" id="grupo-{{ chave }}">
+        <div class="card-body p-0">
+            {{ defeitos_table(itens) }}
         </div>
     </div>
 </div>
+{% endmacro %}
 
-<div class="row g-3 mt-1">
-    <div class="col-12">
-        <div class="card h-100 border-secondary">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-pc-display text-secondary"></i> NTB — Não comprado na TechBuy <span class="text-secondary small">(produto que voltou do cliente)</span></span>
-                <span class="badge bg-secondary">{{ grupos['ntb']|length }}</span>
-            </div>
-            <div class="card-body p-0">
-                {{ defeitos_table(grupos['ntb']) }}
-            </div>
-        </div>
-    </div>
-    <div class="col-12">
-        <div class="card h-100 border-success">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-pc-display text-success"></i> Equipamentos da TechBuy — <span class="text-secondary small">equipamento novo vindo do estoque que apresentou defeito (de qualquer tipo de protocolo)</span></span>
-                <span class="badge bg-success">{{ grupos['venda']|length }}</span>
-            </div>
-            <div class="card-body p-0">
-                {{ defeitos_table(grupos['venda']) }}
-            </div>
-        </div>
-    </div>
-</div>
+{{ grupo_card('rma_garantia',
+    '<i class="bi bi-shield-check text-primary"></i> RMA em Garantia — <span class="text-primary">responsabilidade da Loja</span> <span class="text-secondary small">(produto que voltou do cliente)</span>',
+    'border-primary', 'bg-primary', grupos['rma_garantia']) }}
+
+{{ grupo_card('rma_fora',
+    '<i class="bi bi-shield-exclamation text-warning"></i> Fora de Garantia — <span class="text-warning">responsabilidade do Cliente</span> <span class="text-secondary small">(produto que voltou do cliente)</span>',
+    'border-warning', 'bg-warning text-dark', grupos['rma_fora']) }}
+
+{{ grupo_card('ntb',
+    '<i class="bi bi-pc-display text-secondary"></i> NTB — Não comprado na TechBuy <span class="text-secondary small">(produto que voltou do cliente)</span>',
+    'border-secondary', 'bg-secondary', grupos['ntb']) }}
+
+{{ grupo_card('venda',
+    '<i class="bi bi-pc-display text-success"></i> Equipamentos da TechBuy — <span class="text-secondary small">equipamento novo vindo do estoque que apresentou defeito (de qualquer tipo de protocolo)</span>',
+    'border-success', 'bg-success', grupos['venda']) }}
 {% endblock %}

@@ -175,3 +175,46 @@ a:hover .card-link-hover {
     transform: translateY(-2px);
     box-shadow: 0 0 0 1px var(--tb-primary), 0 6px 20px rgba(30, 203, 225, 0.15);
 }
+
+.dash-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.dash-icon.text-primary { background: rgba(30, 203, 225, 0.12); }
+.dash-icon.text-info { background: rgba(13, 204, 219, 0.12); }
+.dash-icon.text-success { background: rgba(25, 135, 84, 0.15); }
+.dash-icon.text-warning { background: rgba(255, 193, 7, 0.15); }
+
+.linha-parada > td:first-child {
+    border-left: 3px solid #ffc107;
+}
+
+.btn-grp {
+    color: inherit;
+    text-decoration: none;
+    transition: background-color 0.15s ease;
+}
+
+.btn-grp:hover,
+.btn-grp:focus-visible {
+    background: rgba(30, 203, 225, 0.08);
+    color: inherit;
+    text-decoration: none;
+    box-shadow: none;
+}
+
+.btn-grp:not(.collapsed) .chev-rot {
+    transform: rotate(180deg);
+}
+
+.chev-rot {
+    transition: transform 0.2s ease;
+}

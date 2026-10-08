@@ -10,8 +10,20 @@
 <div class="card">
     <div class="card-body">
         <form method="POST" autocomplete="off">
+            <div class="sticky-top bg-dark py-2 mb-3 border-bottom border-secondary d-flex justify-content-between align-items-center" style="z-index:1020">
+                <span class="fw-bold text-light">
+                    <i class="bi bi-plus-circle"></i> {{ 'Editando ' + (maquina.identificacao or 'Máquina') if maquina else 'Nova Máquina' }} — {{ registro.nome }}
+                </span>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-check-lg"></i> Salvar
+                    </button>
+                    <a href="{{ url_for('maquinas.detail', id=registro.id) }}" class="btn btn-outline-secondary btn-sm">Cancelar</a>
+                </div>
+            </div>
+
             <div class="mb-3">
-                <label class="form-label">Identificação da máquina</label>
+                <label class="form-label fw-bold"><i class="bi bi-tag"></i> Identificação da máquina</label>
                 <input type="text" name="identificacao" class="form-control" placeholder="Ex: TechBuy, TB, Máquina 01..." value="{{ maquina.identificacao or '' if maquina else '' }}">
             </div>
 
@@ -61,7 +73,6 @@
                 </table>
             </div>
 
-            <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Salvar</button>
         </form>
     </div>
 </div>

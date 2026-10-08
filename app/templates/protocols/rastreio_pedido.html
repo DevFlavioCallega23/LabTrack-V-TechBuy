@@ -17,8 +17,9 @@
                 <label class="form-label"><i class="bi bi-search"></i> Nº do pedido</label>
                 <input type="text" name="busca" class="form-control" placeholder="PED..., NF, pedido original..." value="{{ busca }}" autofocus>
             </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-outline-info w-100"><i class="bi bi-search"></i> Rastrear</button>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-outline-info flex-grow-1"><i class="bi bi-search"></i> Rastrear</button>
+                <a href="{{ url_for('busca.rastreio_pedido') }}" class="btn btn-outline-secondary" title="Limpar busca"><i class="bi bi-x-lg"></i></a>
             </div>
         </form>
     </div>

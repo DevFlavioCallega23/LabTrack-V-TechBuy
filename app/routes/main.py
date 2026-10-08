@@ -42,6 +42,7 @@ def dashboard():
             p.dias_parado = (datetime.utcnow() - ref).days
             parados.append(p)
     parados.sort(key=lambda x: x.dias_parado, reverse=True)
+    parados_ids = {p.id for p in parados}
 
     anos_disponiveis = sorted(set(
         p.created_at.year for p in Protocol.query.all() if p.created_at
@@ -50,7 +51,7 @@ def dashboard():
     return render_template('dashboard.html',
         total=total,
         andamento=andamento, concluidos=concluidos,
-        recentes=recentes, parados=parados,
+        recentes=recentes, parados=parados, parados_ids=parados_ids,
         dias_alerta=DIAS_ALERTA,
         anos_disponiveis=anos_disponiveis,
         f_ano=f_ano, f_mes=f_mes)
