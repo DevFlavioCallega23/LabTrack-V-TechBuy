@@ -5,6 +5,15 @@ from app.forms import LoginForm
 
 auth_bp = Blueprint('auth', __name__)
 
+
+def _destino_pos_login():
+    """Honra o ?next= do Flask-Login (destino interno apenas)."""
+    destino = request.args.get('next') or request.form.get('next') or ''
+    if destino.startswith('/') and not destino.startswith('//') and '\\' not in destino:
+        return destino
+    return url_for('main.dashboard')
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
@@ -14,7 +23,7 @@ def login():
         user = User.query.filter_by(username=form.username.data).first()
         if user and user.check_password(form.password.data):
             login_user(user)
-            return redirect(url_for('main.dashboard'))
+            return redirect(_destino_pos_login())
         flash('Usuário ou senha inválidos.', 'danger')
     return render_template('login.html', form=form)
 
