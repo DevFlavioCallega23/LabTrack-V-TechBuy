@@ -20,6 +20,8 @@ from app.routes.protocols.helpers import (
     parse_rma_test_items, build_rma_test_data_from_form, parse_rma_trocados,
     build_rma_trocados_data_from_form, parse_windows_keys, build_windows_key_data_from_form,
     build_windows_key_data, parse_defects, get_incomplete_fields,
+    parse_sale_refs, parse_pe_refs, aplicar_vinculos_pe, limpar_vinculos_pe,
+    buscar_pronta_entrega, vendas_por_maquina_pe, pe_por_maquina, avisos_pe_ja_vendida,
 )
 
 @protocols_bp.route('/')
@@ -169,8 +171,20 @@ def create_protocol():
         if windows_keys:
             protocol.windows_keys = windows_keys
 
+        protocol.pe_refs = parse_pe_refs(request.form) if form.type.data == 'venda' else None
+        protocol.sale_refs = parse_sale_refs(request.form) if form.type.data == 'ponta_entrega' else None
+
         db.session.add(protocol)
         db.session.commit()
+
+        if protocol.type == 'venda':
+            if protocol.status == 'cancelado':
+                limpar_vinculos_pe(protocol, protocol.get_pe_refs(), {})
+            else:
+                aplicar_vinculos_pe(protocol)
+            db.session.commit()
+            for aviso in avisos_pe_ja_vendida(protocol):
+                flash(aviso, 'warning')
         flash(f'Protocolo {protocol_number} criado com sucesso!', 'success')
         return redirect(url_for('protocols.detail_protocol', id=protocol.id))
 
@@ -246,7 +260,7 @@ def protocol_pdf(id):
         except (json.JSONDecodeError, TypeError):
             return []
 
-    rma_test = _load_json(protocol.rma_test_result) if protocol.type in ('rma', 'servico') else []
+    rma_test = _load_json(protocol.rma_test_result) if protocol.type in ('rma', 'servico', 'nao_comprado') else []
     passagens = _load_json(protocol.rma_passagens) if protocol.type in ('rma', 'servico') else []
 
     html = render_template('protocols/pdf.html', protocol=protocol,
@@ -361,6 +375,7 @@ def edit_protocol(id):
 
     protocol = Protocol.query.get_or_404(id)
     form = ProtocolForm(obj=protocol)
+    refs_antigos = protocol.get_pe_refs()
     if form.validate_on_submit():
         components = parse_components(request.form, form.type.data)
 
@@ -380,6 +395,9 @@ def edit_protocol(id):
         protocol.rma_entry_date = parse_date_br(form.rma_entry_date.data) if form.rma_entry_date.data else None
         protocol.power_cables = parse_power_cables(request.form)
 
+        protocol.pe_refs = parse_pe_refs(request.form) if form.type.data == 'venda' else None
+        protocol.sale_refs = parse_sale_refs(request.form, protocol) if form.type.data == 'ponta_entrega' else None
+
         Component.query.filter_by(protocol_id=protocol.id).delete()
         protocol.components = components
         Defect.query.filter_by(protocol_id=protocol.id).delete()
@@ -390,7 +408,15 @@ def edit_protocol(id):
         if windows_keys:
             protocol.windows_keys = windows_keys
 
+        novos_refs = protocol.get_pe_refs() if protocol.type == 'venda' else {}
+        limpar_vinculos_pe(protocol, refs_antigos, novos_refs)
+        if protocol.type == 'venda' and protocol.status != 'cancelado':
+            aplicar_vinculos_pe(protocol)
+
         db.session.commit()
+        if protocol.type == 'venda':
+            for aviso in avisos_pe_ja_vendida(protocol):
+                flash(aviso, 'warning')
         flash(f'Protocolo {protocol.protocol_number} atualizado!', 'success')
         return redirect(url_for('protocols.detail_protocol', id=protocol.id))
 
@@ -434,6 +460,8 @@ def delete_protocol(id):
         return bloqueio
     protocol = Protocol.query.get_or_404(id)
     protocol_number = protocol.protocol_number
+    if protocol.type == 'venda':
+        limpar_vinculos_pe(protocol, protocol.get_pe_refs(), {})
     Component.query.filter_by(protocol_id=protocol.id).delete()
     Defect.query.filter_by(protocol_id=protocol.id).delete()
     db.session.delete(protocol)
@@ -526,7 +554,14 @@ def update_status(id):
     new_status = data.get('status')
     if new_status not in ('pendente', 'andamento', 'concluido', 'cancelado'):
         return {'error': 'Status inválido'}, 400
+    status_anterior = protocol.status
     protocol.status = new_status
+    if protocol.type == 'venda':
+        if new_status == 'cancelado':
+            # Máquina volta a ficar disponível na Pronta-Entrega.
+            limpar_vinculos_pe(protocol, protocol.get_pe_refs(), {})
+        elif status_anterior == 'cancelado':
+            aplicar_vinculos_pe(protocol)
     db.session.commit()
     return {'ok': True, 'status': new_status}
 

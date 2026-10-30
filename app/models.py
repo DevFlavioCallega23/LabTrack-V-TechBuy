@@ -73,6 +73,8 @@ class Protocol(db.Model):
     rma_trocados = db.Column(db.Text)
     rma_entry_date = db.Column(db.DateTime)
     incomplete_ignored = db.Column(db.Boolean, default=False)
+    sale_refs = db.Column(db.Text)
+    pe_refs = db.Column(db.Text)
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -106,6 +108,20 @@ class Protocol(db.Model):
     def get_power_cables(self):
         try:
             return json.loads(self.power_cables) if self.power_cables else {}
+        except Exception:
+            return {}
+
+    def get_sale_refs(self):
+        """Referências de venda por máquina (usado nas Prontas-Entregas)."""
+        try:
+            return json.loads(self.sale_refs) if self.sale_refs else {}
+        except Exception:
+            return {}
+
+    def get_pe_refs(self):
+        """Vínculos com Prontas-Entregas por máquina (usado nas vendas)."""
+        try:
+            return json.loads(self.pe_refs) if self.pe_refs else {}
         except Exception:
             return {}
 

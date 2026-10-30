@@ -1,9 +1,11 @@
 """Helpers compartilhados dos protocolos: parsing de formulários e validação."""
 import json
+import re
 from datetime import datetime
 
 from app import db
 from app.datas import parse_date_br as parse_date_br  # noqa: F401  (reexportado)
+from app.labels import COMPONENT_LABELS
 from app.models import Protocol, Component, Defect, WindowsKey
 
 def gerar_numero_protocolo():
@@ -47,7 +49,8 @@ def parse_components(request_form, protocol_type=None):
         product_ids = request_form.getlist(f'comp_product_id_{unit}[]')
         cabo_fontes = request_form.getlist(f'comp_serial_fonte_{unit}[]')
         machine_name = request_form.get(f'machine_name_{unit}', '').strip() or f'Máquina {unit}'
-        is_prebuilt = request_form.get(f'pe_switch_{unit}') == 'on'
+        # Na Pronta-Entrega toda máquina é, por definição, pronta-entrega.
+        is_prebuilt = (protocol_type == 'ponta_entrega') or (request_form.get(f'pe_switch_{unit}') == 'on')
         for i in range(len(types)):
             ct = types[i].strip()
             serial = serials[i].strip() if i < len(serials) else ''
@@ -127,13 +130,29 @@ def build_rma_equip_data_from_form(request_form):
             data[unit] = {'name': machine_name, 'components': comps}
     return json.dumps(data)
 
+def _sem_origem_techbuy(itens, tipo):
+    """NTB não tem pedido/data de compra — o equipamento não veio da loja."""
+    if tipo != 'nao_comprado' or not isinstance(itens, list):
+        return itens
+    limpos = []
+    for item in itens:
+        if not isinstance(item, dict):
+            limpos.append(item)
+            continue
+        copia = dict(item)
+        copia['pedido'] = ''
+        copia['data_compra'] = ''
+        limpos.append(copia)
+    return limpos
+
+
 def parse_rma_test_items(request_form):
     """Parse RMA test items from JSON hidden field."""
     raw = request_form.get('rma_test_json', '').strip()
     if not raw:
         return None
     try:
-        data = json.loads(raw)
+        data = _sem_origem_techbuy(json.loads(raw), request_form.get('type'))
         return json.dumps(data)
     except (json.JSONDecodeError, TypeError):
         return None
@@ -161,6 +180,7 @@ def build_rma_test_data_from_form(request_form):
                 'data_compra': datas_compra[i].strip() if i < len(datas_compra) else '',
                 'status': statuses[i].strip() if i < len(statuses) else ''
             })
+    items = _sem_origem_techbuy(items, request_form.get('type'))
     return json.dumps(items) if items else None
 
 def parse_rma_trocados(request_form):
@@ -251,6 +271,16 @@ def parse_defects(request_form):
             ))
     return defects
 
+def _json_tem_itens(valor):
+    """True só quando o JSON guardado tem conteúdo (evita '[]' e '{}' contarem)."""
+    if not valor:
+        return False
+    try:
+        return bool(json.loads(valor))
+    except (json.JSONDecodeError, TypeError):
+        return False
+
+
 def get_incomplete_fields(protocol):
     """Retorna lista de campos faltantes em um protocolo, baseado no tipo."""
     if getattr(protocol, 'incomplete_ignored', False):
@@ -289,14 +319,337 @@ def get_incomplete_fields(protocol):
             missing.append('Equipamento')
 
     elif t == 'nao_comprado':
+        # NTB é equipamento não comprado na TechBuy: não tem pedido nem data
+        # de compra. O essencial é cliente, vendedor e o equipamento — que
+        # pode estar em qualquer uma das seções (equipamento do cliente,
+        # teste de mesa, equipamento extra ou componentes).
         if not protocol.client_name:
             missing.append('Cliente')
         if not protocol.seller:
             missing.append('Vendedor')
-        if not protocol.order_number:
-            missing.append('Nº Pedido')
-        if not protocol.components:
-            missing.append('Componentes')
+        if not (protocol.rma_extra_equip or protocol.components
+                or _json_tem_itens(protocol.rma_equip_itens)
+                or _json_tem_itens(protocol.rma_test_result)):
+            missing.append('Equipamento')
 
     return missing
+
+
+# ---------------------------------------------------------------------------
+# Vínculo Venda PE <-> Pronta-Entrega (máquina por máquina)
+# ---------------------------------------------------------------------------
+
+def normalizar_ns(valor):
+    """NS comparável: sem espaços, em maiúsculas e sem o prefixo 'R -'."""
+    if valor is None:
+        return ''
+    texto = str(valor).upper().strip()
+    texto = re.sub(r'^R\s*-\s*', '', texto)
+    texto = re.sub(r'\s+', '', texto)
+    return texto
+
+
+def _somente_digitos(valor):
+    return re.sub(r'\D', '', normalizar_ns(valor))
+
+
+def ns_bate(a, b):
+    """Compara dois NS tolerando 'R -', espaços, maiúsculas e zeros à esquerda."""
+    a_norm = normalizar_ns(a)
+    b_norm = normalizar_ns(b)
+    if not a_norm or not b_norm:
+        return False
+    if a_norm == b_norm:
+        return True
+    a_dig = _somente_digitos(a_norm)
+    b_dig = _somente_digitos(b_norm)
+    if len(a_dig) >= 4 and len(b_dig) >= 4:
+        if a_dig.lstrip('0') == b_dig.lstrip('0'):
+            return True
+    return False
+
+
+def _unidade(valor):
+    """Número do bloco sempre com 2 dígitos ('1' -> '01')."""
+    texto = str(valor or '').strip()
+    return texto.zfill(2) if texto.isdigit() else texto
+
+
+def parse_sale_refs(request_form, protocol=None):
+    """Lê as 'Referências de Venda' digitadas nas máquinas de uma Pronta-Entrega."""
+    data = {}
+    for key in request_form.keys():
+        if not key.startswith('sale_ref_'):
+            continue
+        unit = key[len('sale_ref_'):]
+        if not re.fullmatch(r'\d+', unit):
+            continue
+        texto = (request_form.get(f'sale_ref_{unit}') or '').strip()
+        if not texto:
+            continue
+        sale_id = (request_form.get(f'sale_ref_id_{unit}') or '').strip()
+        sale_number = (request_form.get(f'sale_ref_number_{unit}') or '').strip()
+        # Se o texto foi alterado à mão, o vínculo automático deixa de valer.
+        if sale_number and sale_number not in texto:
+            sale_id, sale_number = '', ''
+        data[_unidade(unit)] = {
+            'text': texto,
+            'sale_id': int(sale_id) if sale_id.isdigit() else None,
+            'sale_number': sale_number or None,
+        }
+    return json.dumps(data, ensure_ascii=False) if data else None
+
+
+def parse_pe_refs(request_form):
+    """Lê os vínculos com Prontas-Entregas enviados pelo formulário de venda."""
+    data = {}
+    for key in request_form.keys():
+        if not key.startswith('pe_ref_json_'):
+            continue
+        unit = key[len('pe_ref_json_'):]
+        if not re.fullmatch(r'\d+', unit):
+            continue
+        raw = (request_form.get(key) or '').strip()
+        if not raw:
+            continue
+        try:
+            info = json.loads(raw)
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(info, dict):
+            continue
+        try:
+            pe_id = int(info.get('protocol_id'))
+        except (TypeError, ValueError):
+            continue
+        pe_unit = info.get('unit')
+        if not pe_id or pe_unit in (None, ''):
+            continue
+        data[_unidade(unit)] = {
+            'protocol_id': pe_id,
+            'unit': _unidade(pe_unit),
+            'fonte': (info.get('fonte') or '').strip() or None,
+            'machine_name': (info.get('machine_name') or '').strip() or None,
+        }
+    return json.dumps(data, ensure_ascii=False) if data else None
+
+
+def texto_referencia_venda(venda):
+    """Texto mostrado na Pronta-Entrega: 'PRO-2026-0199 · Cliente · 30/10/2026'."""
+    partes = [venda.protocol_number]
+    if venda.client_name:
+        partes.append(venda.client_name.strip())
+    data = venda.entry_date or venda.created_at
+    if data:
+        partes.append(data.strftime('%d/%m/%Y'))
+    return ' · '.join(p for p in partes if p)
+
+
+def _pe_do_ref(info):
+    """Devolve (Protocol da PE, unidade) a partir de um vínculo salvo na venda."""
+    if not isinstance(info, dict):
+        return None, ''
+    try:
+        pe_id = int(info.get('protocol_id'))
+    except (TypeError, ValueError):
+        return None, ''
+    pe = Protocol.query.get(pe_id)
+    if not pe or pe.type != 'ponta_entrega':
+        return None, ''
+    return pe, _unidade(info.get('unit'))
+
+
+def limpar_vinculos_pe(venda, refs_antigos, refs_novos=None):
+    """Apaga da Pronta-Entrega as referências desta venda que não valem mais."""
+    chaves_novas = set()
+    for info in (refs_novos or {}).values():
+        pe, unit = _pe_do_ref(info)
+        if pe:
+            chaves_novas.add((pe.id, unit))
+    for info in (refs_antigos or {}).values():
+        pe, unit = _pe_do_ref(info)
+        if not pe or (pe.id, unit) in chaves_novas:
+            continue
+        sale_refs = pe.get_sale_refs()
+        atual = sale_refs.get(unit)
+        if atual is None:
+            continue
+        if isinstance(atual, dict):
+            mesmo = (str(atual.get('sale_id')) == str(venda.id)
+                     or atual.get('sale_number') == venda.protocol_number)
+        else:
+            mesmo = venda.protocol_number in str(atual)
+        if mesmo:
+            sale_refs.pop(unit, None)
+            pe.sale_refs = json.dumps(sale_refs, ensure_ascii=False) if sale_refs else None
+
+
+def aplicar_vinculos_pe(venda):
+    """Grava na Pronta-Entrega a referência desta venda, máquina por máquina."""
+    refs = venda.get_pe_refs()
+    if not refs:
+        return
+    texto = texto_referencia_venda(venda)
+    for info in refs.values():
+        pe, unit = _pe_do_ref(info)
+        if not pe:
+            continue
+        sale_refs = pe.get_sale_refs()
+        sale_refs[unit] = {
+            'text': texto,
+            'sale_id': venda.id,
+            'sale_number': venda.protocol_number,
+        }
+        pe.sale_refs = json.dumps(sale_refs, ensure_ascii=False)
+
+
+def vendas_por_maquina_pe(pe):
+    """{unidade: [vendas ativas]} para mostrar dentro da Pronta-Entrega."""
+    resultado = {}
+    for venda in Protocol.query.filter(Protocol.type == 'venda').order_by(Protocol.id).all():
+        if (venda.status or '').lower() == 'cancelado':
+            continue
+        for info in venda.get_pe_refs().values():
+            if not isinstance(info, dict):
+                continue
+            try:
+                pe_id = int(info.get('protocol_id'))
+            except (TypeError, ValueError):
+                continue
+            if pe_id != pe.id:
+                continue
+            unit = _unidade(info.get('unit'))
+            resultado.setdefault(unit, []).append({
+                'id': venda.id,
+                'protocol_number': venda.protocol_number,
+                'client_name': venda.client_name or '',
+                'date': venda.entry_date or venda.created_at,
+                'fonte': info.get('fonte') or '',
+            })
+    return resultado
+
+
+def pe_por_maquina(venda):
+    """{unidade: dados da PE} para mostrar dentro da venda."""
+    resultado = {}
+    for unit, info in venda.get_pe_refs().items():
+        pe, pe_unit = _pe_do_ref(info)
+        if not pe:
+            continue
+        resultado[_unidade(unit)] = {
+            'id': pe.id,
+            'protocol_number': pe.protocol_number,
+            'unit': pe_unit,
+            'machine_name': info.get('machine_name') or '',
+            'fonte': info.get('fonte') or '',
+        }
+    return resultado
+
+
+def _dados_maquina_pe(pe, unit, venda_ignorada=None):
+    """Componentes, fonte e vendas de um bloco específico da Pronta-Entrega."""
+    comps = [c for c in pe.components if _unidade(c.unit) == unit]
+    comps.sort(key=lambda c: (c.sort_order or 0))
+    fonte = next((c.serial_number for c in comps
+                  if c.component_type == 'fonte' and c.serial_number), '')
+    vendas = []
+    for venda in Protocol.query.filter(Protocol.type == 'venda').order_by(Protocol.id).all():
+        if venda_ignorada and venda.id == venda_ignorada:
+            continue
+        if (venda.status or '').lower() == 'cancelado':
+            continue
+        for info in venda.get_pe_refs().values():
+            if not isinstance(info, dict):
+                continue
+            try:
+                pe_id = int(info.get('protocol_id'))
+            except (TypeError, ValueError):
+                continue
+            if pe_id == pe.id and _unidade(info.get('unit')) == unit:
+                data = venda.entry_date or venda.created_at
+                vendas.append({
+                    'id': venda.id,
+                    'protocol_number': venda.protocol_number,
+                    'client_name': venda.client_name or '',
+                    'date': data.strftime('%d/%m/%Y') if data else '',
+                })
+    return {
+        'components': [{
+            'type': c.component_type or '',
+            'label': COMPONENT_LABELS.get(c.component_type, c.component_type or ''),
+            'model': c.specification or '',
+            'serial': c.serial_number or '',
+        } for c in comps if c.component_type],
+        'fonte': fonte or '',
+        'vendida': vendas,
+        'disponivel': not vendas,
+    }
+
+
+def buscar_pronta_entrega(ns='', pe_numero='', unit='', ignorar_venda_id=None, limite=12):
+    """Procura máquinas de Pronta-Entrega pelo NS da fonte ou pelo protocolo + bloco."""
+    ns = (ns or '').strip()
+    pe_numero = (pe_numero or '').strip().upper()
+    unit = _unidade(unit) if unit else ''
+    if not ns and not pe_numero:
+        return []
+    candidatas = Protocol.query.filter_by(type='ponta_entrega').order_by(Protocol.id).all()
+    resultados = []
+    for pe in candidatas:
+        if pe_numero:
+            numero = pe.protocol_number.upper()
+            if not (numero == pe_numero or numero.endswith(pe_numero) or pe_numero in numero):
+                continue
+        unidades = {}
+        for c in pe.components:
+            u = _unidade(c.unit)
+            if unit and u != unit:
+                continue
+            unidades.setdefault(u, []).append(c)
+        for u, comps in unidades.items():
+            fontes = [c.serial_number for c in comps
+                      if c.component_type == 'fonte' and c.serial_number]
+            if ns and not any(ns_bate(f, ns) for f in fontes):
+                continue
+            info = _dados_maquina_pe(pe, u, ignorar_venda_id)
+            nome = next((c.machine_name for c in comps if c.machine_name), '')
+            resultados.append({
+                'protocol_id': pe.id,
+                'protocol_number': pe.protocol_number,
+                'unit': u,
+                'machine_name': nome,
+                'fonte': info['fonte'],
+                'components': info['components'],
+                'vendida': info['vendida'],
+                'disponivel': info['disponivel'],
+            })
+            if len(resultados) >= limite:
+                return resultados
+    return resultados
+
+
+def avisos_pe_ja_vendida(venda):
+    """Avisos (sem bloquear) quando a máquina de PE já saiu em outra venda ativa."""
+    avisos = []
+    for info in venda.get_pe_refs().values():
+        pe, unit = _pe_do_ref(info)
+        if not pe:
+            continue
+        for outra in Protocol.query.filter(Protocol.type == 'venda').order_by(Protocol.id).all():
+            if outra.id == venda.id or (outra.status or '').lower() == 'cancelado':
+                continue
+            for oi in outra.get_pe_refs().values():
+                if not isinstance(oi, dict):
+                    continue
+                try:
+                    opid = int(oi.get('protocol_id'))
+                except (TypeError, ValueError):
+                    continue
+                if opid == pe.id and _unidade(oi.get('unit')) == unit:
+                    avisos.append(
+                        f'A máquina Nº {unit} da {pe.protocol_number} já saiu na venda '
+                        f'{outra.protocol_number} ({outra.client_name or "sem cliente"}). '
+                        f'Confirme se é troca/devolução.'
+                    )
+    return avisos
 

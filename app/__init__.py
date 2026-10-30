@@ -76,6 +76,10 @@ def add_missing_columns():
             conn.execute(db.text('ALTER TABLE protocol ADD COLUMN venda_pe BOOLEAN DEFAULT 0'))
         if 'incomplete_ignored' not in protocol_cols:
             conn.execute(db.text('ALTER TABLE protocol ADD COLUMN incomplete_ignored BOOLEAN DEFAULT 0'))
+        if 'sale_refs' not in protocol_cols:
+            conn.execute(db.text('ALTER TABLE protocol ADD COLUMN sale_refs TEXT'))
+        if 'pe_refs' not in protocol_cols:
+            conn.execute(db.text('ALTER TABLE protocol ADD COLUMN pe_refs TEXT'))
         conn.execute(db.text("UPDATE protocol SET type='venda', venda_pe=1 WHERE type='venda_ponta_entrega'"))
         conn.execute(db.text("UPDATE protocol SET type='servico' WHERE type='rma' AND (rma_in_warranty=0 OR rma_in_warranty IS NULL)"))
         if 'is_prebuilt' not in component_cols:

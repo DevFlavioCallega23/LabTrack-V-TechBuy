@@ -64,7 +64,7 @@
             <img src="{{ logo_path }}" width="95" alt="TechBuy">
         </td>
         <td valign="middle">
-            <h1>LABTRACK â€” Protocolo {{ protocol.protocol_number }}</h1>
+            <h1>LABTRACK — Protocolo {{ protocol.protocol_number }}</h1>
             <div class="sub">
                 {% set tipo_badge = {'venda': 'badge-venda', 'ponta_entrega': 'badge-venda', 'rma': 'badge-rma', 'servico': 'badge-servico', 'nao_comprado': 'badge-ntb'} %}
                 <span class="{{ tipo_badge.get(protocol.type, 'badge-ntb') }}">{{ protocol.type_label() }}</span>
@@ -80,23 +80,23 @@
 
 <table class="metabox" cellspacing="0">
     <tr>
-        <td><span class="lbl">Cliente / Solicitante</span><br><span class="val">{{ protocol.client_name or 'â€”' }}</span></td>
-        <td><span class="lbl">Vendedor</span><br><span class="val">{{ protocol.seller or 'â€”' }}</span></td>
-        <td><span class="lbl">{% if protocol.type in ('venda', 'rma', 'servico') %}Data da Compra{% else %}Data de Entrada{% endif %}</span><br><span class="val">{{ protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else 'â€”' }}</span></td>
-        <td><span class="lbl">SaÃ­da</span><br><span class="val">{{ protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else 'â€”' }}</span></td>
+        <td><span class="lbl">Cliente / Solicitante</span><br><span class="val">{{ protocol.client_name or '—' }}</span></td>
+        <td><span class="lbl">Vendedor</span><br><span class="val">{{ protocol.seller or '—' }}</span></td>
+        <td><span class="lbl">{% if protocol.type in ('venda', 'rma', 'servico') %}Data da Compra{% else %}Data de Entrada{% endif %}</span><br><span class="val">{{ protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else '—' }}</span></td>
+        <td><span class="lbl">Saída</span><br><span class="val">{{ protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else '—' }}</span></td>
     </tr>
     <tr>
         {% if protocol.type in ('rma', 'servico') %}
-        <td><span class="lbl">Pedido Original</span><br><span class="val">{{ protocol.original_order or protocol.order_number or 'â€”' }}</span></td>
+        <td><span class="lbl">Pedido Original</span><br><span class="val">{{ protocol.original_order or protocol.order_number or '—' }}</span></td>
         {% else %}
-        <td><span class="lbl">Pedido / NF</span><br><span class="val">{{ protocol.order_number or 'â€”' }}</span></td>
+        <td><span class="lbl">Pedido / NF</span><br><span class="val">{{ protocol.order_number or '—' }}</span></td>
         {% endif %}
-        <td><span class="lbl">Quantidade</span><br><span class="val">{{ protocol.lote or 'â€”' }}</span></td>
+        <td><span class="lbl">Quantidade</span><br><span class="val">{{ protocol.lote or '—' }}</span></td>
         {% if protocol.type in ('rma', 'servico') %}
-        <td><span class="lbl">Entrada no Lab.</span><br><span class="val">{{ protocol.rma_entry_date.strftime('%d/%m/%Y') if protocol.rma_entry_date else 'â€”' }}</span></td>
-        <td><span class="lbl">Garantia</span><br><span class="val">{{ 'Sim' if protocol.rma_in_warranty else 'NÃ£o' }}</span></td>
+        <td><span class="lbl">Entrada no Lab.</span><br><span class="val">{{ protocol.rma_entry_date.strftime('%d/%m/%Y') if protocol.rma_entry_date else '—' }}</span></td>
+        <td><span class="lbl">Garantia</span><br><span class="val">{{ 'Sim' if protocol.rma_in_warranty else 'Não' }}</span></td>
         {% else %}
-        <td><span class="lbl">Ref. NS</span><br><span class="val">{{ protocol.ref_ns or 'â€”' }}</span></td>
+        <td><span class="lbl">Ref. NS</span><br><span class="val">{{ protocol.ref_ns or '—' }}</span></td>
         <td>&nbsp;</td>
         {% endif %}
     </tr>
@@ -107,7 +107,7 @@
 {% endmacro %}
 
 {% if rma_test %}
-{{ secao('Itens enviados ao laboratÃ³rio (Teste de Mesa)') }}
+{{ secao('Resultado do Teste de Mesa / Defeitos encontrados' if protocol.type == 'nao_comprado' else 'Itens enviados ao laboratório (Teste de Mesa)') }}
 {% set comp_labels = COMP_LABELS %}
 {% set status_labels = DEFEITO_STATUS_TODOS %}
 {% set pdf_test_machines = [] %}
@@ -123,11 +123,13 @@
         <tr>
             <th>#</th>
             <th>Componente</th>
+            {% if protocol.type in ('rma', 'servico') %}
             <th>Pedido</th>
             <th>Compra em</th>
-            <th>NÂº SÃ©rie</th>
+            {% endif %}
+            <th>Nº Série</th>
             <th>Defeito</th>
-            <th>SituaÃ§Ã£o</th>
+            {% if protocol.type != 'nao_comprado' %}<th>Situação</th>{% endif %}
         </tr>
         {% set pdf_idx = [] %}
         {% for item in rma_test if item.machine == m %}
@@ -135,11 +137,13 @@
         <tr{% if pdf_idx|length is even %} class="zebra"{% endif %}>
             <td>{{ pdf_idx|length }}</td>
             <td>{% if item.component and item.component != 'outro' and item.component.lower() not in (item.model or '').lower() %}{{ comp_labels.get(item.component, item.component) }} {% endif %}{{ item.model or '' }}</td>
-            <td>{{ item.pedido or 'NTB' }}</td>
-            <td>{{ item.data_compra or 'â€”' }}</td>
+            {% if protocol.type in ('rma', 'servico') %}
+            <td>{{ item.pedido or '—' }}</td>
+            <td>{{ item.data_compra or '—' }}</td>
+            {% endif %}
             <td>{{ item.serial or 'sem NS' }}</td>
-            <td>{{ item.defeito or 'â€”' }}</td>
-            <td>{{ status_labels.get(item.status, item.status or 'Em anÃ¡lise') }}</td>
+            <td>{{ item.defeito or '—' }}</td>
+            {% if protocol.type != 'nao_comprado' %}<td>{{ status_labels.get(item.status, item.status or 'Em análise') }}</td>{% endif %}
         </tr>
         {% endfor %}
     </table>
@@ -149,21 +153,25 @@
     <tr>
         <th>#</th>
         <th>Componente</th>
+        {% if protocol.type in ('rma', 'servico') %}
         <th>Pedido</th>
         <th>Compra em</th>
-        <th>NÂº SÃ©rie</th>
+        {% endif %}
+        <th>Nº Série</th>
         <th>Defeito</th>
-        <th>SituaÃ§Ã£o</th>
+        {% if protocol.type != 'nao_comprado' %}<th>Situação</th>{% endif %}
     </tr>
     {% for item in rma_test %}
     <tr{% if loop.index is even %} class="zebra"{% endif %}>
         <td>{{ loop.index }}</td>
         <td>{% if item.component and item.component != 'outro' and item.component.lower() not in (item.model or '').lower() %}{{ comp_labels.get(item.component, item.component) }} {% endif %}{{ item.model or '' }}</td>
-        <td>{{ item.pedido or 'NTB' }}</td>
-        <td>{{ item.data_compra or 'â€”' }}</td>
+        {% if protocol.type in ('rma', 'servico') %}
+        <td>{{ item.pedido or '—' }}</td>
+        <td>{{ item.data_compra or '—' }}</td>
+        {% endif %}
         <td>{{ item.serial or 'sem NS' }}</td>
-        <td>{{ item.defeito or 'â€”' }}</td>
-        <td>{{ status_labels.get(item.status, item.status or 'Em anÃ¡lise') }}</td>
+        <td>{{ item.defeito or '—' }}</td>
+        {% if protocol.type != 'nao_comprado' %}<td>{{ status_labels.get(item.status, item.status or 'Em análise') }}</td>{% endif %}
     </tr>
     {% endfor %}
 </table>
@@ -179,16 +187,16 @@
         <th>NS novo</th>
         <th>Pedido</th>
         <th>Entrada</th>
-        <th>SaÃ­da</th>
+        <th>Saída</th>
     </tr>
     {% for pas in passagens %}
     <tr{% if loop.index is even %} class="zebra"{% endif %}>
-        <td>{{ pas.protocolo or 'â€”' }}</td>
-        <td>{{ pas.ns or 'â€”' }}</td>
-        <td>{{ pas.ns_novo or 'â€”' }}</td>
-        <td>{{ pas.pedido or 'â€”' }}</td>
-        <td>{{ pas.data_entrada or 'â€”' }}</td>
-        <td>{{ pas.data_saida or 'â€”' }}</td>
+        <td>{{ pas.protocolo or '—' }}</td>
+        <td>{{ pas.ns or '—' }}</td>
+        <td>{{ pas.ns_novo or '—' }}</td>
+        <td>{{ pas.pedido or '—' }}</td>
+        <td>{{ pas.data_entrada or '—' }}</td>
+        <td>{{ pas.data_saida or '—' }}</td>
     </tr>
     {% endfor %}
 </table>
@@ -203,7 +211,7 @@
     {% for unit, entry in trocados.items() | sort %}
         {% if entry.components %}
             {% for comp in entry.components %}
-            <li>{{ entry.name if entry.name else 'Computador ' ~ unit }} â€” {{ comp.type or '' }} {{ comp.model or '' }} | NS: {{ comp.serial or 'sem NS' }}</li>
+            <li>{{ entry.name if entry.name else 'Computador ' ~ unit }} — {{ comp.type or '' }} {{ comp.model or '' }} | NS: {{ comp.serial or 'sem NS' }}</li>
             {% endfor %}
         {% endif %}
     {% endfor %}
@@ -212,22 +220,22 @@
 {% endif %}
 
 {% if protocol.components and protocol.type not in ('rma', 'servico', 'nao_comprado') %}
-{{ secao('Componentes / NS por MÃ¡quina') }}
+{{ secao('Componentes / NS por Máquina') }}
 {% set pdf_comps_by_unit = protocol.components|sort(attribute='sort_order')|groupby('unit') %}
 {% for unit_group in pdf_comps_by_unit %}
 {% set first = unit_group.list[0] %}
-<p style="margin:8px 0 4px;font-weight:bold;color:#333;">{{ first.machine_name or 'MÃ¡quina ' + unit_group.grouper }}{% if first.is_prebuilt %} (PE){% endif %}</p>
+<p style="margin:8px 0 4px;font-weight:bold;color:#333;">{{ first.machine_name or 'Máquina ' + unit_group.grouper }}{% if first.is_prebuilt %} (PE){% endif %}</p>
 <table class="data" cellspacing="0">
     <tr>
         <th>Componente</th>
         <th>Modelo</th>
-        <th>NÂº de SÃ©rie</th>
+        <th>Nº de Série</th>
     </tr>
     {% for comp in unit_group.list %}
     <tr{% if loop.index is even %} class="zebra"{% endif %}>
         <td>{{ comp.type_label() }}</td>
-        <td>{{ comp.specification or 'â€”' }}</td>
-        <td>{{ comp.serial_number or 'â€”' }}</td>
+        <td>{{ comp.specification or '—' }}</td>
+        <td>{{ comp.serial_number or '—' }}</td>
     </tr>
     {% endfor %}
 </table>
@@ -239,9 +247,9 @@
 <table class="data" cellspacing="0">
     <tr>
         <th>Componente</th>
-        <th>MÃ¡quina</th>
+        <th>Máquina</th>
         <th>Modelo</th>
-        <th>NÂº SÃ©rie</th>
+        <th>Nº Série</th>
         <th>Defeito</th>
         <th>Status</th>
     </tr>
@@ -249,11 +257,11 @@
     {% for defect in protocol.defects %}
     <tr{% if loop.index is even %} class="zebra"{% endif %}>
         <td>{{ defect.type_label() }}</td>
-        <td>{{ defect.maquina or 'â€”' }}</td>
-        <td>{{ defect.specification or 'â€”' }}</td>
-        <td>{{ defect.serial_number or 'â€”' }}</td>
-        <td>{{ defect.description or 'â€”' }}</td>
-        <td>{{ dstatus_labels.get(defect.defeito_status, defect.defeito_status or 'â€”') }}</td>
+        <td>{{ defect.maquina or '—' }}</td>
+        <td>{{ defect.specification or '—' }}</td>
+        <td>{{ defect.serial_number or '—' }}</td>
+        <td>{{ defect.description or '—' }}</td>
+        <td>{{ dstatus_labels.get(defect.defeito_status, defect.defeito_status or '—') }}</td>
     </tr>
     {% endfor %}
 </table>
@@ -265,14 +273,14 @@
 {% endif %}
 
 {% if protocol.observations %}
-{{ secao('ObservaÃ§Ãµes') }}
+{{ secao('Observações') }}
 <table class="txtbox" cellspacing="0"><tr><td>{{ protocol.observations|nl2br }}</td></tr></table>
 {% endif %}
 
 <div id="pdf_footer">
     <hr>
     <div class="footer">
-        LabTrack â€” Controle de LaboratÃ³rio &nbsp;|&nbsp; Documento gerado automaticamente em {{ now.strftime('%d/%m/%Y Ã s %H:%M') }}
+        LabTrack — Controle de Laboratório &nbsp;|&nbsp; Documento gerado automaticamente em {{ now.strftime('%d/%m/%Y às %H:%M') }}
     </div>
 </div>
 

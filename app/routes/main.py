@@ -1,7 +1,10 @@
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request
-from flask_login import login_required
+from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask_login import login_required, current_user
+from app import db
+from app.forms import QuickProtocolForm
 from app.models import Protocol
+from app.routes.protocols.helpers import gerar_numero_protocolo, parse_date_br
 from sqlalchemy import extract
 
 main_bp = Blueprint('main', __name__)
@@ -54,4 +57,88 @@ def dashboard():
         recentes=recentes, parados=parados, parados_ids=parados_ids,
         dias_alerta=DIAS_ALERTA,
         anos_disponiveis=anos_disponiveis,
-        f_ano=f_ano, f_mes=f_mes)
+        f_ano=f_ano, f_mes=f_mes,
+        quick_form=QuickProtocolForm())
+
+
+@main_bp.route('/registro-rapido', methods=['POST'])
+@login_required
+def registro_rapido():
+    """Cria um protocolo a partir do bloco 'Registro rápido' da Home.
+
+    Os campos mostrados na Home mudam conforme o tipo, seguindo o que é
+    essencial em cada um. Aqui o servidor grava só o que faz sentido para o
+    tipo escolhido e já abre a edição, para completar equipamento, teste de
+    mesa etc.
+    """
+    if not current_user.is_manager():
+        flash('Você não tem permissão para criar protocolos.', 'danger')
+        return redirect(url_for('main.dashboard'))
+
+    form = QuickProtocolForm()
+    if not form.validate_on_submit():
+        flash('Confira o registro rápido: informe o tipo de protocolo.', 'warning')
+        return redirect(url_for('main.dashboard'))
+
+    tipo = form.type.data
+    if tipo not in ('venda', 'ponta_entrega', 'rma', 'servico', 'nao_comprado'):
+        flash('Escolha o tipo de protocolo.', 'warning')
+        return redirect(url_for('main.dashboard'))
+
+    # Tipos com cliente no formulário completo (a Pronta-Entrega não tem).
+    if tipo in ('venda', 'rma', 'servico', 'nao_comprado'):
+        if not (form.client_name.data or '').strip():
+            flash('Informe o cliente para este tipo de protocolo.', 'warning')
+            return redirect(url_for('main.dashboard'))
+
+    cliente = (form.client_name.data or '').strip()
+    vendedor = (form.seller.data or '').strip() or None
+    pedido = (form.pedido.data or '').strip() or None
+    lote = (form.lote.data or '').strip() or None
+    data_informada = parse_date_br((form.entry_date.data or '').strip()) \
+        if (form.entry_date.data or '').strip() else None
+    relato = (form.base_defect.data or '').strip()
+
+    protocol = Protocol(
+        protocol_number=gerar_numero_protocolo(),
+        type=tipo,
+        client_name=cliente or None,
+        seller=vendedor,
+        status='andamento',
+        rma_in_warranty=(tipo == 'rma'),
+        created_by=current_user.id,
+    )
+
+    # Venda: pedido e quantidade ficam nos campos de venda.
+    if tipo == 'venda':
+        protocol.order_number = pedido
+        protocol.lote = lote
+        protocol.entry_date = data_informada
+
+    # RMA / Serviço: o pedido é o da compra original; a data de entrada no
+    # laboratório é hoje e "Data da Compra" só é preenchida se informada.
+    elif tipo in ('rma', 'servico'):
+        protocol.original_order = pedido
+        protocol.lote = lote
+        protocol.entry_date = data_informada
+        protocol.rma_entry_date = datetime.utcnow()
+
+    # Pronta-Entrega: sem cliente/pedido; a entrada é hoje se não informada.
+    elif tipo == 'ponta_entrega':
+        protocol.lote = lote
+        protocol.entry_date = data_informada or datetime.utcnow()
+
+    # RMA/Serviço/NTB têm o campo "Defeito informado pelo cliente"; em Venda e
+    # Pronta-Entrega esse campo não aparece no formulário, então o relato vai
+    # para as Observações (onde continua visível e editável).
+    if relato:
+        if tipo in ('rma', 'servico', 'nao_comprado'):
+            protocol.base_defect = relato
+        else:
+            protocol.observations = relato
+
+    db.session.add(protocol)
+    db.session.commit()
+    flash(f'Protocolo {protocol.protocol_number} criado. Complete as informações abaixo.',
+          'success')
+    return redirect(url_for('protocols.edit_protocol', id=protocol.id))

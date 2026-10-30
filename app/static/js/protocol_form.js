@@ -141,6 +141,56 @@ function updateModelOptions(typeSelect, modelInput, produtoIdInput) {
     if (produtoIdInput) produtoIdInput.value = match ? match.id : '';
 }
 
+// "Equipamentos Mudados" (RMA, Serviço e NTB) também usa o catálogo de
+// Produtos: ao escolher o componente, o Modelo passa a sugerir os modelos
+// daquele tipo. Se o modelo digitado não existir no catálogo, o sistema
+// pergunta se quer cadastrá-lo (peça trocada sai do estoque e precisa estar
+// em Produtos). Aqui não se grava código do produto: muda só a sugestão.
+let trocadoDatalistSeq = 0;
+
+function initTrocadoCatalog(tr) {
+    if (!tr) return;
+    const typeSelect = tr.querySelector('select[name^="trocado_comp_type_"]');
+    const modelInput = tr.querySelector('input[name^="trocado_comp_model_"]');
+    if (!typeSelect || !modelInput) return;
+
+    const aplicarSugestoes = function() {
+        const tipo = typeSelect.value;
+        modelInput.removeAttribute('list');
+        if (!tipo) {
+            modelInput.placeholder = 'Ex: I5-2400, 8GB...';
+            return;
+        }
+        const produtos = produtosCatalogo.filter(function(p) {
+            return p.component_type === tipo;
+        });
+        if (!produtos.length) {
+            modelInput.placeholder = 'Digite o modelo (ainda não está em Produtos)';
+            return;
+        }
+        trocadoDatalistSeq += 1;
+        const datalistId = 'datalist_trocado_' + trocadoDatalistSeq;
+        const datalist = document.createElement('datalist');
+        datalist.id = datalistId;
+        datalist.innerHTML = produtos.map(function(p) {
+            return '<option value="' + escHtml(p.model_name) + '"></option>';
+        }).join('');
+        document.body.appendChild(datalist);
+        modelInput.setAttribute('list', datalistId);
+        modelInput.placeholder = 'Selecione ou digite...';
+    };
+
+    typeSelect.addEventListener('change', aplicarSugestoes);
+    modelInput.addEventListener('change', function() {
+        const modelo = (modelInput.value || '').trim();
+        if (!modelo || !typeSelect.value) return;
+        if (typeof window.tentarAdicionarModelo !== 'function') return;
+        window.tentarAdicionarModelo(typeSelect.value, modelo, produtosCatalogo,
+                                     modelInput, null);
+    });
+    aplicarSugestoes();
+}
+
 function syncDefectMachines() {
     const entries = [];
     document.querySelectorAll('input[name^="machine_name_"]').forEach(function(inp) {
@@ -212,6 +262,9 @@ document.addEventListener('change', function(e) {
     if (!alvo || !alvo.name) return;
     if (alvo.name === 'defect_maquina[]' || alvo.name === 'defect_type[]') {
         syncDefeitoNs(alvo.closest('tr'));
+    }
+    if (alvo.name === 'rma_test_machine[]' || alvo.name === 'rma_test_comp[]') {
+        syncRmaTestFromEquip(alvo.closest('tr'));
     }
 });
 
@@ -298,6 +351,80 @@ function syncRmaTestMachines() {
             names.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
         if (cur) sel.value = cur;
     });
+}
+
+// No Teste de Mesa de RMA/Serviço/NTB, ao escolher Máquina + Componente,
+// copia a Referência (Modelo) e o NS do "Equipamento do Cliente".
+// É cópia, não recorte: os dados continuam na seção de origem.
+// No NTB só vai a referência, porque o equipamento não foi comprado na TechBuy.
+function syncRmaTestFromEquip(tr) {
+    if (!tr) return;
+    const selMaquina = tr.querySelector('select[name="rma_test_machine[]"]');
+    const selTipo = tr.querySelector('select[name="rma_test_comp[]"]');
+    const inpModelo = tr.querySelector('input[name="rma_test_model[]"]');
+    const inpNs = tr.querySelector('input[name="rma_test_serial[]"]');
+    if (!selMaquina || !selTipo || !inpModelo) return;
+    const nomeMaquina = (selMaquina.value || '').trim();
+    const tipo = selTipo.value;
+    if (!nomeMaquina || !tipo) return;
+
+    // Descobre a "unidade" (sufixo dos campos) comparando com os nomes das
+    // máquinas do Equipamento do Cliente, inclusive o sufixo " (unid. XX)".
+    // A comparação ignora maiúsculas/minúsculas porque protocolos antigos
+    // gravaram "computador 01" e o equipamento pode estar "Computador 01".
+    const nomeMin = nomeMaquina.toLowerCase();
+    let unit = null;
+    document.querySelectorAll('input[name^="rma_machine_name_"]').forEach(function(inp) {
+        if (unit !== null) return;
+        const m = inp.name.match(/^rma_machine_name_(.+)$/);
+        if (!m) return;
+        const nomeMaq = (inp.value || '').trim();
+        if (!nomeMaq) return;
+        if (nomeMin === nomeMaq.toLowerCase() ||
+            nomeMin === (nomeMaq + ' (unid. ' + m[1] + ')').toLowerCase()) {
+            unit = m[1];
+        }
+    });
+    if (unit === null) return;
+
+    // Pode haver mais de uma linha com o mesmo componente (ex.: dois SSDs).
+    // Prefere a que tem NS, depois a que tem modelo; senão usa a primeira.
+    const tipos = document.querySelectorAll(
+        '#rmaMachinesContainer select[name="rma_comp_type_' + unit + '[]"]');
+    const candidatas = [];
+    for (let i = 0; i < tipos.length; i++) {
+        if (tipos[i].value !== tipo) continue;
+        const linha = tipos[i].closest('tr');
+        if (linha) candidatas.push(linha);
+    }
+    if (!candidatas.length) return;
+
+    const querNs = rmaTestHasNs();
+    const modeloDe = function(linha) {
+        const inp = linha.querySelector(
+            'input[name="rma_comp_model_' + unit + '[]"]');
+        return inp ? inp.value.trim() : '';
+    };
+    const serialDe = function(linha) {
+        const inp = linha.querySelector(
+            'input[name="rma_comp_serial_' + unit + '[]"]');
+        return inp ? inp.value.trim() : '';
+    };
+    let escolhida = candidatas[0];
+    for (let i = 0; i < candidatas.length; i++) {
+        if (querNs && serialDe(candidatas[i])) { escolhida = candidatas[i]; break; }
+    }
+    if (!querNs || !serialDe(escolhida)) {
+        for (let i = 0; i < candidatas.length; i++) {
+            if (modeloDe(candidatas[i])) { escolhida = candidatas[i]; break; }
+        }
+    }
+
+    // Espelha o que está no equipamento: se lá estiver vazio, aqui também fica.
+    inpModelo.value = modeloDe(escolhida);
+    if (inpNs && querNs) {
+        inpNs.value = serialDe(escolhida);
+    }
 }
 
 let machineCount = 0;
@@ -558,12 +685,28 @@ function rmaTestHasNs() {
     return sel ? sel.value === 'rma' || sel.value === 'servico' : false;
 }
 
+function rmaTestHasOrigemTechBuy() {
+    return rmaTestHasNs();
+}
+
 function updateRmaTestNsColumns() {
-    const show = rmaTestHasNs();
+    const showNs = rmaTestHasNs();
+    const showOrigem = rmaTestHasOrigemTechBuy();
     const header = document.getElementById('rmaTestNsHeader');
-    if (header) header.style.display = show ? '' : 'none';
+    if (header) header.style.display = showNs ? '' : 'none';
     document.querySelectorAll('#rmaTestTable .rma-test-ns-cell').forEach(function(c) {
-        c.style.display = show ? '' : 'none';
+        c.style.display = showNs ? '' : 'none';
+    });
+    ['rmaTestPedidoHeader', 'rmaTestDataCompraHeader'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = showOrigem ? '' : 'none';
+    });
+    document.querySelectorAll('#rmaTestTable .rma-test-origem-cell').forEach(function(c) {
+        c.style.display = showOrigem ? '' : 'none';
+        c.querySelectorAll('input').forEach(function(inp) {
+            inp.disabled = !showOrigem;
+            if (!showOrigem) inp.value = '';
+        });
     });
 }
 
@@ -599,8 +742,8 @@ function addRmaTestRow() {
         <td><input type="text" name="rma_test_model[]" class="form-control form-control-sm" placeholder="Ex: I5-2400"></td>
         <td class="rma-test-ns-cell" style="display:${rmaTestHasNs() ? '' : 'none'}"><input type="text" name="rma_test_serial[]" class="form-control form-control-sm" placeholder="Nº de Série"></td>
         <td><input type="text" name="rma_test_defeito[]" class="form-control form-control-sm" placeholder="Descrição do defeito"></td>
-        <td><input type="text" name="rma_test_pedido[]" class="form-control form-control-sm" placeholder="Pedido"></td>
-        <td><input type="text" name="rma_test_data_compra[]" class="form-control form-control-sm date-mask" placeholder="DD/MM/AAAA"></td>
+        <td class="rma-test-origem-cell" style="display:${rmaTestHasOrigemTechBuy() ? '' : 'none'}"><input type="text" name="rma_test_pedido[]" class="form-control form-control-sm" placeholder="Pedido"${rmaTestHasOrigemTechBuy() ? '' : ' disabled'}></td>
+        <td class="rma-test-origem-cell" style="display:${rmaTestHasOrigemTechBuy() ? '' : 'none'}"><input type="text" name="rma_test_data_compra[]" class="form-control form-control-sm date-mask" placeholder="DD/MM/AAAA"${rmaTestHasOrigemTechBuy() ? '' : ' disabled'}></td>
         <td>
             <select name="rma_test_status[]" class="form-select form-select-sm">
                 <option value=\"\">--</option>
@@ -705,6 +848,7 @@ function addTrocadoCompRow(btn, presetMachine) {
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
     `;
     tbody.appendChild(tr);
+    initTrocadoCatalog(tr);
 }
 
 function replicateTrocadoMachine(btn) {
@@ -741,6 +885,7 @@ function replicateTrocadoMachine(btn) {
         const selects = tr.querySelectorAll('select');
         if (selects[1]) selects[1].value = srcTypeSel ? srcTypeSel.value : '';
         dstTbody.appendChild(tr);
+        initTrocadoCatalog(tr);
     });
 }
 
@@ -775,6 +920,7 @@ function loadTrocadoMachines(data) {
             const selects = tr.querySelectorAll('select');
             if (selects[1]) selects[1].value = item.type || '';
             tbody.appendChild(tr);
+            initTrocadoCatalog(tr);
         });
     });
     trocadoMachineCount = maxM || 0;
@@ -1088,13 +1234,13 @@ function loadRmaTestItems(items) {
         const tr = document.createElement('tr');
         tr.className = 'rma-test-row';
         tr.innerHTML = `
-            <td><select name="rma_test_machine[]" class="form-select form-select-sm">${MACHINE_OPTS}</select></td>
+            <td><select name="rma_test_machine[]" class="form-select form-select-sm">${currentRmaMachineOpts()}</select></td>
             <td><select name="rma_test_comp[]" class="form-select form-select-sm">${opts}</select></td>
             <td><input type="text" name="rma_test_model[]" class="form-control form-control-sm" value="${escHtml(item.model)}"></td>
             <td class="rma-test-ns-cell" style="display:${rmaTestHasNs() ? '' : 'none'}"><input type="text" name="rma_test_serial[]" class="form-control form-control-sm" placeholder="Nº de Série" value="${escHtml(item.serial)}"></td>
             <td><input type="text" name="rma_test_defeito[]" class="form-control form-control-sm" value="${escHtml(item.defeito)}"></td>
-            <td><input type="text" name="rma_test_pedido[]" class="form-control form-control-sm" value="${escHtml(item.pedido)}"></td>
-            <td><input type="text" name="rma_test_data_compra[]" class="form-control form-control-sm date-mask" value="${escHtml(item.data_compra)}"></td>
+            <td class="rma-test-origem-cell" style="display:${rmaTestHasOrigemTechBuy() ? '' : 'none'}"><input type="text" name="rma_test_pedido[]" class="form-control form-control-sm" value="${rmaTestHasOrigemTechBuy() ? escHtml(item.pedido) : ''}"${rmaTestHasOrigemTechBuy() ? '' : ' disabled'}></td>
+            <td class="rma-test-origem-cell" style="display:${rmaTestHasOrigemTechBuy() ? '' : 'none'}"><input type="text" name="rma_test_data_compra[]" class="form-control form-control-sm date-mask" value="${rmaTestHasOrigemTechBuy() ? escHtml(item.data_compra) : ''}"${rmaTestHasOrigemTechBuy() ? '' : ' disabled'}></td>
             <td>
                 <select name="rma_test_status[]" class="form-select form-select-sm">
                     <option value="">--</option>
@@ -1105,7 +1251,19 @@ function loadRmaTestItems(items) {
         `;
         tbody.appendChild(tr);
         if (window.initDateMask) initDateMask(tr);
-        if (item.machine) tr.querySelector('select[name="rma_test_machine[]"]').value = item.machine;
+        const selMaquina = tr.querySelector('select[name="rma_test_machine[]"]');
+        const alvoMaquina = (item.machine || '').trim();
+        if (selMaquina && alvoMaquina) {
+            let opcao = Array.from(selMaquina.options).filter(function(o) {
+                return o.value === alvoMaquina;
+            })[0];
+            if (!opcao) {
+                opcao = Array.from(selMaquina.options).filter(function(o) {
+                    return o.value.trim().toLowerCase() === alvoMaquina.toLowerCase();
+                })[0];
+            }
+            if (opcao) selMaquina.value = opcao.value;
+        }
         if (item.component) tr.querySelector('select[name="rma_test_comp[]"]').value = item.component;
     });
 }
@@ -1148,6 +1306,7 @@ function loadRmaTrocadosItems(data) {
             const selects = tr.querySelectorAll('select');
             if (selects[1]) selects[1].value = type;
             tbody.appendChild(tr);
+            initTrocadoCatalog(tr);
         });
     });
     trocadoMachineCount = maxM || 0;
@@ -1339,14 +1498,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const pedido = row.querySelector('input[name^="rma_test_pedido"]');
             const dataCompra = row.querySelector('input[name^="rma_test_data_compra"]');
             const status = row.querySelector('select[name^="rma_test_status"]');
+            const origemTechBuy = rmaTestHasOrigemTechBuy();
             items.push({
                 machine: mval,
                 component: comp ? comp.value : '',
                 model: model ? model.value : '',
                 serial: serial ? serial.value : '',
                 defeito: defeito ? defeito.value : '',
-                pedido: pedido ? pedido.value : '',
-                data_compra: dataCompra ? dataCompra.value : '',
+                pedido: origemTechBuy && pedido ? pedido.value : '',
+                data_compra: origemTechBuy && dataCompra ? dataCompra.value : '',
                 status: status ? status.value : ''
             });
         });

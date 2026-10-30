@@ -14,6 +14,91 @@
     {% endif %}
 </div>
 
+{% if current_user.is_manager() %}
+<div class="card mb-4 border-info" id="registroRapido">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span><i class="bi bi-chat-dots"></i> Registro rápido</span>
+        <small class="text-secondary">Cria o protocolo na hora — o resto você completa na tela seguinte</small>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('main.registro_rapido') }}" autocomplete="off"
+              class="row g-2 align-items-end" id="quickForm">
+            {{ quick_form.hidden_tag() }}
+            <div class="col-8 col-md-2">
+                <label class="form-label" for="quickType"><i class="bi bi-tag"></i> Tipo</label>
+                {{ quick_form.type(class='form-select', id='quickType') }}
+            </div>
+            <div class="col-12 col-md-3" data-quick-for="venda,rma,servico,nao_comprado">
+                <label class="form-label" for="quickClient"><i class="bi bi-person"></i> Cliente</label>
+                {{ quick_form.client_name(class='form-control', id='quickClient', placeholder='Nome do cliente') }}
+            </div>
+            <div class="col-6 col-md-2" data-quick-for="venda,rma,servico,nao_comprado">
+                <label class="form-label" for="quickSeller"><i class="bi bi-person-badge"></i> Vendedor</label>
+                {{ quick_form.seller(class='form-select', id='quickSeller') }}
+            </div>
+            <div class="col-6 col-md-2" data-quick-for="venda,rma,servico">
+                <label class="form-label" id="quickPedidoLabel" for="quickPedido"><i class="bi bi-receipt"></i> Pedido</label>
+                {{ quick_form.pedido(class='form-control', id='quickPedido', placeholder='Nº do pedido') }}
+            </div>
+            <div class="col-4 col-md-1" data-quick-for="venda,rma,servico,ponta_entrega">
+                <label class="form-label" for="quickLote"><i class="bi bi-box-seam"></i> Qtd.</label>
+                {{ quick_form.lote(class='form-control', id='quickLote', placeholder='1') }}
+            </div>
+            <div class="col-6 col-md-2" data-quick-for="venda,rma,servico,ponta_entrega">
+                <label class="form-label" id="quickDataLabel" for="quickData"><i class="bi bi-calendar3"></i> Data</label>
+                {{ quick_form.entry_date(class='form-control date-mask', id='quickData', placeholder='DD/MM/AAAA') }}
+            </div>
+            <div class="col-12 col-md-3" data-quick-for="venda,rma,servico,nao_comprado,ponta_entrega">
+                <label class="form-label" id="quickDefectLabel" for="quickDefect"><i class="bi bi-chat-left-text"></i> Defeito relatado</label>
+                {{ quick_form.base_defect(class='form-control', id='quickDefect', rows=1) }}
+            </div>
+            <div class="col-12 col-md-2 d-grid">
+                <button type="submit" class="btn btn-info">
+                    <i class="bi bi-send"></i> Criar
+                </button>
+            </div>
+            <div class="col-12" id="quickHint">
+                <small class="text-secondary"><i class="bi bi-info-circle"></i>
+                    Escolha o tipo de protocolo para ver os campos essenciais dele.</small>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+(function () {
+    var form = document.getElementById('quickForm');
+    if (!form) return;
+    var tipo = document.getElementById('quickType');
+    var grupos = form.querySelectorAll('[data-quick-for]');
+    var rotuloPedido = document.getElementById('quickPedidoLabel');
+    var rotuloData = document.getElementById('quickDataLabel');
+    var rotuloRelato = document.getElementById('quickDefectLabel');
+    var relato = document.getElementById('quickDefect');
+    var dica = document.getElementById('quickHint');
+
+    function atualizar() {
+        var t = tipo.value;
+        grupos.forEach(function (grupo) {
+            var tipos = (grupo.getAttribute('data-quick-for') || '').split(',');
+            grupo.style.display = (t && tipos.indexOf(t) !== -1) ? '' : 'none';
+        });
+        if (dica) dica.style.display = t ? 'none' : '';
+        if (rotuloPedido) rotuloPedido.innerHTML = '<i class="bi bi-receipt"></i> ' +
+            (t === 'venda' ? 'Nº do Pedido' : 'Pedido Original');
+        if (rotuloData) rotuloData.innerHTML = '<i class="bi bi-calendar3"></i> ' +
+            (t === 'ponta_entrega' ? 'Data de Entrada' : 'Data da Compra');
+        var ehVendaOuPe = (t === 'venda' || t === 'ponta_entrega');
+        if (rotuloRelato) rotuloRelato.innerHTML = '<i class="bi bi-chat-left-text"></i> ' +
+            (ehVendaOuPe ? 'Observações' : 'Defeito informado pelo cliente');
+        if (relato) relato.placeholder = ehVendaOuPe ? 'Ex: chegou com a tampa riscada' : 'Ex: não liga';
+    }
+
+    tipo.addEventListener('change', atualizar);
+    atualizar();
+})();
+</script>
+{% endif %}
+
 <div class="card mb-4">
     <div class="card-header"><i class="bi bi-funnel"></i> Período</div>
     <div class="card-body">

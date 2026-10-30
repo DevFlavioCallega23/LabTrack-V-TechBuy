@@ -50,29 +50,33 @@ class ChangePasswordForm(FlaskForm):
     confirm_password = PasswordField('Confirmar Nova Senha', validators=[DataRequired()])
     submit = SubmitField('Alterar Senha')
 
+PROTO_TYPE_CHOICES = [
+    ('', 'Selecione...'),
+    ('venda', 'Venda'),
+    ('ponta_entrega', 'Pronta-Entrega'),
+    ('rma', 'RMA (Garantia)'),
+    ('servico', 'Serviço (Fora de Garantia)'),
+    ('nao_comprado', 'Não comprado na TechBuy')
+]
+
+SELLER_CHOICES = [
+    ('', 'Selecione...'),
+    ('Myris', 'Myris'),
+    ('Janay', 'Janay'),
+    ('Herbert', 'Herbert'),
+    ('Erica', 'Erica'),
+    ('Roberto', 'Roberto'),
+    ('TechBuy', 'TechBuy'),
+    ('NIL', 'NIL (Não informado ao Laboratório)')
+]
+
 class ProtocolForm(FlaskForm):
-    type = SelectField(PL['type'], choices=[
-        ('', 'Selecione...'),
-        ('venda', 'Venda'),
-        ('ponta_entrega', 'Pronta-Entrega'),
-        ('rma', 'RMA (Garantia)'),
-        ('servico', 'Serviço (Fora de Garantia)'),
-        ('nao_comprado', 'Não comprado na TechBuy')
-    ], default='')
+    type = SelectField(PL['type'], choices=PROTO_TYPE_CHOICES, default='')
     venda_pe = BooleanField(PL['venda_pe'], default=False)
     client_name = StringField(PL['client_name'], validators=[Optional(), Length(max=200)])
     lote = StringField(PL['lote'], validators=[Optional(), Length(max=50)])
     order_number = StringField(PL['order_number'], validators=[Optional(), Length(max=100)])
-    seller = SelectField(PL['seller'], choices=[
-        ('', 'Selecione...'),
-        ('Myris', 'Myris'),
-        ('Janay', 'Janay'),
-        ('Herbert', 'Herbert'),
-        ('Erica', 'Erica'),
-        ('Roberto', 'Roberto'),
-        ('TechBuy', 'TechBuy'),
-        ('NIL', 'NIL (Não informado ao Laboratório)')
-    ], default='')
+    seller = SelectField(PL['seller'], choices=SELLER_CHOICES, default='')
     status = SelectField(PL['status'], choices=[
         ('pendente', 'Pendente'),
         ('andamento', 'Em Andamento'),
@@ -91,3 +95,17 @@ class ProtocolForm(FlaskForm):
     submit = SubmitField(PL['submit'])
 
 
+class QuickProtocolForm(FlaskForm):
+    """Registro rápido da Home: cria o protocolo e abre a edição para completar.
+
+    Os campos aparecem conforme o tipo escolhido (ver dashboard.html); o
+    servidor só aproveita o que faz sentido para cada tipo.
+    """
+    type = SelectField('Tipo de Protocolo', choices=[('', 'Selecione...')] + PROTO_TYPE_CHOICES[1:], default='')
+    client_name = StringField('Cliente', validators=[Optional(), Length(max=200)])
+    seller = SelectField('Vendedor', choices=SELLER_CHOICES, default='')
+    pedido = StringField('Pedido', validators=[Optional(), Length(max=100)])
+    lote = StringField('Quantidade', validators=[Optional(), Length(max=50)])
+    entry_date = StringField('Data', validators=[Optional(), valida_data_br])
+    base_defect = TextAreaField('Defeito relatado', validators=[Optional()])
+    submit = SubmitField('Criar protocolo')
