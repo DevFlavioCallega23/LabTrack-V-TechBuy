@@ -39,7 +39,12 @@ const CFG = {
     passagens: safeParse(PF.passagens, null),
     statusOptions: mapFromPairs(PF.statusOptions),
     titles: PF.titles || {},
-    fields: PF.fields || {}
+    fields: PF.fields || {},
+    protocolType: PF.protocolType || '',
+    protocolId: PF.protocolId || 0,
+    protocolNumber: PF.protocolNumber || '',
+    saleRefs: safeParse(PF.saleRefs, {}),
+    peRefs: safeParse(PF.peRefs, {})
 };
 
 function optionsHtml(map) {
@@ -430,17 +435,61 @@ function syncRmaTestFromEquip(tr) {
 let machineCount = 0;
 let rmaMachineCount = 0;
 
+function currentProtocolType() {
+    const sel = document.getElementById('protocolType');
+    return sel ? sel.value : (CFG.protocolType || '');
+}
+
+function isPontaEntregaType() {
+    return currentProtocolType() === 'ponta_entrega';
+}
+
+function materialComumAtivo() {
+    const el = document.getElementById('materialComum');
+    return !!(el && el.checked);
+}
+
+function machineIsPE(block) {
+    if (!block) return false;
+    if (isPontaEntregaType()) return true;
+    const cb = block.querySelector('input[name^="pe_switch_"]');
+    return !!(cb && cb.checked);
+}
+
+function refData(map, n) {
+    const item = (map || {})[n];
+    if (!item) return {};
+    return (typeof item === 'string') ? { text: item } : item;
+}
+
+function peRefStatusHTML(info) {
+    if (!info || !info.protocol_id) {
+        return '<span class="text-secondary">Nenhuma Pronta-Entrega vinculada.</span>';
+    }
+    const nome = info.machine_name ? ' (' + escHtml(info.machine_name) + ')' : '';
+    return '<i class="bi bi-link-45deg"></i> Vinculada a ' +
+        '<a href="/protocolos/' + info.protocol_id + '" target="_blank" class="text-info">' +
+        escHtml(info.protocol_number) + ' · Nº ' + escHtml(info.unit) + nome + '</a>' +
+        (info.fonte ? ' · fonte <code>' + escHtml(info.fonte) + '</code>' : '');
+}
+
 function machineHTML(num, name, isPrebuilt, powerCableVal) {
     const n = String(num).padStart(2, '0');
     const label = name || `Máquina ${n}`;
     const checked = isPrebuilt ? 'checked' : '';
     const pcVal = powerCableVal || 'OK';
+    const saleRef = refData(CFG.saleRefs, n);
+    const peRef = refData(CFG.peRefs, n);
+    const peRefJson = peRef.protocol_id ? JSON.stringify(peRef) : '';
+    const switchDisplay = isPontaEntregaType() ? 'display:none' : '';
+    const saleRefDisplay = isPontaEntregaType() ? '' : 'display:none';
     return `
     <div class="card bg-dark border-secondary mb-3 machine-block" data-machine="${n}">
         <div class="card-header d-flex justify-content-between align-items-center py-2 flex-wrap gap-2">
             <div class="d-flex align-items-center gap-3 flex-wrap">
+                <span class="badge bg-secondary machine-number" title="Número deste bloco de máquina">Nº ${n}</span>
                 <input type="text" name="machine_name_${n}" class="form-control form-control-sm bg-dark text-light border-secondary fw-bold" style="width:auto;min-width:200px;display:inline-block" value="${escHtml(label)}">
-                <div class="form-check form-switch mb-0">
+                <div class="form-check form-switch mb-0 pe-switch-wrap" style="${switchDisplay}">
                     <input class="form-check-input" type="checkbox" id="peSwitch_${n}" name="pe_switch_${n}" ${checked} onchange="togglePE(this)">
                     <label class="form-check-label small text-secondary" for="peSwitch_${n}">Pronta-Entrega</label>
                 </div>
@@ -457,6 +506,23 @@ function machineHTML(num, name, isPrebuilt, powerCableVal) {
             </button>
         </div>
         <div class="card-body p-2">
+            <div class="pe-sale-ref mb-2" style="${saleRefDisplay}">
+                <label class="form-label small text-secondary mb-1"><i class="bi bi-receipt"></i> Referência de Venda <span class="text-muted">(automática; pode editar)</span></label>
+                <input type="text" name="sale_ref_${n}" class="form-control form-control-sm" placeholder="Ex: PRO-2026-0199 · Cliente · 03/11/2026" value="${escHtml(saleRef.text || '')}">
+                <input type="hidden" name="sale_ref_id_${n}" value="${saleRef.sale_id || ''}">
+                <input type="hidden" name="sale_ref_number_${n}" value="${escHtml(saleRef.sale_number || '')}">
+            </div>
+            <div class="pe-link-panel mb-2 p-2 border border-info rounded" style="display:none">
+                <label class="form-label small text-info mb-1"><i class="bi bi-link-45deg"></i> Pronta-Entrega de origem</label>
+                <div class="d-flex gap-1 flex-wrap align-items-center">
+                    <input type="text" class="form-control form-control-sm pe-ns-input" style="max-width:230px" placeholder="NS da fonte (ex: 158418)" value="${escHtml(peRef.fonte || '')}">
+                    <button type="button" class="btn btn-sm btn-outline-info" onclick="buscarPE(this)"><i class="bi bi-search"></i> Buscar</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary pe-change-btn" onclick="limparPE(this)" style="${peRefJson ? '' : 'display:none'}">Trocar</button>
+                </div>
+                <div class="pe-ref-status small mt-1">${peRefStatusHTML(peRef)}</div>
+                <div class="pe-result mt-1"></div>
+                <input type="hidden" name="pe_ref_json_${n}" class="pe-ref-json" value="${escHtml(peRefJson)}">
+            </div>
             <table class="table table-dark table-sm mb-0">
                 <thead>
                     <tr>
@@ -535,8 +601,7 @@ function replicateMachine(btn) {
     let next = 1;
     while (used.has(next)) next++;
     if (next > machineCount) machineCount = next;
-    const srcPE = srcBlock.querySelector('.form-check-input');
-    const isPE = srcPE ? srcPE.checked : false;
+    const isPE = machineIsPE(srcBlock);
     const srcPcSel = srcBlock.querySelector('select[name^="machine_power_cable_"]');
     const pcVal = srcPcSel ? srcPcSel.value : 'OK';
     container.insertAdjacentHTML('beforeend', machineHTML(next, null, isPE, pcVal));
@@ -552,7 +617,6 @@ function replicateMachine(btn) {
         const srcSelect = row.querySelector('select');
         const srcModel = row.querySelector('input[name^="comp_model_"]');
         const serial = '';
-        const isPE = srcBlock.querySelector('.form-check-input') ? srcBlock.querySelector('.form-check-input').checked : false;
         const showBtn = (isPE && !serial) ? '' : 'style="display:none"';
         const showInput = (!isPE || serial) ? '' : 'style="display:none"';
         tr.innerHTML = `
@@ -927,13 +991,12 @@ function loadTrocadoMachines(data) {
     if (trocadoMachineCount === 0) addTrocadoMachine();
 }
 
-function togglePE(cb) {
-    const block = cb.closest('.machine-block');
-    const isPE = cb.checked;
+function refreshPESerialRows(block) {
+    const isPE = machineIsPE(block);
     block.querySelectorAll('.comp-row').forEach(function(row) {
         const btn = row.querySelector('.pe-ref-btn');
         const input = row.querySelector('.serial-input');
-        if (!input) return;
+        if (!input || !btn) return;
         if (isPE) {
             if (input.value) {
                 btn.style.display = 'none';
@@ -947,6 +1010,227 @@ function togglePE(cb) {
             input.style.display = '';
         }
     });
+}
+
+function syncVendaPeTop() {
+    if (currentProtocolType() !== 'venda') return;
+    const top = document.getElementById('vendaPe');
+    if (!top) return;
+    const blocks = Array.from(document.querySelectorAll('.machine-block'));
+    const anyPE = blocks.some(function(b) { return machineIsPE(b); });
+    const anyLink = Array.from(document.querySelectorAll('.pe-ref-json')).some(function(i) { return i.value; });
+    if (anyPE || anyLink) {
+        top.checked = true;
+    }
+}
+
+function syncPEMachineUI() {
+    const type = currentProtocolType();
+    document.querySelectorAll('.machine-block').forEach(function(block) {
+        const wrap = block.querySelector('.pe-switch-wrap');
+        if (wrap) wrap.style.display = (type === 'ponta_entrega') ? 'none' : '';
+        const saleRef = block.querySelector('.pe-sale-ref');
+        if (saleRef) saleRef.style.display = (type === 'ponta_entrega') ? 'block' : 'none';
+        const panel = block.querySelector('.pe-link-panel');
+        if (panel) {
+            panel.style.display = (type === 'venda' && machineIsPE(block)) ? 'block' : 'none';
+        }
+        refreshPESerialRows(block);
+    });
+    syncVendaPeTop();
+}
+
+function togglePE(cb) {
+    const block = cb.closest('.machine-block');
+    const panel = block.querySelector('.pe-link-panel');
+    if (panel) {
+        panel.style.display = (currentProtocolType() === 'venda' && cb.checked) ? 'block' : 'none';
+    }
+    refreshPESerialRows(block);
+    if (cb.checked) {
+        syncVendaPeTop();
+    } else {
+        const anyPE = Array.from(document.querySelectorAll('.machine-block')).some(function(b) { return machineIsPE(b); });
+        const anyLink = Array.from(document.querySelectorAll('.pe-ref-json')).some(function(i) { return i.value; });
+        const top = document.getElementById('vendaPe');
+        if (top && !anyPE && !anyLink) top.checked = false;
+    }
+}
+
+function updatePERefStatus(block, info) {
+    const status = block.querySelector('.pe-ref-status');
+    if (status) status.innerHTML = peRefStatusHTML(info);
+}
+
+function peResultHTML(r) {
+    const comps = (r.components || []).map(function(c) {
+        return '<div>' + escHtml(c.label || c.type) + ': <strong>' + escHtml(c.model || '-') +
+            '</strong> <span class="text-secondary">NS ' + escHtml(c.serial || '—') + '</span></div>';
+    }).join('');
+    const vendida = (r.vendida || []).map(function(v) {
+        return '<div class="text-danger"><i class="bi bi-exclamation-triangle"></i> Já saiu na venda ' +
+            escHtml(v.protocol_number) + ' — ' + escHtml(v.client_name || 'sem cliente') +
+            ' ' + escHtml(v.date || '') + '</div>';
+    }).join('');
+    const dados = escHtml(JSON.stringify(r));
+    return '<div class="border border-secondary rounded p-2 mt-1">' +
+        '<div class="fw-bold">' + escHtml(r.protocol_number) + ' · Nº ' + escHtml(r.unit) +
+        (r.machine_name ? ' · ' + escHtml(r.machine_name) : '') + '</div>' +
+        '<div class="text-secondary small">Fonte: <code>' + escHtml(r.fonte || '—') + '</code></div>' +
+        '<div class="small mt-1">' + comps + '</div>' + vendida +
+        '<div class="mt-2 d-flex gap-1 flex-wrap">' +
+        '<button type="button" class="btn btn-sm btn-success" data-pe="' + dados + '" onclick="aplicarPE(this, \'tudo\')">Trazer tudo (peças + NS)</button>' +
+        '<button type="button" class="btn btn-sm btn-outline-success" data-pe="' + dados + '" onclick="aplicarPE(this, \'fonte\')">Só o NS da fonte</button>' +
+        '<a class="btn btn-sm btn-outline-info" href="/protocolos/' + r.protocol_id + '" target="_blank">Abrir PE</a>' +
+        '</div></div>';
+}
+
+function renderPEResultados(container, resultados) {
+    if (!resultados || !resultados.length) {
+        container.innerHTML = '<div class="text-warning">Nenhuma Pronta-Entrega encontrada. Confira o NS da fonte ou registre a PE primeiro.</div>';
+        return;
+    }
+    container.innerHTML = resultados.map(peResultHTML).join('');
+}
+
+function buscarPE(btn) {
+    const block = btn.closest('.machine-block');
+    const input = block.querySelector('.pe-ns-input');
+    const result = block.querySelector('.pe-result');
+    const termo = (input ? input.value : '').trim();
+    if (!termo) {
+        result.innerHTML = '<div class="text-warning">Digite o NS da fonte (ou o número da PE).</div>';
+        return;
+    }
+    const params = new URLSearchParams();
+    const m = termo.match(/^(PRO[-\s]?\d{4}[-\s]?\d{1,4})(?:[\s\/\-]+(\d{1,2}))?$/i);
+    if (m) {
+        params.set('pe', m[1].replace(/\s+/g, '-'));
+        if (m[2]) params.set('unit', m[2]);
+    } else {
+        params.set('ns', termo);
+    }
+    if (CFG.protocolId && currentProtocolType() === 'venda') params.set('venda_id', CFG.protocolId);
+    result.innerHTML = '<div class="text-secondary">Buscando...</div>';
+    const url = '/protocolos/api/pronta-entrega/buscar?' + params.toString();
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.resultados && data.resultados.length) {
+                renderPEResultados(result, data.resultados);
+                return;
+            }
+            // Se digitou só números, pode ser o número da PE (ex.: 0186).
+            if (/^\d{1,4}$/.test(termo)) {
+                const p2 = new URLSearchParams();
+                p2.set('pe', termo);
+                if (CFG.protocolId) p2.set('venda_id', CFG.protocolId);
+                return fetch('/protocolos/api/pronta-entrega/buscar?' + p2.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function(r) { return r.json(); })
+                    .then(function(d2) { renderPEResultados(result, d2.resultados || []); });
+            }
+            renderPEResultados(result, []);
+        })
+        .catch(function() {
+            result.innerHTML = '<div class="text-danger">Não foi possível consultar agora. Tente novamente.</div>';
+        });
+}
+
+function appendCompRow(tbody, machine, item, isPE) {
+    const tr = document.createElement('tr');
+    tr.className = 'comp-row';
+    const hasSerial = !!(item.serial);
+    const showBtn = (isPE && !hasSerial) ? '' : 'style="display:none"';
+    const showInput = (!isPE || hasSerial) ? '' : 'style="display:none"';
+    tr.innerHTML = `
+        <td>
+            <select name="comp_type_${machine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select>
+            <input type="hidden" name="comp_product_id_${machine}[]" value="">
+        </td>
+        <td><input type="text" name="comp_model_${machine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${escHtml(item.model || '')}"></td>
+        <td>
+            <div class="d-flex align-items-center gap-1">
+                <button type="button" class="btn btn-sm btn-outline-warning pe-ref-btn py-0 px-1" ${showBtn} onclick="addRefSerial(this)" title="Adicionar NS de referência"><i class="bi bi-plus-lg"></i></button>
+                <input type="text" name="comp_serial_${machine}[]" class="form-control form-control-sm serial-input" placeholder="Nº de Série" ${showInput} value="${escHtml(item.serial || '')}">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-ref-btn py-0 px-1" onclick="removeRefSerial(this)" title="Remover NS" style="display:none"><i class="bi bi-x"></i></button>
+            </div>
+        </td>
+        <td class="text-nowrap">
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="moveCompRow(this, -1)" title="Mover pra cima"><i class="bi bi-arrow-up"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="moveCompRow(this, 1)" title="Mover pra baixo"><i class="bi bi-arrow-down"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="this.closest('tr').remove()" title="Remover"><i class="bi bi-x"></i></button>
+        </td>
+    `;
+    const select = tr.querySelector('select');
+    select.value = item.type || '';
+    if (!materialComumAtivo() && produtosCatalogo.length > 0) {
+        loadCatalogSelect(select, tr.querySelector('input[name^="comp_model_"]'), tr.querySelector('input[name^="comp_product_id_"]'));
+        if (select.value !== (item.type || '')) {
+            select.innerHTML = EXTRA_OPTS;
+            select.value = item.type || '';
+        }
+    }
+    tbody.appendChild(tr);
+}
+
+function aplicarPE(btn, modo) {
+    const info = JSON.parse(btn.getAttribute('data-pe'));
+    const block = btn.closest('.machine-block');
+    const machine = block.dataset.machine;
+    if ((info.vendida || []).length) {
+        const msg = info.vendida.map(function(v) {
+            return v.protocol_number + ' — ' + (v.client_name || 'sem cliente') + ' ' + (v.date || '');
+        }).join('\n');
+        if (!window.confirm('Atenção: esta máquina já saiu em outra venda:\n\n' + msg +
+                '\n\nConfirmar mesmo assim (troca/devolução)?')) {
+            return;
+        }
+    }
+    const tbody = block.querySelector('.machine-body');
+    tbody.innerHTML = '';
+    const isPE = machineIsPE(block);
+    (info.components || []).forEach(function(c) {
+        appendCompRow(tbody, machine, {
+            type: c.type,
+            model: c.model,
+            serial: (modo === 'tudo' || c.type === 'fonte') ? c.serial : ''
+        }, isPE);
+    });
+    const hidden = block.querySelector('.pe-ref-json');
+    hidden.value = JSON.stringify({
+        protocol_id: info.protocol_id,
+        protocol_number: info.protocol_number,
+        unit: info.unit,
+        machine_name: info.machine_name || '',
+        fonte: info.fonte || ''
+    });
+    const changeBtn = block.querySelector('.pe-change-btn');
+    if (changeBtn) changeBtn.style.display = '';
+    updatePERefStatus(block, {
+        protocol_id: info.protocol_id,
+        protocol_number: info.protocol_number,
+        unit: info.unit,
+        machine_name: info.machine_name || '',
+        fonte: info.fonte || ''
+    });
+    const result = block.querySelector('.pe-result');
+    if (result) {
+        result.innerHTML = '<div class="text-success"><i class="bi bi-check-lg"></i> Máquina da Pronta-Entrega vinculada.</div>';
+    }
+    syncVendaPeTop();
+}
+
+function limparPE(btn) {
+    const block = btn.closest('.machine-block');
+    const hidden = block.querySelector('.pe-ref-json');
+    if (hidden) hidden.value = '';
+    const input = block.querySelector('.pe-ns-input');
+    if (input) input.value = '';
+    const result = block.querySelector('.pe-result');
+    if (result) result.innerHTML = '';
+    updatePERefStatus(block, null);
+    const changeBtn = block.querySelector('.pe-change-btn');
+    if (changeBtn) changeBtn.style.display = 'none';
 }
 
 function addRefSerial(btn) {
@@ -969,8 +1253,8 @@ function addCompRow(btn) {
     const machineBlock = btn.closest('.machine-block');
     const machine = machineBlock.dataset.machine;
     const tbody = machineBlock.querySelector('.machine-body');
-    const isPE = machineBlock.querySelector('.form-check-input').checked;
-    const isComum = document.getElementById('materialComum') && document.getElementById('materialComum').checked;
+    const isPE = machineIsPE(machineBlock);
+    const isComum = materialComumAtivo();
     const tr = document.createElement('tr');
     tr.className = 'comp-row';
     const showBtn = isPE ? '' : 'style="display:none"';
@@ -1031,13 +1315,14 @@ function loadMachines(data) {
         const entry = data[m];
         const machineName = entry.name || null;
         const comps = entry.components || entry || [];
-        const isPE = entry.is_prebuilt || false;
+        const isPE = entry.is_prebuilt || isPontaEntregaType();
         const pc = entry.power_cable || 'OK';
         container.insertAdjacentHTML('beforeend', machineHTML(num, machineName, isPE, pc));
         const block = container.lastElementChild;
         const tbody = block.querySelector('.machine-body');
         const cb = block.querySelector('.form-check-input');
         if (isPE) cb.checked = true;
+        if (isPE && currentProtocolType() === 'venda') togglePE(cb);
         comps.forEach(function(item) {
             const tr = document.createElement('tr');
             tr.className = 'comp-row';
@@ -1431,6 +1716,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 : '<i class="bi bi-chat-dots"></i> ' + (CFG.titles.observacoes || 'Observações'));
         }
         updateRmaTestNsColumns();
+        syncPEMachineUI();
     }
     if (typeSelect) { typeSelect.addEventListener('change', updateFields); updateFields(); }
 

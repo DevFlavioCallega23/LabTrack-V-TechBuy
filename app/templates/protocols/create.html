@@ -417,7 +417,12 @@ window.PF_FORM = {
     passagens: {{ (protocol.rma_passagens if editing and protocol and protocol.rma_passagens else '')|tojson }},
     statusOptions: {{ DEFEITO_STATUS_LABELS.items()|list|tojson }},
     titles: {{ PROTO_SECTION_TITLES|tojson }},
-    fields: {{ PROTO_FIELD_LABELS|tojson }}
+    fields: {{ PROTO_FIELD_LABELS|tojson }},
+    protocolType: {{ (form.type.data or '')|tojson }},
+    protocolId: {{ (protocol.id if editing and protocol else 0)|tojson }},
+    protocolNumber: {{ (protocol.protocol_number if editing and protocol else '')|tojson }},
+    saleRefs: {{ (sale_refs_data or '{}')|tojson }},
+    peRefs: {{ (pe_refs_data or '{}')|tojson }}
 };
 </script>
 <script src="{{ url_for('static', filename='js/protocol_form.js') }}"></script>

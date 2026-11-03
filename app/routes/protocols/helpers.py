@@ -427,6 +427,7 @@ def parse_pe_refs(request_form):
             continue
         data[_unidade(unit)] = {
             'protocol_id': pe_id,
+            'protocol_number': (info.get('protocol_number') or '').strip() or None,
             'unit': _unidade(pe_unit),
             'fonte': (info.get('fonte') or '').strip() or None,
             'machine_name': (info.get('machine_name') or '').strip() or None,
@@ -503,6 +504,21 @@ def aplicar_vinculos_pe(venda):
         pe.sale_refs = json.dumps(sale_refs, ensure_ascii=False)
 
 
+def remover_referencias_da_pe(pe):
+    """Remove das vendas os vínculos com uma Pronta-Entrega excluída/trocada."""
+    for venda in Protocol.query.filter(Protocol.type == 'venda').all():
+        refs = venda.get_pe_refs()
+        if not refs:
+            continue
+        mudou = False
+        for unit, info in list(refs.items()):
+            if isinstance(info, dict) and str(info.get('protocol_id')) == str(pe.id):
+                refs.pop(unit, None)
+                mudou = True
+        if mudou:
+            venda.pe_refs = json.dumps(refs, ensure_ascii=False) if refs else None
+
+
 def vendas_por_maquina_pe(pe):
     """{unidade: [vendas ativas]} para mostrar dentro da Pronta-Entrega."""
     resultado = {}
@@ -544,6 +560,29 @@ def pe_por_maquina(venda):
             'fonte': info.get('fonte') or '',
         }
     return resultado
+
+
+def pe_refs_para_formulario(venda):
+    """Completa os vínculos salvos com o número da PE e o nome da máquina."""
+    refs = venda.get_pe_refs()
+    if not refs:
+        return None
+    data = {}
+    for unit, info in refs.items():
+        if not isinstance(info, dict):
+            data[unit] = info
+            continue
+        novo = dict(info)
+        pe, pe_unit = _pe_do_ref(info)
+        if pe:
+            novo['protocol_number'] = pe.protocol_number
+            novo['unit'] = pe_unit
+            if not novo.get('machine_name'):
+                comps = [c for c in pe.components if _unidade(c.unit) == pe_unit]
+                novo['machine_name'] = next(
+                    (c.machine_name for c in comps if c.machine_name), '')
+        data[_unidade(unit)] = novo
+    return json.dumps(data, ensure_ascii=False)
 
 
 def _dados_maquina_pe(pe, unit, venda_ignorada=None):

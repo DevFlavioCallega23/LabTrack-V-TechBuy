@@ -224,7 +224,18 @@
 {% set pdf_comps_by_unit = protocol.components|sort(attribute='sort_order')|groupby('unit') %}
 {% for unit_group in pdf_comps_by_unit %}
 {% set first = unit_group.list[0] %}
-<p style="margin:8px 0 4px;font-weight:bold;color:#333;">{{ first.machine_name or 'Máquina ' + unit_group.grouper }}{% if first.is_prebuilt %} (PE){% endif %}</p>
+<p style="margin:8px 0 4px;font-weight:bold;color:#333;">Nº {{ unit_group.grouper }} — {{ first.machine_name or 'Máquina ' + unit_group.grouper }}{% if first.is_prebuilt and protocol.type != 'ponta_entrega' %} (PE){% endif %}</p>
+{% if protocol.type == 'ponta_entrega' %}
+{% set sale_ref = protocol.get_sale_refs().get(unit_group.grouper) %}
+{% set ref_texto = sale_ref.text if sale_ref is mapping else (sale_ref or '') %}
+<p style="margin:0 0 4px;font-size:9pt;color:#555;">Referência de Venda: {{ ref_texto or '—' }}</p>
+{% endif %}
+{% if protocol.type == 'venda' %}
+{% set origem = pe_origens.get(unit_group.grouper) %}
+{% if origem %}
+<p style="margin:0 0 4px;font-size:9pt;color:#555;">Pronta-Entrega de origem: {{ origem.protocol_number }} · Nº {{ origem.unit }}{% if origem.machine_name %} ({{ origem.machine_name }}){% endif %}{% if origem.fonte %} · fonte {{ origem.fonte }}{% endif %}</p>
+{% endif %}
+{% endif %}
 <table class="data" cellspacing="0">
     <tr>
         <th>Componente</th>

@@ -22,6 +22,7 @@ from app.routes.protocols.helpers import (
     build_windows_key_data, parse_defects, get_incomplete_fields,
     parse_sale_refs, parse_pe_refs, aplicar_vinculos_pe, limpar_vinculos_pe,
     buscar_pronta_entrega, vendas_por_maquina_pe, pe_por_maquina, avisos_pe_ja_vendida,
+    pe_refs_para_formulario, remover_referencias_da_pe,
 )
 
 @protocols_bp.route('/')
@@ -200,6 +201,8 @@ def create_protocol():
         rma_trocados_data = build_rma_trocados_data_from_form(request.form)
         defect_data = build_defect_data_from_form(request.form)
         win_keys_data = build_windows_key_data_from_form(request.form)
+        sale_refs_data = parse_sale_refs(request.form) or '{}'
+        pe_refs_data = parse_pe_refs(request.form) or '{}'
         form.entry_date.data = request.form.get('entry_date', '')
         form.exit_date.data = request.form.get('exit_date', '')
         form.rma_entry_date.data = request.form.get('rma_entry_date', '')
@@ -210,10 +213,13 @@ def create_protocol():
         rma_trocados_data = '[]'
         defect_data = None
         win_keys_data = '[]'
+        sale_refs_data = '{}'
+        pe_refs_data = '{}'
 
     return render_template('protocols/create.html', form=form, editing=False,
         comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
         rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data,
+        sale_refs_data=sale_refs_data, pe_refs_data=pe_refs_data,
         machines=build_machine_names(comp_data),
         produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]),
         component_types=build_component_types())
@@ -234,7 +240,11 @@ def build_component_types():
 def detail_protocol(id):
     protocol = Protocol.query.get_or_404(id)
     incomplete_fields = get_incomplete_fields(protocol)
-    return render_template('protocols/detail.html', protocol=protocol, incomplete_fields=incomplete_fields)
+    pe_vendas = vendas_por_maquina_pe(protocol) if protocol.type == 'ponta_entrega' else {}
+    pe_origens = pe_por_maquina(protocol) if protocol.type == 'venda' else {}
+    return render_template('protocols/detail.html', protocol=protocol,
+                           incomplete_fields=incomplete_fields,
+                           pe_vendas=pe_vendas, pe_origens=pe_origens)
 
 @protocols_bp.route('/<int:id>/ignorar-incompletos', methods=['POST'])
 @login_required
@@ -263,8 +273,12 @@ def protocol_pdf(id):
     rma_test = _load_json(protocol.rma_test_result) if protocol.type in ('rma', 'servico', 'nao_comprado') else []
     passagens = _load_json(protocol.rma_passagens) if protocol.type in ('rma', 'servico') else []
 
+    pe_vendas = vendas_por_maquina_pe(protocol) if protocol.type == 'ponta_entrega' else {}
+    pe_origens = pe_por_maquina(protocol) if protocol.type == 'venda' else {}
+
     html = render_template('protocols/pdf.html', protocol=protocol,
                            rma_test=rma_test, passagens=passagens,
+                           pe_vendas=pe_vendas, pe_origens=pe_origens,
                            now=datetime.utcnow(),
                            logo_path=os.path.join(current_app.root_path, 'static', 'img', 'techbuy-logo.png'))
     result = io.BytesIO()
@@ -376,6 +390,7 @@ def edit_protocol(id):
     protocol = Protocol.query.get_or_404(id)
     form = ProtocolForm(obj=protocol)
     refs_antigos = protocol.get_pe_refs()
+    tipo_anterior = protocol.type
     if form.validate_on_submit():
         components = parse_components(request.form, form.type.data)
 
@@ -410,6 +425,8 @@ def edit_protocol(id):
 
         novos_refs = protocol.get_pe_refs() if protocol.type == 'venda' else {}
         limpar_vinculos_pe(protocol, refs_antigos, novos_refs)
+        if tipo_anterior == 'ponta_entrega' and protocol.type != 'ponta_entrega':
+            remover_referencias_da_pe(protocol)
         if protocol.type == 'venda' and protocol.status != 'cancelado':
             aplicar_vinculos_pe(protocol)
 
@@ -432,6 +449,8 @@ def edit_protocol(id):
         rma_trocados_data = build_rma_trocados_data_from_form(request.form)
         defect_data = build_defect_data_from_form(request.form)
         win_keys_data = build_windows_key_data_from_form(request.form)
+        sale_refs_data = parse_sale_refs(request.form, protocol) or '{}'
+        pe_refs_data = parse_pe_refs(request.form) or '{}'
         form.entry_date.data = request.form.get('entry_date', '')
         form.exit_date.data = request.form.get('exit_date', '')
         form.rma_entry_date.data = request.form.get('rma_entry_date', '')
@@ -442,12 +461,15 @@ def edit_protocol(id):
         rma_trocados_data = protocol.rma_trocados or '[]'
         defect_data = None
         win_keys_data = build_windows_key_data(protocol)
+        sale_refs_data = protocol.sale_refs or '{}'
+        pe_refs_data = pe_refs_para_formulario(protocol) or '{}'
         form.entry_date.data = protocol.entry_date.strftime('%d/%m/%Y') if protocol.entry_date else ''
         form.exit_date.data = protocol.exit_date.strftime('%d/%m/%Y') if protocol.exit_date else ''
         form.rma_entry_date.data = protocol.rma_entry_date.strftime('%d/%m/%Y') if protocol.rma_entry_date else ''
     return render_template('protocols/create.html', form=form, editing=True, protocol=protocol,
         comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
         rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data,
+        sale_refs_data=sale_refs_data, pe_refs_data=pe_refs_data,
         machines=build_machine_names(comp_data),
         produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]),
         component_types=build_component_types())
@@ -462,6 +484,8 @@ def delete_protocol(id):
     protocol_number = protocol.protocol_number
     if protocol.type == 'venda':
         limpar_vinculos_pe(protocol, protocol.get_pe_refs(), {})
+    elif protocol.type == 'ponta_entrega':
+        remover_referencias_da_pe(protocol)
     Component.query.filter_by(protocol_id=protocol.id).delete()
     Defect.query.filter_by(protocol_id=protocol.id).delete()
     db.session.delete(protocol)
@@ -564,4 +588,23 @@ def update_status(id):
             aplicar_vinculos_pe(protocol)
     db.session.commit()
     return {'ok': True, 'status': new_status}
+
+
+@protocols_bp.route('/api/pronta-entrega/buscar')
+@login_required
+def api_buscar_pronta_entrega():
+    """Busca máquinas de Pronta-Entrega pelo NS da fonte ou por protocolo + bloco."""
+    ns = request.args.get('ns', '').strip()
+    pe_numero = request.args.get('pe', '').strip()
+    unit = request.args.get('unit', '').strip()
+    venda_id = request.args.get('venda_id', type=int)
+    if not ns and not pe_numero:
+        return jsonify({'ok': False, 'erro': 'Informe o NS da fonte ou o número da Pronta-Entrega.',
+                        'resultados': []})
+    resultados = buscar_pronta_entrega(
+        ns=ns, pe_numero=pe_numero, unit=unit,
+        ignorar_venda_id=venda_id,
+    )
+    return jsonify({'ok': True, 'total': len(resultados), 'resultados': resultados})
+
 
