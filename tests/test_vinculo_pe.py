@@ -343,3 +343,36 @@ def test_pdf_da_venda_mostra_origem_pe(logged_client, app, monkeypatch):
     assert 'Pronta-Entrega de origem' in html
     assert 'PRO-2099-9222' in html
     assert '158428' in html
+
+
+def test_ns_obrigatorio_na_pe_e_facultativo_so_na_maquina_pe_da_venda():
+    from app.routes.protocols.helpers import parse_components
+
+    def _form(tipo, **extra):
+        dados = [
+            ('comp_type_01[]', 'processador'),
+            ('comp_model_01[]', 'I3-2120'),
+            ('comp_serial_01[]', ''),
+            ('comp_type_01[]', 'fonte'),
+            ('comp_model_01[]', 'Fonte 230W'),
+            ('comp_serial_01[]', '158418'),
+            ('machine_name_01', 'Máquina 05'),
+        ]
+        dados.extend(extra.items())
+        return MultiDict(dados)
+
+    # Na Pronta-Entrega o componente sem NS não é gravado.
+    comps = parse_components(_form('ponta_entrega'), 'ponta_entrega')
+    assert [c.component_type for c in comps] == ['fonte']
+
+    # Na venda normal também não.
+    comps = parse_components(_form('venda'), 'venda')
+    assert [c.component_type for c in comps] == ['fonte']
+
+    # Na venda com a máquina marcada como PE, o NS é opcional (NS de referência).
+    comps = parse_components(_form('venda', pe_switch_01='on'), 'venda')
+    assert [c.component_type for c in comps] == ['processador', 'fonte']
+
+    # RMA e serviço continuam com NS opcional.
+    comps = parse_components(_form('servico'), 'servico')
+    assert [c.component_type for c in comps] == ['processador', 'fonte']

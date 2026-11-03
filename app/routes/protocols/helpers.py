@@ -51,11 +51,14 @@ def parse_components(request_form, protocol_type=None):
         machine_name = request_form.get(f'machine_name_{unit}', '').strip() or f'Máquina {unit}'
         # Na Pronta-Entrega toda máquina é, por definição, pronta-entrega.
         is_prebuilt = (protocol_type == 'ponta_entrega') or (request_form.get(f'pe_switch_{unit}') == 'on')
+        # O NS é obrigatório na venda normal e na Pronta-Entrega. Só pode ficar
+        # em branco na máquina marcada como PE dentro da venda (NS de referência).
+        ns_facultativo = ns_optional or (protocol_type == 'venda' and is_prebuilt)
         for i in range(len(types)):
             ct = types[i].strip()
             serial = serials[i].strip() if i < len(serials) else ''
             if ct:
-                if not is_prebuilt and not serial and not ns_optional:
+                if not ns_facultativo and not serial:
                     continue
                 model = models[i].strip() if i < len(models) else ''
                 product_id = None

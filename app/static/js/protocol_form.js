@@ -456,6 +456,12 @@ function machineIsPE(block) {
     return !!(cb && cb.checked);
 }
 
+function nsOpcionalNoBloco(block) {
+    // O NS é obrigatório na venda normal e na Pronta-Entrega.
+    // Só na venda a máquina marcada como PE pode ficar sem NS (é o NS de referência).
+    return currentProtocolType() === 'venda' && machineIsPE(block);
+}
+
 function refData(map, n) {
     const item = (map || {})[n];
     if (!item) return {};
@@ -617,8 +623,9 @@ function replicateMachine(btn) {
         const srcSelect = row.querySelector('select');
         const srcModel = row.querySelector('input[name^="comp_model_"]');
         const serial = '';
-        const showBtn = (isPE && !serial) ? '' : 'style="display:none"';
-        const showInput = (!isPE || serial) ? '' : 'style="display:none"';
+        const nsOpcional = nsOpcionalNoBloco(srcBlock);
+        const showBtn = (nsOpcional && !serial) ? '' : 'style="display:none"';
+        const showInput = (!nsOpcional || serial) ? '' : 'style="display:none"';
         tr.innerHTML = `
             <td><select name="comp_type_${dstMachine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
             <td><input type="text" name="comp_model_${dstMachine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${escHtml(srcModel ? srcModel.value : '')}"></td>
@@ -992,12 +999,12 @@ function loadTrocadoMachines(data) {
 }
 
 function refreshPESerialRows(block) {
-    const isPE = machineIsPE(block);
+    const nsOpcional = nsOpcionalNoBloco(block);
     block.querySelectorAll('.comp-row').forEach(function(row) {
         const btn = row.querySelector('.pe-ref-btn');
         const input = row.querySelector('.serial-input');
         if (!input || !btn) return;
-        if (isPE) {
+        if (nsOpcional) {
             if (input.value) {
                 btn.style.display = 'none';
                 input.style.display = '';
@@ -1136,12 +1143,14 @@ function buscarPE(btn) {
         });
 }
 
-function appendCompRow(tbody, machine, item, isPE) {
+function appendCompRow(tbody, machine, item) {
     const tr = document.createElement('tr');
     tr.className = 'comp-row';
+    const bloco = tbody.closest ? tbody.closest('.machine-block') : null;
+    const nsOpcional = bloco ? nsOpcionalNoBloco(bloco) : false;
     const hasSerial = !!(item.serial);
-    const showBtn = (isPE && !hasSerial) ? '' : 'style="display:none"';
-    const showInput = (!isPE || hasSerial) ? '' : 'style="display:none"';
+    const showBtn = (nsOpcional && !hasSerial) ? '' : 'style="display:none"';
+    const showInput = (!nsOpcional || hasSerial) ? '' : 'style="display:none"';
     tr.innerHTML = `
         <td>
             <select name="comp_type_${machine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select>
@@ -1188,13 +1197,12 @@ function aplicarPE(btn, modo) {
     }
     const tbody = block.querySelector('.machine-body');
     tbody.innerHTML = '';
-    const isPE = machineIsPE(block);
     (info.components || []).forEach(function(c) {
         appendCompRow(tbody, machine, {
             type: c.type,
             model: c.model,
             serial: (modo === 'tudo' || c.type === 'fonte') ? c.serial : ''
-        }, isPE);
+        });
     });
     const hidden = block.querySelector('.pe-ref-json');
     hidden.value = JSON.stringify({
@@ -1253,12 +1261,12 @@ function addCompRow(btn) {
     const machineBlock = btn.closest('.machine-block');
     const machine = machineBlock.dataset.machine;
     const tbody = machineBlock.querySelector('.machine-body');
-    const isPE = machineIsPE(machineBlock);
+    const nsOpcional = nsOpcionalNoBloco(machineBlock);
     const isComum = materialComumAtivo();
     const tr = document.createElement('tr');
     tr.className = 'comp-row';
-    const showBtn = isPE ? '' : 'style="display:none"';
-    const showInput = isPE ? 'style="display:none"' : '';
+    const showBtn = nsOpcional ? '' : 'style="display:none"';
+    const showInput = nsOpcional ? 'style="display:none"' : '';
     tr.innerHTML = `
         <td>
             <select name="comp_type_${machine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select>
@@ -1327,8 +1335,9 @@ function loadMachines(data) {
             const tr = document.createElement('tr');
             tr.className = 'comp-row';
             const hasSerial = item.serial ? true : false;
-            const showBtn = (isPE && !hasSerial) ? '' : 'style="display:none"';
-            const showInput = (!isPE || hasSerial) ? '' : 'style="display:none"';
+            const nsOpcional = currentProtocolType() === 'venda' && isPE;
+            const showBtn = (nsOpcional && !hasSerial) ? '' : 'style="display:none"';
+            const showInput = (!nsOpcional || hasSerial) ? '' : 'style="display:none"';
             tr.innerHTML = `
                 <td>
                     <select name="comp_type_${m}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select>
