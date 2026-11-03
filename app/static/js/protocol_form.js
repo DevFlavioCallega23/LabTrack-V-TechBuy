@@ -622,12 +622,16 @@ function replicateMachine(btn) {
         tr.className = 'comp-row';
         const srcSelect = row.querySelector('select');
         const srcModel = row.querySelector('input[name^="comp_model_"]');
+        const srcProductId = row.querySelector('input[name^="comp_product_id_"]');
         const serial = '';
         const nsOpcional = nsOpcionalNoBloco(srcBlock);
         const showBtn = (nsOpcional && !serial) ? '' : 'style="display:none"';
         const showInput = (!nsOpcional || serial) ? '' : 'style="display:none"';
         tr.innerHTML = `
-            <td><select name="comp_type_${dstMachine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select></td>
+            <td>
+                <select name="comp_type_${dstMachine}[]" class="form-select form-select-sm">${EXTRA_OPTS}</select>
+                <input type="hidden" name="comp_product_id_${dstMachine}[]" value="${escHtml(srcProductId ? srcProductId.value : '')}">
+            </td>
             <td><input type="text" name="comp_model_${dstMachine}[]" class="form-control form-control-sm" placeholder="Ex: I5-2400, 8GB..." value="${escHtml(srcModel ? srcModel.value : '')}"></td>
             <td>
                 <div class="d-flex align-items-center gap-1">
@@ -643,7 +647,19 @@ function replicateMachine(btn) {
             </td>
         `;
         const select = tr.querySelector('select');
-        select.value = srcSelect ? srcSelect.value : '';
+        const modelInput = tr.querySelector('input[name^="comp_model_"]');
+        const modeloOriginal = srcModel ? srcModel.value : '';
+        const tipoOriginal = srcSelect ? srcSelect.value : '';
+        select.value = tipoOriginal;
+        if (!materialComumAtivo() && produtosCatalogo.length > 0) {
+            loadCatalogSelect(select, modelInput, tr.querySelector('input[name^="comp_product_id_"]'));
+            if (select.value !== tipoOriginal) {
+                select.innerHTML = EXTRA_OPTS;
+                select.value = tipoOriginal;
+            }
+            // Mantém o modelo copiado mesmo que o tipo não esteja no catálogo.
+            if (!modelInput.value && modeloOriginal) modelInput.value = modeloOriginal;
+        }
         dstTbody.appendChild(tr);
     });
     if (isPE && dstCb) togglePE(dstCb);
