@@ -329,6 +329,72 @@ def test_tela_de_novo_protocolo_tem_caixa_de_busca(app, logged_client):
     assert 'id="resultadoBuscaAnterior"' in html
 
 
+def test_tela_de_novo_protocolo_tem_botao_retorno_de_pro(app, logged_client):
+    html = logged_client.get('/protocolos/novo').get_data(as_text=True)
+    assert 'Retorno de PRO' in html
+    assert 'id="retornoProModal"' in html
+    assert 'name="origin_id"' in html
+    assert 'id="retornoProBusca"' in html
+
+
+def test_novo_protocolo_do_zero_pode_ser_retorno_de_um_pro(app, logged_client):
+    origem_id = _rma_base(app, 'PRO-2099-9320', pedido='95796')
+
+    resp = logged_client.post('/protocolos/novo', data={
+        'type': 'rma',
+        'client_name': 'Cliente Novo Retorno',
+        'status': 'pendente',
+        'entry_date': '04/11/2026',
+        'rma_entry_date': '04/11/2026',
+        'origin_id': str(origem_id),
+    })
+    assert resp.status_code == 302
+
+    with app.app_context():
+        novo = Protocol.query.filter_by(client_name='Cliente Novo Retorno').one()
+        assert novo.type == 'rma'
+        assert novo.origin_id == origem_id
+        # Registro do zero: não copiou equipamento nem trocados
+        assert novo.rma_equip_itens is None
+        assert novo.rma_trocados is None
+        # E o antigo continua intacto
+        origem = _db.session.get(Protocol, origem_id)
+        assert origem.rma_equip_itens is None
+        assert origem.rma_trocados is not None
+        novo_id = novo.id
+
+    html = logged_client.get(f'/protocolos/{novo_id}').get_data(as_text=True)
+    assert 'Retorno do protocolo' in html
+    assert 'PRO-2099-9320' in html
+
+
+def test_vinculo_retorno_de_pro_nao_vale_para_venda(app, logged_client):
+    origem_id = _rma_base(app, 'PRO-2099-9321')
+
+    logged_client.post('/protocolos/novo', data={
+        'type': 'venda',
+        'client_name': 'Venda Nao E Retorno',
+        'status': 'pendente',
+        'entry_date': '04/11/2026',
+        'origin_id': str(origem_id),
+    })
+
+    with app.app_context():
+        novo = Protocol.query.filter_by(client_name='Venda Nao E Retorno').one()
+        assert novo.type == 'venda'
+        assert novo.origin_id is None
+
+
+def test_busca_para_retorno_de_pro_oferece_usar_este(app, logged_client):
+    _rma_base(app, 'PRO-2099-9322', pedido='95797')
+
+    html = logged_client.get(
+        '/protocolos/buscar-historico?selecionar=1&q=95797').get_data(as_text=True)
+    assert 'PRO-2099-9322' in html
+    assert 'Usar este' in html
+    assert 'Criar retorno deste' not in html
+
+
 def test_busca_historico_por_numero_de_protocolo(app, logged_client):
     _rma_base(app, 'PRO-2099-9316', pedido='95794')
 

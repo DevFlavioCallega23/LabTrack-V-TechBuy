@@ -167,6 +167,13 @@ def create_protocol():
             created_by=current_user.id
         )
 
+        # "Retorno de PRO": liga este protocolo novo a um protocolo anterior,
+        # sem copiar nem alterar nada do antigo.
+        if form.type.data in ('rma', 'servico', 'nao_comprado'):
+            origem_id = request.form.get('origin_id', type=int)
+            if origem_id and db.session.get(Protocol, origem_id):
+                protocol.origin_id = origem_id
+
         protocol.components = components
         defects = parse_defects(request.form)
         protocol.defects = defects
@@ -218,10 +225,17 @@ def create_protocol():
         sale_refs_data = '{}'
         pe_refs_data = '{}'
 
+    origem_selecionada = None
+    if request.method == 'POST':
+        origem_id = request.form.get('origin_id', type=int)
+        if origem_id:
+            origem_selecionada = db.session.get(Protocol, origem_id)
+
     return render_template('protocols/create.html', form=form, editing=False,
         comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
         rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data,
         sale_refs_data=sale_refs_data, pe_refs_data=pe_refs_data,
+        origem_selecionada=origem_selecionada,
         machines=build_machine_names(comp_data),
         produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]),
         component_types=build_component_types())
@@ -274,9 +288,12 @@ def buscar_historico():
     """Busca por pedido ou número do protocolo na tela de novo protocolo."""
     termo = (request.args.get('q') or '').strip()
     ignorar = request.args.get('ignorar', type=int)
+    selecionar = request.args.get('selecionar') == '1'
     itens = historico_por_referencia(termo, ignorar_id=ignorar)
     return render_template('protocols/_historico_pedido.html',
-                           itens=itens, pedido=termo, mostrar_retorno=True)
+                           itens=itens, pedido=termo,
+                           mostrar_retorno=not selecionar,
+                           mostrar_selecao=selecionar)
 
 @protocols_bp.route('/<int:id>')
 @login_required

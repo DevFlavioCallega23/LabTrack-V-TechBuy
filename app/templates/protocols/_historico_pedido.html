@@ -3,7 +3,7 @@
     <div class="card-header d-flex justify-content-between align-items-center gap-2 py-2 flex-wrap">
         <span>
             <i class="bi bi-link-45deg"></i>
-            {% if mostrar_retorno %}Protocolos encontrados para{% else %}Histórico do pedido{% endif %}
+            {% if mostrar_retorno or mostrar_selecao %}Protocolos encontrados para{% else %}Histórico do pedido{% endif %}
             <strong class="text-info">{{ pedido }}</strong>
             <span class="badge bg-secondary ms-1">{{ itens|length }} protocolo(s)</span>
         </span>
@@ -34,6 +34,14 @@
                             data-origem-id="{{ hist.protocol.id }}"
                             data-origem-numero="{{ hist.protocol.protocol_number }}">
                         <i class="bi bi-arrow-repeat"></i> Criar retorno deste
+                    </button>
+                    {% endif %}
+                    {% if mostrar_selecao %}
+                    <button type="button" class="btn btn-sm btn-outline-info"
+                            data-selecionar-id="{{ hist.protocol.id }}"
+                            data-selecionar-numero="{{ hist.protocol.protocol_number }}"
+                            data-selecionar-cliente="{{ hist.protocol.client_name or '' }}">
+                        <i class="bi bi-check2-circle"></i> Usar este
                     </button>
                     {% endif %}
                 </div>

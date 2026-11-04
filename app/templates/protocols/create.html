@@ -45,7 +45,34 @@
                         <label class="form-check-label" for="vendaPe">Venda Pronta-Entrega (PE)</label>
                     </div>
                 </div>
+                {% if not editing %}
+                <div class="col-md-auto field-group" data-show-for="rma,servico,nao_comprado" style="display:none">
+                    <button type="button" class="btn btn-outline-info mt-4"
+                            data-bs-toggle="modal" data-bs-target="#retornoProModal">
+                        <i class="bi bi-arrow-repeat"></i> Retorno de PRO
+                    </button>
+                </div>
+                {% endif %}
             </div>
+
+            {% if not editing %}
+            <div class="row g-2 mb-2 field-group" data-show-for="rma,servico,nao_comprado" style="display:none">
+                <div class="col-12">
+                    <div id="retornoProStatus" class="{% if not origem_selecionada %}d-none{% endif %}">
+                        <div class="alert alert-info py-2 mb-0 d-flex justify-content-between align-items-center gap-2">
+                            <span>
+                                <i class="bi bi-arrow-repeat"></i> Este protocolo será registrado como
+                                <strong>retorno de</strong>
+                                <strong id="retornoProNumero">{{ origem_selecionada.protocol_number if origem_selecionada else '' }}</strong>
+                                <span id="retornoProCliente">{% if origem_selecionada and origem_selecionada.client_name %}— {{ origem_selecionada.client_name }}{% endif %}</span>
+                            </span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="removerRetornoPro">Remover vínculo</button>
+                        </div>
+                    </div>
+                    <input type="hidden" name="origin_id" id="originId" value="{{ request.form.get('origin_id', '') }}">
+                </div>
+            </div>
+            {% endif %}
 
             {% if not editing %}
             <div class="card border-info mb-3">
@@ -520,6 +547,39 @@
         </form>
     </div>
 </div>
+
+{% if not editing %}
+<div class="modal fade" id="retornoProModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content bg-dark border-info">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-arrow-repeat"></i> Retorno de PRO</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-secondary">
+                    Busque pelo <strong>número do pedido</strong> ou pelo <strong>número do protocolo</strong>.
+                    O histórico aparece só para consulta. Ao usar um protocolo, este registro fica
+                    ligado a ele como retorno — sem copiar nem alterar os dados do antigo.
+                </p>
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-6">
+                        <label class="form-label small mb-1" for="retornoProBusca">Pedido ou PRO</label>
+                        <input type="text" id="retornoProBusca" class="form-control"
+                               placeholder="Ex.: 95789 ou PRO-2026-0206" autocomplete="off">
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-info" id="retornoProBuscar">
+                            <i class="bi bi-search"></i> Buscar
+                        </button>
+                    </div>
+                </div>
+                <div id="retornoProResultados"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <script>
 window.PF_FORM = {

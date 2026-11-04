@@ -2123,3 +2123,66 @@ document.addEventListener('DOMContentLoaded', function() {
         form.submit();
     });
 });
+
+// Botão "Retorno de PRO": vincula este registro a um protocolo anterior.
+document.addEventListener('DOMContentLoaded', function() {
+    const busca = document.getElementById('retornoProBusca');
+    const botaoBuscar = document.getElementById('retornoProBuscar');
+    const resultados = document.getElementById('retornoProResultados');
+    const origemInput = document.getElementById('originId');
+    const status = document.getElementById('retornoProStatus');
+    const numero = document.getElementById('retornoProNumero');
+    const cliente = document.getElementById('retornoProCliente');
+    const remover = document.getElementById('removerRetornoPro');
+    const modalEl = document.getElementById('retornoProModal');
+    if (!busca || !botaoBuscar || !resultados || !origemInput) return;
+
+    function buscar() {
+        const termo = (busca.value || '').trim();
+        if (!termo) {
+            resultados.innerHTML = '';
+            return;
+        }
+        botaoBuscar.disabled = true;
+        fetch('/protocolos/buscar-historico?selecionar=1&q=' + encodeURIComponent(termo))
+            .then(function(r) { return r.ok ? r.text() : ''; })
+            .then(function(html) { resultados.innerHTML = html; })
+            .catch(function() {
+                resultados.innerHTML = '<div class="alert alert-danger mt-2 mb-0 py-2">Não foi possível buscar agora.</div>';
+            })
+            .finally(function() { botaoBuscar.disabled = false; });
+    }
+
+    botaoBuscar.addEventListener('click', buscar);
+    busca.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Enter') {
+            ev.preventDefault();
+            buscar();
+        }
+    });
+
+    resultados.addEventListener('click', function(ev) {
+        const btn = ev.target.closest('button[data-selecionar-id]');
+        if (!btn) return;
+        origemInput.value = btn.dataset.selecionarId;
+        if (numero) numero.textContent = btn.dataset.selecionarNumero;
+        if (cliente) {
+            const nome = btn.dataset.selecionarCliente || '';
+            cliente.textContent = nome ? ('— ' + nome) : '';
+        }
+        if (status) status.classList.remove('d-none');
+        if (modalEl && window.bootstrap) {
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+        }
+    });
+
+    if (remover) {
+        remover.addEventListener('click', function() {
+            origemInput.value = '';
+            if (numero) numero.textContent = '';
+            if (cliente) cliente.textContent = '';
+            if (status) status.classList.add('d-none');
+        });
+    }
+});
