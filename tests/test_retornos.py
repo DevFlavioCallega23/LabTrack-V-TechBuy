@@ -289,6 +289,30 @@ def test_retorno_usa_a_peca_certa_quando_tem_duas_iguais(app, logged_client):
         assert any(c['type'] == 'ram' and c['serial'] == '333' for c in comps)
 
 
+def test_retorno_nao_altera_os_dados_do_protocolo_antigo(app, logged_client):
+    """A troca das peças acontece só na cópia; o protocolo antigo fica intacto."""
+    equip_antigo = json.dumps({'01': {'name': 'Computador 01', 'components': [
+        {'type': 'ram', 'model': '8GB DDR3 Kingston ', 'serial': '144010'},
+        {'type': 'fonte', 'model': '230W Duex ', 'serial': '157366'},
+    ]}}, ensure_ascii=False)
+    trocados = json.dumps({'01': {'name': 'Computador 01', 'components': [
+        {'type': 'ram', 'model': '8GB DDR3 XIIByte', 'serial': '144657'},
+    ]}}, ensure_ascii=False)
+    pid = _criar(app, 'PRO-2099-9319', 'rma',
+                 rma_equip_itens=equip_antigo, rma_trocados=trocados)
+
+    logged_client.post(f'/protocolos/{pid}/novo-retorno', data={'type': 'rma'})
+
+    with app.app_context():
+        origem = _db.session.get(Protocol, pid)
+        assert origem.rma_equip_itens == equip_antigo
+        assert origem.rma_trocados == trocados
+
+        novo = Protocol.query.filter_by(origin_id=pid).one()
+        assert '144657' in novo.rma_equip_itens
+        assert '144010' not in novo.rma_equip_itens
+
+
 def test_detalhe_mostra_outros_protocolos_do_mesmo_pedido(app, logged_client):
     primeiro = _rma_base(app, 'PRO-2099-9314', pedido='95793')
     _criar(app, 'PRO-2099-9315', 'servico', order_number='95793')
