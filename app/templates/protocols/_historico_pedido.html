@@ -1,0 +1,137 @@
+{% if itens %}
+<div class="card border-secondary mt-2">
+    <div class="card-header d-flex justify-content-between align-items-center gap-2 py-2 flex-wrap">
+        <span>
+            <i class="bi bi-link-45deg"></i>
+            {% if mostrar_retorno %}Protocolos encontrados para{% else %}Histórico do pedido{% endif %}
+            <strong class="text-info">{{ pedido }}</strong>
+            <span class="badge bg-secondary ms-1">{{ itens|length }} protocolo(s)</span>
+        </span>
+        <span class="small text-secondary">Somente leitura</span>
+    </div>
+    <div class="card-body py-2">
+        {% for hist in itens %}
+        <div class="border rounded p-2 mb-2 {{ 'border-info' if loop.last }}">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                <div>
+                    <span class="badge bg-dark me-1">{{ loop.index }}º</span>
+                    <a href="{{ url_for('protocols.detail_protocol', id=hist.protocol.id) }}"
+                       target="_blank" class="fw-bold text-info">{{ hist.protocol.protocol_number }}</a>
+                    <span class="badge {{ hist.protocol.type_badge() }} ms-1">{{ hist.protocol.type_label() }}</span>
+                    <span class="badge {{ hist.protocol.status_badge() }} ms-1">{{ hist.protocol.status_label() }}</span>
+                    {% if hist.protocol.order_number or hist.protocol.original_order %}
+                    <span class="small text-secondary ms-1">Pedido: {{ hist.protocol.order_number or hist.protocol.original_order }}</span>
+                    {% endif %}
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="small text-secondary">
+                        {% if hist.protocol.client_name %}{{ hist.protocol.client_name }} · {% endif %}
+                        Entrada: {{ (hist.protocol.rma_entry_date or hist.protocol.entry_date).strftime('%d/%m/%Y') if (hist.protocol.rma_entry_date or hist.protocol.entry_date) else '-' }}
+                        {% if hist.protocol.exit_date %} · Saída: {{ hist.protocol.exit_date.strftime('%d/%m/%Y') }}{% endif %}
+                    </span>
+                    {% if mostrar_retorno %}
+                    <button type="button" class="btn btn-sm btn-info"
+                            data-origem-id="{{ hist.protocol.id }}"
+                            data-origem-numero="{{ hist.protocol.protocol_number }}">
+                        <i class="bi bi-arrow-repeat"></i> Criar retorno deste
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if hist.test_itens %}
+            <div class="fw-bold small text-danger mb-1"><i class="bi bi-tools"></i> Defeitos registrados</div>
+            <div class="table-responsive mb-2">
+                <table class="table table-dark table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Máquina</th>
+                            <th>Componente</th>
+                            <th>Modelo</th>
+                            <th>NS</th>
+                            <th>Defeito</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in hist.test_itens %}
+                        <tr>
+                            <td>{{ item.machine or '-' }}</td>
+                            <td>{{ COMP_LABELS.get(item.component, item.component) if item.component else '-' }}</td>
+                            <td><code>{{ item.model or '-' }}</code></td>
+                            <td><code>{{ item.serial or '-' }}</code></td>
+                            <td class="text-warning">{{ item.defeito or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            {% if hist.trocados %}
+            <div class="fw-bold small text-info mb-1"><i class="bi bi-arrow-repeat"></i> Produtos trocados</div>
+            <div class="table-responsive mb-2">
+                <table class="table table-dark table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Máquina</th>
+                            <th>Componente</th>
+                            <th>Modelo</th>
+                            <th>NS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for unit, entry in hist.trocados.items()|sort %}
+                            {% for comp in entry.components or [] %}
+                            <tr>
+                                <td>{{ entry.name or 'Computador ' ~ unit }}</td>
+                                <td>{{ COMP_LABELS.get(comp.type, comp.type) if comp.type else '-' }}</td>
+                                <td><code>{{ comp.model or '-' }}</code></td>
+                                <td><code>{{ comp.serial or '-' }}</code></td>
+                            </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            {% if hist.passagens %}
+            <div class="fw-bold small text-secondary mb-1"><i class="bi bi-clock-history"></i> Passagens registradas</div>
+            <div class="table-responsive mb-2">
+                <table class="table table-dark table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Protocolo</th>
+                            <th>Entrada</th>
+                            <th>Saída</th>
+                            <th>NS com defeito</th>
+                            <th>NS novo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pas in hist.passagens %}
+                        <tr>
+                            <td>{{ pas.protocolo or '-' }}</td>
+                            <td>{{ pas.data_entrada or '-' }}</td>
+                            <td>{{ pas.data_saida or '-' }}</td>
+                            <td><code>{{ pas.ns or '-' }}</code></td>
+                            <td><code>{{ pas.ns_novo or '-' }}</code></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            {% if not hist.test_itens and not hist.trocados and not hist.passagens %}
+            <div class="small text-secondary">Sem defeitos, peças trocadas ou passagens registradas neste protocolo.</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% elif pedido %}
+<div class="alert alert-secondary mt-2 mb-0 py-2">
+    <i class="bi bi-search"></i> Nenhum protocolo encontrado para <strong>{{ pedido }}</strong>.
+</div>
+{% endif %}

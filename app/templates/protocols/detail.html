@@ -23,6 +23,9 @@
         <a href="{{ url_for('protocols.edit_protocol', id=protocol.id) }}" class="btn btn-warning">
             <i class="bi bi-pencil"></i> Editar
         </a>
+        <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#novoRetornoModal">
+            <i class="bi bi-arrow-repeat"></i> Novo retorno
+        </button>
         {% endif %}
         {% if current_user.is_master() %}
         <button onclick="confirmDelete({{ protocol.id }}, '{{ protocol.protocol_number }}')" class="btn btn-danger">
@@ -315,6 +318,50 @@
                 <div>
                     <label class="text-secondary small d-block">Defeito de Base (Cliente)</label>
                     <div class="p-2 bg-dark rounded"><em>{{ protocol.base_defect }}</em></div>
+                </div>
+                {% endif %}
+
+                {% if origem or retornos %}
+                <hr>
+                <div class="mb-2">
+                    <label class="text-secondary small d-block mb-1"><i class="bi bi-arrow-repeat"></i> Retornos / Corrente</label>
+                    <div class="d-flex flex-wrap align-items-center gap-1">
+                        {% for item in cadeia %}
+                            {% if item.id == protocol.id %}
+                            <span class="badge bg-info text-dark" title="Protocolo atual">{{ item.protocol_number }} (este)</span>
+                            {% else %}
+                            <a href="{{ url_for('protocols.detail_protocol', id=item.id) }}" class="badge {{ item.type_badge() }} text-decoration-none" title="{{ item.type_label() }}">{{ item.protocol_number }}</a>
+                            {% endif %}
+                            {% if not loop.last %}<i class="bi bi-arrow-right text-secondary"></i>{% endif %}
+                        {% endfor %}
+                    </div>
+                    {% if origem %}
+                    <div class="small text-secondary mt-1">
+                        Retorno do protocolo
+                        <a href="{{ url_for('protocols.detail_protocol', id=origem.id) }}">{{ origem.protocol_number }}</a>{% if origem.client_name %} · {{ origem.client_name }}{% endif %}{% if origem.exit_date %} · saiu em {{ origem.exit_date.strftime('%d/%m/%Y') }}{% endif %}
+                    </div>
+                    {% endif %}
+                    {% if retornos %}
+                    <div class="small text-secondary mt-1">
+                        Gerou {{ retornos|length }} retorno(s):
+                        {% for r in retornos %}
+                            <a href="{{ url_for('protocols.detail_protocol', id=r.id) }}">{{ r.protocol_number }}</a>{% if r.entry_date %} ({{ r.entry_date.strftime('%d/%m/%Y') }}){% endif %}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if pedido_relacionados %}
+                <div class="mt-2">
+                    <label class="text-secondary small d-block mb-1"><i class="bi bi-link-45deg"></i> Outros protocolos deste pedido</label>
+                    <div class="d-flex flex-wrap align-items-center gap-1">
+                        {% for item in pedido_relacionados %}
+                        <a href="{{ url_for('protocols.detail_protocol', id=item.id) }}" class="badge {{ item.type_badge() }} text-decoration-none" title="{{ item.type_label() }}">{{ item.protocol_number }}</a>
+                        {% if item.entry_date %}<span class="small text-secondary">{{ item.entry_date.strftime('%d/%m/%Y') }}</span>{% endif %}
+                        {% if not loop.last %}<span class="text-secondary">·</span>{% endif %}
+                        {% endfor %}
+                    </div>
                 </div>
                 {% endif %}
 
@@ -719,6 +766,38 @@
                     <strong>{{ protocol.updated_at.strftime('%d/%m/%Y') }}</strong>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="novoRetornoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark border-info">
+            <form method="POST" action="{{ url_for('protocols.create_return', id=protocol.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-arrow-repeat"></i> Novo retorno</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-secondary">
+                        O protocolo novo nasce com a data de hoje e fica ligado ao
+                        <strong>{{ protocol.protocol_number }}</strong>. Cliente, equipamento e peças
+                        vêm preenchidos; o defeito novo você digita depois.
+                    </p>
+                    <label class="form-label">Tipo do novo protocolo</label>
+                    <select name="type" class="form-select" required>
+                        <option value="rma" selected>RMA (Garantia)</option>
+                        <option value="servico">Serviço (Fora de Garantia)</option>
+                        <option value="nao_comprado">NTB (Não comprado na TechBuy)</option>
+                        <option value="venda">Venda</option>
+                        <option value="ponta_entrega">Pronta-Entrega</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-info"><i class="bi bi-arrow-repeat"></i> Criar retorno</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

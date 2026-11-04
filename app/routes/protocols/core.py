@@ -23,6 +23,8 @@ from app.routes.protocols.helpers import (
     parse_sale_refs, parse_pe_refs, aplicar_vinculos_pe, limpar_vinculos_pe,
     buscar_pronta_entrega, vendas_por_maquina_pe, pe_por_maquina, avisos_pe_ja_vendida,
     pe_refs_para_formulario, remover_referencias_da_pe,
+    criar_protocolo_retorno, historico_do_protocolo, historico_por_pedido,
+    protocolos_por_pedido, historico_por_referencia,
 )
 
 @protocols_bp.route('/')
@@ -235,6 +237,47 @@ def build_component_types():
     labels = Produto.TYPE_LABELS
     return json.dumps([{'key': t, 'label': labels.get(t, t)} for t in order])
 
+
+@protocols_bp.route('/<int:id>/novo-retorno', methods=['POST'])
+@login_required
+def create_return(id):
+    """Cria um protocolo novo (data de hoje) ligado ao protocolo anterior."""
+    if not current_user.is_manager():
+        flash('Você não tem permissão para criar protocolos.', 'danger')
+        return redirect(url_for('protocols.detail_protocol', id=id))
+    origem = Protocol.query.get_or_404(id)
+    novo_tipo = (request.form.get('type') or '').strip()
+    novo = criar_protocolo_retorno(origem, novo_tipo, current_user.id)
+    if novo is None:
+        flash('Escolha o tipo do novo protocolo.', 'warning')
+        return redirect(url_for('protocols.detail_protocol', id=id))
+    db.session.add(novo)
+    db.session.commit()
+    flash(f'Retorno {novo.protocol_number} criado a partir de {origem.protocol_number}.', 'success')
+    return redirect(url_for('protocols.edit_protocol', id=novo.id))
+
+
+@protocols_bp.route('/historico-pedido')
+@login_required
+def historico_pedido():
+    """Puxa os protocolos do mesmo pedido para a tela de criação/edição."""
+    pedido = (request.args.get('pedido') or '').strip()
+    ignorar = request.args.get('ignorar', type=int)
+    itens = historico_por_pedido(pedido, ignorar_id=ignorar)
+    return render_template('protocols/_historico_pedido.html',
+                           itens=itens, pedido=pedido)
+
+
+@protocols_bp.route('/buscar-historico')
+@login_required
+def buscar_historico():
+    """Busca por pedido ou número do protocolo na tela de novo protocolo."""
+    termo = (request.args.get('q') or '').strip()
+    ignorar = request.args.get('ignorar', type=int)
+    itens = historico_por_referencia(termo, ignorar_id=ignorar)
+    return render_template('protocols/_historico_pedido.html',
+                           itens=itens, pedido=termo, mostrar_retorno=True)
+
 @protocols_bp.route('/<int:id>')
 @login_required
 def detail_protocol(id):
@@ -242,9 +285,18 @@ def detail_protocol(id):
     incomplete_fields = get_incomplete_fields(protocol)
     pe_vendas = vendas_por_maquina_pe(protocol) if protocol.type == 'ponta_entrega' else {}
     pe_origens = pe_por_maquina(protocol) if protocol.type == 'venda' else {}
+    origem = protocol.get_origin()
+    retornos = protocol.get_returns()
+    cadeia = protocol.get_return_chain() if (origem or retornos) else []
+    pedido_relacionados = protocolos_por_pedido(
+        protocol.order_number or protocol.original_order, ignorar_id=protocol.id)
+    ids_cadeia = {p.id for p in cadeia}
+    pedido_relacionados = [p for p in pedido_relacionados if p.id not in ids_cadeia]
     return render_template('protocols/detail.html', protocol=protocol,
                            incomplete_fields=incomplete_fields,
-                           pe_vendas=pe_vendas, pe_origens=pe_origens)
+                           pe_vendas=pe_vendas, pe_origens=pe_origens,
+                           origem=origem, retornos=retornos, cadeia=cadeia,
+                           pedido_relacionados=pedido_relacionados)
 
 @protocols_bp.route('/<int:id>/ignorar-incompletos', methods=['POST'])
 @login_required
@@ -470,6 +522,7 @@ def edit_protocol(id):
         comp_data=comp_data, rma_comp_data=rma_comp_data, rma_test_data=rma_test_data,
         rma_trocados_data=rma_trocados_data, defect_data=defect_data, win_keys_data=win_keys_data,
         sale_refs_data=sale_refs_data, pe_refs_data=pe_refs_data,
+        origem_historico=historico_do_protocolo(protocol.get_origin()),
         machines=build_machine_names(comp_data),
         produtos_catalogo=json.dumps([{'id': p.id, 'component_type': p.component_type, 'model_name': p.model_name} for p in Produto.query.order_by(Produto.component_type, Produto.model_name).all()]),
         component_types=build_component_types())

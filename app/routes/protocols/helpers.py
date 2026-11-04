@@ -5,7 +5,7 @@ from datetime import datetime
 
 from app import db
 from app.datas import parse_date_br as parse_date_br  # noqa: F401  (reexportado)
-from app.labels import COMPONENT_LABELS
+from app.labels import COMPONENT_LABELS, PROTO_TYPE_LABELS
 from app.models import Protocol, Component, Defect, WindowsKey
 
 def gerar_numero_protocolo():
@@ -694,4 +694,228 @@ def avisos_pe_ja_vendida(venda):
                         f'Confirme se é troca/devolução.'
                     )
     return avisos
+
+
+# --- Retornos (a mesma máquina volta ao laboratório) --------------------
+
+def _json_ou(texto, padrao):
+    try:
+        return json.loads(texto) if texto else padrao
+    except (json.JSONDecodeError, TypeError):
+        return padrao
+
+
+def _data_br(valor):
+    return valor.strftime('%d/%m/%Y') if valor else ''
+
+
+def _equip_itens_para_retorno(origem):
+    """Equipamentos do protocolo anterior no formato 'Equipamento que chegou'."""
+    itens = _json_ou(origem.rma_equip_itens, None)
+    if isinstance(itens, dict) and itens:
+        return itens
+    if not origem.components:
+        return None
+    agrupado = {}
+    for c in sorted(origem.components, key=lambda x: (x.sort_order or 0)):
+        unit = _unidade(c.unit)
+        entrada = agrupado.setdefault(unit, {
+            'name': c.machine_name or f'Computador {unit}',
+            'components': [],
+        })
+        if c.machine_name:
+            entrada['name'] = c.machine_name
+        entrada['components'].append({
+            'type': c.component_type,
+            'model': c.specification or '',
+            'serial': c.serial_number or '',
+        })
+    return agrupado or None
+
+
+def _primeiro_serial(texto_json):
+    itens = _json_ou(texto_json, [])
+    if isinstance(itens, dict):
+        itens = list(itens.values())
+    for item in itens or []:
+        if not isinstance(item, dict):
+            continue
+        if item.get('serial'):
+            return item['serial']
+        for comp in item.get('components') or []:
+            if isinstance(comp, dict) and comp.get('serial'):
+                return comp['serial']
+    return ''
+
+
+def criar_protocolo_retorno(origem, novo_tipo, user_id):
+    """Monta (sem gravar) o protocolo do novo retorno, ligado ao anterior."""
+    if novo_tipo not in PROTO_TYPE_LABELS:
+        return None
+    hoje = datetime.utcnow()
+    # Na venda/PE/NTB a entrada é hoje; no RMA/serviço a "data da compra"
+    # continua sendo a do protocolo anterior.
+    if novo_tipo in ('rma', 'servico'):
+        entrada = origem.entry_date or hoje
+        rma_entrada = hoje
+    else:
+        entrada = hoje
+        rma_entrada = None
+
+    if novo_tipo == 'rma':
+        garantia = True
+    elif novo_tipo == 'servico':
+        garantia = False
+    else:
+        garantia = origem.rma_in_warranty
+
+    novo = Protocol(
+        protocol_number=gerar_numero_protocolo(),
+        type=novo_tipo,
+        origin_id=origem.id,
+        client_name=origem.client_name,
+        seller=origem.seller,
+        lote=origem.lote,
+        status='pendente',
+        entry_date=entrada,
+        rma_entry_date=rma_entrada,
+        rma_in_warranty=garantia,
+        order_number=origem.order_number,
+        original_order=origem.original_order,
+        ref_ns=origem.ref_ns,
+        rma_extra_equip=origem.rma_extra_equip,
+        created_by=user_id,
+    )
+
+    equipamentos = _equip_itens_para_retorno(origem)
+    if equipamentos and novo_tipo in ('rma', 'servico', 'nao_comprado'):
+        novo.rma_equip_itens = json.dumps(equipamentos, ensure_ascii=False)
+
+    if novo_tipo in ('venda', 'ponta_entrega'):
+        for c in sorted(origem.components, key=lambda x: (x.sort_order or 0)):
+            novo.components.append(Component(
+                component_type=c.component_type,
+                specification=c.specification,
+                serial_number=c.serial_number,
+                unit=c.unit,
+                machine_name=c.machine_name,
+                sort_order=c.sort_order,
+                is_prebuilt=c.is_prebuilt,
+                machine_ref_ns=c.machine_ref_ns,
+                material_comum=c.material_comum,
+                product_id=c.product_id,
+            ))
+        novo.power_cables = origem.power_cables
+
+    if novo_tipo in ('rma', 'servico'):
+        passagens = _json_ou(origem.rma_passagens, [])
+        if not isinstance(passagens, list):
+            passagens = []
+        passagens.append({
+            'protocolo': origem.protocol_number,
+            'ns': _primeiro_serial(origem.rma_test_result),
+            'ns_novo': _primeiro_serial(origem.rma_trocados),
+            'pedido': '',
+            'data_entrada': _data_br(origem.rma_entry_date or origem.entry_date),
+            'data_saida': _data_br(origem.exit_date),
+        })
+        novo.rma_passagens = json.dumps(passagens, ensure_ascii=False)
+
+    return novo
+
+
+def historico_do_protocolo(protocol):
+    """Resumo somente leitura usado na tela de edição do retorno."""
+    if not protocol:
+        return None
+    trocados_raw = _json_ou(protocol.rma_trocados, None)
+    if isinstance(trocados_raw, dict):
+        trocados = trocados_raw
+    elif isinstance(trocados_raw, list) and trocados_raw:
+        trocados = {'01': {'name': 'Computador 01', 'components': trocados_raw}}
+    else:
+        trocados = {}
+    return {
+        'protocol': protocol,
+        'test_itens': _json_ou(protocol.rma_test_result, []) or [],
+        'trocados': trocados,
+        'equip_itens': _equip_itens_para_retorno(protocol) or {},
+        'passagens': _json_ou(protocol.rma_passagens, []) or [],
+    }
+
+
+def _pedido_normalizado(valor):
+    pedido = (valor or '').strip().upper()
+    # Evita agrupar protocolos sem pedido de verdade (o laboratório usa NIL).
+    if pedido in ('', 'NIL', 'N/A', 'NA', '-', 'NONE', 'SEM PEDIDO'):
+        return ''
+    return pedido
+
+
+def historico_por_pedido(pedido, ignorar_id=None):
+    """Histórico completo (defeitos/trocados) dos protocolos do mesmo pedido."""
+    return [historico_do_protocolo(p)
+            for p in protocolos_por_pedido(pedido, ignorar_id=ignorar_id)]
+
+
+def protocolos_por_pedido(pedido, ignorar_id=None):
+    """Todos os protocolos do mesmo pedido (e a corrente deles), em ordem.
+
+    Serve para puxar o histórico mesmo quando o retorno foi cadastrado à mão,
+    só repetindo o número do pedido.
+    """
+    alvo = _pedido_normalizado(pedido)
+    if not alvo:
+        return []
+    candidatos = Protocol.query.filter(db.or_(
+        db.func.upper(db.func.trim(db.func.coalesce(Protocol.order_number, ''))) == alvo,
+        db.func.upper(db.func.trim(db.func.coalesce(Protocol.original_order, ''))) == alvo,
+    )).order_by(Protocol.entry_date, Protocol.id).all()
+
+    encontrados = {}
+    for candidato in candidatos:
+        for item in candidato.get_return_chain():
+            encontrados[item.id] = item
+    if ignorar_id:
+        encontrados.pop(ignorar_id, None)
+
+    return sorted(
+        encontrados.values(),
+        key=lambda p: (p.entry_date or p.created_at or datetime.min, p.id))
+
+
+def protocolos_por_referencia(termo, ignorar_id=None):
+    """Procura por número do pedido OU por número do protocolo (parcial)."""
+    termo = (termo or '').strip()
+    if not termo:
+        return []
+    alvo = termo.upper().replace('%', '').replace('_', '')
+    if not alvo:
+        return []
+    pedido = _pedido_normalizado(termo)
+
+    condicoes = [db.func.upper(Protocol.protocol_number).like(f'%{alvo}%')]
+    if pedido:
+        condicoes += [
+            db.func.upper(db.func.trim(db.func.coalesce(Protocol.order_number, ''))) == pedido,
+            db.func.upper(db.func.trim(db.func.coalesce(Protocol.original_order, ''))) == pedido,
+        ]
+    candidatos = Protocol.query.filter(db.or_(*condicoes)) \
+        .order_by(Protocol.entry_date, Protocol.id).all()
+
+    encontrados = {}
+    for candidato in candidatos:
+        for item in candidato.get_return_chain():
+            encontrados[item.id] = item
+    if ignorar_id:
+        encontrados.pop(ignorar_id, None)
+
+    return sorted(
+        encontrados.values(),
+        key=lambda p: (p.entry_date or p.created_at or datetime.min, p.id))
+
+
+def historico_por_referencia(termo, ignorar_id=None):
+    return [historico_do_protocolo(p)
+            for p in protocolos_por_referencia(termo, ignorar_id=ignorar_id)]
 

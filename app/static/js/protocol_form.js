@@ -2027,3 +2027,99 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+// Histórico do pedido: digitou o pedido, puxa a corrente de protocolos.
+document.addEventListener('DOMContentLoaded', function() {
+    const pedidoInput = document.getElementById('order_number');
+    const container = document.getElementById('historicoPedido');
+    if (!pedidoInput || !container) return;
+
+    const ignorar = container.dataset.protocolId || '';
+    let ultimo = null;
+    let timer = null;
+
+    function carregarHistoricoPedido() {
+        const pedido = (pedidoInput.value || '').trim();
+        if (!pedido) {
+            container.innerHTML = '';
+            ultimo = null;
+            return;
+        }
+        if (pedido === ultimo) return;
+        ultimo = pedido;
+        const params = new URLSearchParams({ pedido: pedido });
+        if (ignorar) params.set('ignorar', ignorar);
+        fetch('/protocolos/historico-pedido?' + params.toString())
+            .then(function(r) { return r.ok ? r.text() : ''; })
+            .then(function(html) { container.innerHTML = html; })
+            .catch(function() { /* silencioso: o histórico é só um apoio */ });
+    }
+
+    function agendarBusca() {
+        clearTimeout(timer);
+        timer = setTimeout(carregarHistoricoPedido, 500);
+    }
+
+    pedidoInput.addEventListener('change', carregarHistoricoPedido);
+    pedidoInput.addEventListener('blur', carregarHistoricoPedido);
+    pedidoInput.addEventListener('input', agendarBusca);
+
+    // Ao abrir a edição, já mostra o histórico do pedido salvo.
+    carregarHistoricoPedido();
+});
+// Caixa "Puxar de um protocolo existente" (tela de novo protocolo).
+document.addEventListener('DOMContentLoaded', function() {
+    const campo = document.getElementById('buscarProtocoloInput');
+    const botao = document.getElementById('buscarProtocoloBtn');
+    const resultado = document.getElementById('resultadoBuscaAnterior');
+    if (!campo || !botao || !resultado) return;
+
+    function buscar() {
+        const termo = (campo.value || '').trim();
+        if (!termo) {
+            resultado.innerHTML = '';
+            return;
+        }
+        botao.disabled = true;
+        fetch('/protocolos/buscar-historico?q=' + encodeURIComponent(termo))
+            .then(function(r) { return r.ok ? r.text() : ''; })
+            .then(function(html) { resultado.innerHTML = html; })
+            .catch(function() {
+                resultado.innerHTML = '<div class="alert alert-danger mt-2 mb-0 py-2">Não foi possível buscar agora.</div>';
+            })
+            .finally(function() { botao.disabled = false; });
+    }
+
+    botao.addEventListener('click', buscar);
+    campo.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Enter') {
+            ev.preventDefault();
+            buscar();
+        }
+    });
+
+    resultado.addEventListener('click', function(ev) {
+        const btn = ev.target.closest('button[data-origem-id]');
+        if (!btn) return;
+        const tipoSelect = document.getElementById('protocolType');
+        const tipo = tipoSelect ? tipoSelect.value : '';
+        if (!tipo) {
+            alert('Escolha primeiro o tipo do protocolo novo.');
+            return;
+        }
+        const numero = btn.dataset.origemNumero || 'protocolo anterior';
+        if (!confirm('Criar um protocolo novo a partir de ' + numero + '?' +
+            '\n\nOs dados serão copiados do protocolo anterior e o que já estiver preenchido abaixo será substituído.')) {
+            return;
+        }
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/protocolos/' + btn.dataset.origemId + '/novo-retorno';
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'type';
+        input.value = tipo;
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    });
+});

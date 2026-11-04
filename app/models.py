@@ -75,6 +75,7 @@ class Protocol(db.Model):
     incomplete_ignored = db.Column(db.Boolean, default=False)
     sale_refs = db.Column(db.Text)
     pe_refs = db.Column(db.Text)
+    origin_id = db.Column(db.Integer, nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -124,6 +125,37 @@ class Protocol(db.Model):
             return json.loads(self.pe_refs) if self.pe_refs else {}
         except Exception:
             return {}
+
+    def get_origin(self):
+        """Protocolo anterior que deu origem a este retorno."""
+        if not self.origin_id:
+            return None
+        return Protocol.query.get(self.origin_id)
+
+    def get_returns(self):
+        """Retornos criados a partir deste protocolo."""
+        return (Protocol.query.filter_by(origin_id=self.id)
+                .order_by(Protocol.created_at, Protocol.id).all())
+
+    def get_return_chain(self):
+        """Todos os protocolos ligados (anteriores + este + retornos), em ordem."""
+        vistos = {self.id}
+        anteriores = []
+        atual = self.get_origin()
+        while atual and atual.id not in vistos:
+            vistos.add(atual.id)
+            anteriores.append(atual)
+            atual = atual.get_origin()
+        posteriores = []
+        fila = list(self.get_returns())
+        while fila:
+            item = fila.pop(0)
+            if item.id in vistos:
+                continue
+            vistos.add(item.id)
+            posteriores.append(item)
+            fila.extend(item.get_returns())
+        return list(reversed(anteriores)) + [self] + posteriores
 
     def __repr__(self):
         return f'<Protocol {self.protocol_number}>'

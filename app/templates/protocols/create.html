@@ -47,6 +47,34 @@
                 </div>
             </div>
 
+            {% if not editing %}
+            <div class="card border-info mb-3">
+                <div class="card-header py-2">
+                    <i class="bi bi-search"></i> Puxar de um protocolo existente
+                    <span class="small text-secondary ms-2">pedido ou número do protocolo</span>
+                </div>
+                <div class="card-body py-2">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-5">
+                            <label class="form-label small mb-1" for="buscarProtocoloInput">Número do pedido ou do protocolo</label>
+                            <input type="text" id="buscarProtocoloInput" class="form-control"
+                                   placeholder="Ex.: 95789 ou PRO-2026-0206" autocomplete="off">
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" id="buscarProtocoloBtn" class="btn btn-info">
+                                <i class="bi bi-search"></i> Buscar histórico
+                            </button>
+                        </div>
+                        <div class="col-12 small text-secondary">
+                            Mostra a corrente do pedido (venda → RMA → retorno), com defeitos, peças trocadas e passagens.
+                            Escolha o tipo acima e use <strong>Criar retorno deste</strong> para já copiar os dados do protocolo anterior.
+                        </div>
+                    </div>
+                    <div id="resultadoBuscaAnterior"></div>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="row g-3 mb-3 rma-field" style="display:none">
                 <div class="col-md-2" data-show-for="rma,servico">
                     <label class="form-label">{{ form.status.label }}</label>
@@ -163,6 +191,95 @@
                     </div>
                 </div>
             </div>
+
+            {% if origem_historico %}
+            {% set hist = origem_historico %}
+            <div class="row g-3 mt-2">
+                <div class="col-12">
+                    <div class="card border-info">
+                        <div class="card-header d-flex justify-content-between align-items-center gap-2 py-2 flex-wrap">
+                            <span><i class="bi bi-clock-history"></i> Histórico do protocolo anterior —
+                                <a href="{{ url_for('protocols.detail_protocol', id=hist.protocol.id) }}" target="_blank" class="text-info">{{ hist.protocol.protocol_number }}</a>
+                                <span class="badge {{ hist.protocol.type_badge() }} ms-1">{{ hist.protocol.type_label() }}</span>
+                            </span>
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#historicoAnterior">Mostrar / ocultar</button>
+                        </div>
+                        <div class="collapse show" id="historicoAnterior">
+                            <div class="card-body py-2">
+                                <div class="small text-secondary mb-2">
+                                    {% if hist.protocol.client_name %}{{ hist.protocol.client_name }}{% endif %}
+                                    {% if hist.protocol.rma_entry_date %} · Entrada: {{ hist.protocol.rma_entry_date.strftime('%d/%m/%Y') }}{% elif hist.protocol.entry_date %} · Entrada: {{ hist.protocol.entry_date.strftime('%d/%m/%Y') }}{% endif %}
+                                    {% if hist.protocol.exit_date %} · Saída: {{ hist.protocol.exit_date.strftime('%d/%m/%Y') }}{% endif %}
+                                </div>
+                                {% if hist.test_itens %}
+                                <div class="fw-bold small text-danger mb-1"><i class="bi bi-tools"></i> Defeitos registrados</div>
+                                <div class="table-responsive mb-3">
+                                    <table class="table table-dark table-sm mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Máquina</th>
+                                                <th>Componente</th>
+                                                <th>Modelo</th>
+                                                <th>NS</th>
+                                                <th>Defeito</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for item in hist.test_itens %}
+                                            <tr>
+                                                <td>{{ item.machine or '-' }}</td>
+                                                <td>{{ COMP_LABELS.get(item.component, item.component) if item.component else '-' }}</td>
+                                                <td><code>{{ item.model or '-' }}</code></td>
+                                                <td><code>{{ item.serial or '-' }}</code></td>
+                                                <td class="text-warning">{{ item.defeito or '-' }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% endif %}
+                                {% if hist.trocados %}
+                                <div class="fw-bold small text-info mb-1"><i class="bi bi-arrow-repeat"></i> Produtos trocados</div>
+                                <div class="table-responsive mb-1">
+                                    <table class="table table-dark table-sm mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Máquina</th>
+                                                <th>Componente</th>
+                                                <th>Modelo</th>
+                                                <th>NS</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for unit, entry in hist.trocados.items()|sort %}
+                                                {% if entry.components %}
+                                                    {% for comp in entry.components %}
+                                                    <tr>
+                                                        <td>{{ entry.name or 'Computador ' ~ unit }}</td>
+                                                        <td>{{ COMP_LABELS.get(comp.type, comp.type) if comp.type else '-' }}</td>
+                                                        <td><code>{{ comp.model or '-' }}</code></td>
+                                                        <td><code>{{ comp.serial or '-' }}</code></td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                {% endif %}
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% endif %}
+                                {% if not hist.test_itens and not hist.trocados %}
+                                <div class="small text-secondary">O protocolo anterior não tem defeitos nem peças trocadas registradas.</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if editing %}
+            <div id="historicoPedido" data-protocol-id="{{ protocol.id if protocol else '' }}"></div>
+            {% endif %}
 
             <!-- RMA / NTB: Equipamentos Mudados -->
             <div class="row g-3 mt-2 rma-field" data-show-for="rma,servico,nao_comprado" style="display:none">
