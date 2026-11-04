@@ -748,6 +748,75 @@ def _primeiro_serial(texto_json):
     return ''
 
 
+def _aplicar_trocados_no_equipamento(equipamentos, trocados, test_itens):
+    """Troca, no equipamento copiado, as peças antigas pelas novas.
+
+    O cliente devolve a máquina como ela está agora: se a RAM defeituosa foi
+    substituída, o novo protocolo já deve mostrar a RAM nova (modelo e NS).
+    """
+    if not isinstance(equipamentos, dict) or not isinstance(trocados, dict):
+        return equipamentos
+
+    por_nome = {}
+    for unit, entrada in equipamentos.items():
+        if isinstance(entrada, dict):
+            por_nome[(entrada.get('name') or '').strip().lower()] = unit
+
+    for unit, troca in trocados.items():
+        if not isinstance(troca, dict):
+            continue
+        alvo = equipamentos.get(unit) or equipamentos.get(_unidade(unit))
+        if not isinstance(alvo, dict):
+            alvo = equipamentos.get(
+                por_nome.get((troca.get('name') or '').strip().lower(), ''), None)
+        if not isinstance(alvo, dict):
+            continue
+
+        comps = alvo.setdefault('components', [])
+        nome = (alvo.get('name') or '').strip().lower()
+        usados = set()
+        for novo in troca.get('components') or []:
+            if not isinstance(novo, dict) or not novo.get('type'):
+                continue
+            tipo = novo['type']
+
+            # Descobre qual peça antiga foi marcada como trocada no teste de mesa,
+            # para acertar o item certo quando a máquina tem duas peças iguais.
+            serial_defeito = ''
+            for item in test_itens or []:
+                if not isinstance(item, dict):
+                    continue
+                mesma_maquina = (item.get('machine') or '').strip().lower() == nome
+                if (mesma_maquina and item.get('component') == tipo
+                        and (item.get('status') or '').lower() == 'trocado'):
+                    serial_defeito = item.get('serial') or ''
+                    break
+
+            indice = None
+            if serial_defeito:
+                indice = next(
+                    (i for i, c in enumerate(comps)
+                     if i not in usados and c.get('type') == tipo
+                     and (c.get('serial') or '') == serial_defeito), None)
+            if indice is None:
+                indice = next(
+                    (i for i, c in enumerate(comps)
+                     if i not in usados and c.get('type') == tipo), None)
+
+            entrada = {
+                'type': tipo,
+                'model': novo.get('model') or '',
+                'serial': novo.get('serial') or '',
+            }
+            if indice is None:
+                comps.append(entrada)
+            else:
+                usados.add(indice)
+                comps[indice] = entrada
+
+    return equipamentos
+
+
 def criar_protocolo_retorno(origem, novo_tipo, user_id):
     """Monta (sem gravar) o protocolo do novo retorno, ligado ao anterior."""
     if novo_tipo not in PROTO_TYPE_LABELS:
@@ -788,6 +857,10 @@ def criar_protocolo_retorno(origem, novo_tipo, user_id):
     )
 
     equipamentos = _equip_itens_para_retorno(origem)
+    equipamentos = _aplicar_trocados_no_equipamento(
+        equipamentos,
+        _json_ou(origem.rma_trocados, {}),
+        _json_ou(origem.rma_test_result, []))
     if equipamentos and novo_tipo in ('rma', 'servico', 'nao_comprado'):
         novo.rma_equip_itens = json.dumps(equipamentos, ensure_ascii=False)
 

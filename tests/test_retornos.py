@@ -106,7 +106,9 @@ def test_novo_retorno_copia_equipamento_e_passagem_anterior(app, logged_client):
         novo = Protocol.query.filter_by(origin_id=origem_id).one()
         equip = json.loads(novo.rma_equip_itens)
         assert equip['01']['name'] == 'Computador 01'
-        assert equip['01']['components'][0]['serial'] == '144010'
+        # A peça antiga (144010) foi trocada: o equipamento já vem com a nova.
+        assert equip['01']['components'][0]['serial'] == '144657'
+        assert 'XIIByte' in equip['01']['components'][0]['model']
         # Serviço é fora de garantia e também registra a passagem anterior
         assert novo.rma_in_warranty is False
         passagens = json.loads(novo.rma_passagens)
@@ -253,6 +255,38 @@ def test_tela_de_edicao_tem_area_do_historico_do_pedido(app, logged_client):
     html = logged_client.get(f'/protocolos/{origem_id}/editar').get_data(as_text=True)
     assert 'id="historicoPedido"' in html
     assert f'data-protocol-id="{origem_id}"' in html
+
+
+def test_retorno_usa_a_peca_certa_quando_tem_duas_iguais(app, logged_client):
+    pid = _criar(
+        app, 'PRO-2099-9318', 'rma',
+        client_name='Cliente Duas Peças',
+        rma_equip_itens=json.dumps({'01': {
+            'name': 'Computador 01',
+            'components': [
+                {'type': 'ssd', 'model': 'SSD A', 'serial': '111'},
+                {'type': 'ssd', 'model': 'SSD B', 'serial': '222'},
+                {'type': 'ram', 'model': 'RAM X', 'serial': '333'},
+            ],
+        }}, ensure_ascii=False),
+        rma_test_result=json.dumps([{
+            'machine': 'Computador 01', 'component': 'ssd',
+            'model': 'SSD B', 'serial': '222', 'status': 'trocado',
+        }], ensure_ascii=False),
+        rma_trocados=json.dumps({'01': {
+            'name': 'Computador 01',
+            'components': [{'type': 'ssd', 'model': 'SSD Novo', 'serial': '999'}],
+        }}, ensure_ascii=False),
+    )
+
+    logged_client.post(f'/protocolos/{pid}/novo-retorno', data={'type': 'rma'})
+
+    with app.app_context():
+        novo = Protocol.query.filter_by(origin_id=pid).one()
+        comps = json.loads(novo.rma_equip_itens)['01']['components']
+        ssds = [(c['model'], c['serial']) for c in comps if c['type'] == 'ssd']
+        assert ssds == [('SSD A', '111'), ('SSD Novo', '999')]
+        assert any(c['type'] == 'ram' and c['serial'] == '333' for c in comps)
 
 
 def test_detalhe_mostra_outros_protocolos_do_mesmo_pedido(app, logged_client):

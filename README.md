@@ -15,7 +15,7 @@ Desenvolvido para uso real no dia a dia do laboratório da TechBuy — controle 
   - **NTB** — equipamentos não comprados na TechBuy
 - **Teste de Mesa** por item: componente, modelo, NS, defeito, situação, pedido e data de compra de cada peça enviada ao laboratório
 - **Passagens anteriores**: histórico de retornos do mesmo equipamento, incluindo o NS do produto novo instalado
-- **Novo retorno**: a partir de qualquer protocolo (inclusive PE) ou pela caixa *Puxar de um protocolo existente* na tela de novo protocolo — digite o pedido ou o número e crie o retorno já copiando cliente, equipamento e peças
+- **Novo retorno**: a partir de qualquer protocolo (inclusive PE) ou pela caixa *Puxar de um protocolo existente* na tela de novo protocolo — digite o pedido ou o número e crie o retorno já copiando cliente, equipamento e peças, com as peças trocadas (modelo/NS novos) já aplicadas no equipamento
 - **Corrente de protocolos**: venda → RMA → retorno ficam ligados, com histórico somente leitura de defeitos, peças trocadas e passagens
 - Numeração que reinicia a cada ano (`PRO-2026-0095` → `PRO-2027-0001`)
 - Compartilhamento formatado por WhatsApp com um clique
