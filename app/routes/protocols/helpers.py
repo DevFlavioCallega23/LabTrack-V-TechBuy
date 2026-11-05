@@ -1,5 +1,6 @@
 """Helpers compartilhados dos protocolos: parsing de formulários e validação."""
 import json
+import math
 import re
 from datetime import datetime
 
@@ -991,4 +992,347 @@ def protocolos_por_referencia(termo, ignorar_id=None):
 def historico_por_referencia(termo, ignorar_id=None):
     return [historico_do_protocolo(p)
             for p in protocolos_por_referencia(termo, ignorar_id=ignorar_id)]
+
+
+# --- Teia de protocolos (histórico completo, somente leitura) ------------
+
+_TEIA_CORES_NO = {
+    'venda': ('#198754', '#ffffff'),
+    'ponta_entrega': ('#ffc107', '#212529'),
+    'rma': ('#0d6efd', '#ffffff'),
+    'servico': ('#dc3545', '#ffffff'),
+    'nao_comprado': ('#6c757d', '#ffffff'),
+}
+
+_TEIA_CORES_ARESTA = {
+    'retorno': '#0dcaf0',
+    'venda_pe': '#20c997',
+    'pedido': '#ffc107',
+    'ns': '#0d6efd',
+    'cliente': '#adb5bd',
+}
+
+_TEIA_LIGACOES = {
+    'retorno': 'Retorno',
+    'venda_pe': 'Venda ↔ PE',
+    'pedido': 'Mesmo pedido',
+    'ns': 'Mesmo NS',
+    'cliente': 'Mesmo cliente',
+}
+
+
+def _equip_entradas(dados):
+    """Aceita {unidade: {components: [...]}} ou a lista antiga de componentes."""
+    if isinstance(dados, dict):
+        return [entrada for entrada in dados.values() if isinstance(entrada, dict)]
+    if isinstance(dados, list):
+        return [{'components': dados}]
+    return []
+
+
+def ns_do_protocolo(protocol):
+    """Todos os números de série que identificam a máquina/peças do protocolo."""
+    ns = set()
+
+    def adicionar(valor):
+        texto = str(valor or '').strip().upper()
+        if len(texto) >= 4 and texto not in ('NIL', 'NONE', 'N/A', 'NA', '0'):
+            ns.add(texto)
+
+    for componente in protocol.components or []:
+        adicionar(componente.serial_number)
+        adicionar(componente.machine_ref_ns)
+    for info in protocol.get_pe_refs().values():
+        if isinstance(info, dict):
+            adicionar(info.get('fonte'))
+    for entrada in _equip_entradas(_json_ou(protocol.rma_equip_itens, {})):
+        for componente in entrada.get('components') or []:
+            if isinstance(componente, dict):
+                adicionar(componente.get('serial'))
+    for item in _json_ou(protocol.rma_test_result, []) or []:
+        if isinstance(item, dict):
+            adicionar(item.get('serial'))
+            for componente in item.get('components') or []:
+                if isinstance(componente, dict):
+                    adicionar(componente.get('serial'))
+    for entrada in _equip_entradas(_json_ou(protocol.rma_trocados, {})):
+        for componente in entrada.get('components') or []:
+            if isinstance(componente, dict):
+                adicionar(componente.get('serial'))
+    adicionar(protocol.ref_ns)
+    adicionar(protocol.rma_test_serial)
+    for defeito in protocol.defects or []:
+        adicionar(defeito.serial_number)
+    return ns
+
+
+def _indice_teia(todos):
+    """Índices para achar vizinhos sem varrer o banco a cada nó."""
+    ns_por_id = {}
+    ns_idx = {}
+    pedido_idx = {}
+    cliente_idx = {}
+    for protocolo in todos:
+        ns = ns_do_protocolo(protocolo)
+        ns_por_id[protocolo.id] = ns
+        for valor in ns:
+            ns_idx.setdefault(valor, []).append(protocolo)
+        for pedido in {_pedido_normalizado(protocolo.order_number),
+                       _pedido_normalizado(protocolo.original_order)}:
+            if pedido:
+                pedido_idx.setdefault(pedido, []).append(protocolo)
+        cliente = _pedido_normalizado(protocolo.client_name)
+        if cliente:
+            cliente_idx.setdefault(cliente, []).append(protocolo)
+    return ns_por_id, ns_idx, pedido_idx, cliente_idx
+
+
+def _ponto_borda(cx, cy, largura, altura, alvo_x, alvo_y):
+    """Ponto onde a linha centro→alvo cruza a borda da caixa."""
+    dx = alvo_x - cx
+    dy = alvo_y - cy
+    if not dx and not dy:
+        return cx, cy
+    escalas = []
+    if dx:
+        escalas.append((largura / 2) / abs(dx))
+    if dy:
+        escalas.append((altura / 2) / abs(dy))
+    escala = min(escalas) if escalas else 1
+    return cx + dx * escala, cy + dy * escala
+
+
+def _layout_teia(nodes_info, arestas, raiz_id):
+    """Posiciona os nós em anéis ao redor do protocolo atual."""
+    ids = {no['id'] for no in nodes_info}
+    vizinhos = {i: set() for i in ids}
+    for aresta in arestas:
+        if aresta['de'] in vizinhos and aresta['para'] in vizinhos:
+            vizinhos[aresta['de']].add(aresta['para'])
+            vizinhos[aresta['para']].add(aresta['de'])
+
+    profundidade = {raiz_id: 0}
+    fila = [raiz_id]
+    while fila:
+        atual = fila.pop(0)
+        for vizinho in vizinhos.get(atual, ()):
+            if vizinho not in profundidade:
+                profundidade[vizinho] = profundidade[atual] + 1
+                fila.append(vizinho)
+
+    grupos = {}
+    for no in nodes_info:
+        nivel = profundidade.get(no['id'], 0)
+        grupos.setdefault(nivel, []).append(no)
+
+    posicoes = {}
+    for nivel, grupo in grupos.items():
+        if nivel == 0:
+            for no in grupo:
+                posicoes[no['id']] = (0.0, 0.0)
+            continue
+        total = len(grupo)
+        raio = max(260 * nivel, (total * 125) / (2 * math.pi))
+        for indice, no in enumerate(grupo):
+            angulo = (2 * math.pi * indice / total) + (nivel * 0.4)
+            posicoes[no['id']] = (raio * math.cos(angulo),
+                                  raio * math.sin(angulo))
+
+    largura_caixa, altura_caixa = 176, 66
+    caixas = {}
+    for no in nodes_info:
+        x, y = posicoes[no['id']]
+        caixas[no['id']] = {
+            'x': x - largura_caixa / 2,
+            'y': y - altura_caixa / 2,
+            'cx': x,
+            'cy': y,
+        }
+
+    min_x = min(c['x'] for c in caixas.values())
+    min_y = min(c['y'] for c in caixas.values())
+    max_x = max(c['x'] + largura_caixa for c in caixas.values())
+    max_y = max(c['y'] + altura_caixa for c in caixas.values())
+    margem = 70
+    deslocamento_x = -min_x + margem
+    deslocamento_y = -min_y + margem
+
+    for caixa in caixas.values():
+        for chave in ('x', 'cx'):
+            caixa[chave] += deslocamento_x
+        for chave in ('y', 'cy'):
+            caixa[chave] += deslocamento_y
+        caixa['w'] = largura_caixa
+        caixa['h'] = altura_caixa
+
+    largura = max(max_x - min_x + 2 * margem, 560)
+    altura = max(max_y - min_y + 2 * margem, 360)
+    return caixas, largura, altura
+
+
+def teia_do_protocolo(protocol, limite=60):
+    """Monta a teia somente leitura com todos os protocolos ligados ao atual."""
+    if not protocol:
+        return None
+
+    todos = Protocol.query.order_by(Protocol.entry_date, Protocol.id).all()
+    por_id = {p.id: p for p in todos}
+    ns_por_id, ns_idx, pedido_idx, cliente_idx = _indice_teia(todos)
+
+    nodes = {protocol.id: protocol}
+    fila = [protocol]
+    arestas = {}
+    truncada = False
+
+    while fila and not truncada:
+        atual = fila.pop(0)
+        candidatos = []
+
+        origem = atual.get_origin()
+        if origem:
+            candidatos.append((origem, 'retorno',
+                               f'Retorno de {atual.protocol_number}',
+                               origem.id, atual.id))
+        for retorno in atual.get_returns():
+            candidatos.append((retorno, 'retorno',
+                               f'Gerou {retorno.protocol_number}',
+                               atual.id, retorno.id))
+
+        for pedido in {_pedido_normalizado(atual.order_number),
+                       _pedido_normalizado(atual.original_order)}:
+            if not pedido:
+                continue
+            for outro in pedido_idx.get(pedido, []):
+                if outro.id != atual.id:
+                    candidatos.append((outro, 'pedido', f'Pedido {pedido}',
+                                       atual.id, outro.id))
+
+        if atual.type == 'venda':
+            for info in pe_por_maquina(atual).values():
+                outro = por_id.get(info.get('id'))
+                if outro:
+                    candidatos.append((
+                        outro, 'venda_pe',
+                        f"Máquina {info.get('unit') or '?'} · fonte "
+                        f"{info.get('fonte') or 'sem NS'}",
+                        atual.id, outro.id))
+        elif atual.type == 'ponta_entrega':
+            for unidade, vendas in vendas_por_maquina_pe(atual).items():
+                for venda in vendas:
+                    outro = por_id.get(venda.get('id'))
+                    if outro:
+                        candidatos.append((
+                            outro, 'venda_pe',
+                            f"Máquina {unidade} · fonte "
+                            f"{venda.get('fonte') or 'sem NS'}",
+                            outro.id, atual.id))
+
+        for valor in ns_por_id.get(atual.id, set()):
+            for outro in ns_idx.get(valor, []):
+                if outro.id != atual.id:
+                    candidatos.append((outro, 'ns', f'NS {valor}',
+                                       atual.id, outro.id))
+
+        cliente = _pedido_normalizado(atual.client_name)
+        if cliente:
+            for outro in cliente_idx.get(cliente, []):
+                if outro.id != atual.id:
+                    candidatos.append((outro, 'cliente',
+                                       f'Cliente {atual.client_name}',
+                                       atual.id, outro.id))
+
+        for outro, tipo, evidencia, de, para in candidatos:
+            if outro.id not in nodes:
+                if len(nodes) >= limite:
+                    truncada = True
+                    continue
+                nodes[outro.id] = outro
+                fila.append(outro)
+
+            chave = (min(de, para), max(de, para), tipo)
+            existente = arestas.get(chave)
+            if existente is None:
+                arestas[chave] = {
+                    'de': de, 'para': para, 'tipo': tipo,
+                    'rotulo': _TEIA_LIGACOES.get(tipo, tipo),
+                    'evidencias': [evidencia] if evidencia else [],
+                }
+            elif evidencia and evidencia not in existente['evidencias']:
+                existente['evidencias'].append(evidencia)
+
+    nodes_info = []
+    for protocolo in nodes.values():
+        cor, cor_texto = _TEIA_CORES_NO.get(protocolo.type, ('#0d6efd', '#ffffff'))
+        data_ref = protocolo.rma_entry_date or protocolo.entry_date
+        nodes_info.append({
+            'id': protocolo.id,
+            'protocol': protocolo,
+            'ns': sorted(ns_por_id.get(protocolo.id, set())),
+            'cor': cor,
+            'cor_texto': cor_texto,
+            'tipo_curto': (protocolo.type_label() or '')[:26],
+            'data': data_ref.strftime('%d/%m/%Y') if data_ref else '',
+        })
+
+    nodes_info.sort(key=lambda no: (
+        no['id'] != protocol.id,
+        no['protocol'].entry_date or no['protocol'].created_at or datetime.min,
+        no['id']))
+
+    arestas_info = sorted(
+        arestas.values(),
+        key=lambda a: (a['tipo'], a['de'], a['para']))
+    caixas, largura, altura = _layout_teia(nodes_info, arestas_info, protocol.id)
+
+    for aresta in arestas_info:
+        caixa_de = caixas[aresta['de']]
+        caixa_para = caixas[aresta['para']]
+        x1, y1 = _ponto_borda(caixa_de['cx'], caixa_de['cy'],
+                              caixa_de['w'], caixa_de['h'],
+                              caixa_para['cx'], caixa_para['cy'])
+        x2, y2 = _ponto_borda(caixa_para['cx'], caixa_para['cy'],
+                              caixa_para['w'], caixa_para['h'],
+                              caixa_de['cx'], caixa_de['cy'])
+        aresta.update({
+            'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2,
+            'de_numero': por_id[aresta['de']].protocol_number,
+            'para_numero': por_id[aresta['para']].protocol_number,
+            'evidencia': ' · '.join(aresta['evidencias']),
+            'cor': _TEIA_CORES_ARESTA.get(aresta['tipo'], '#adb5bd'),
+        })
+
+    contagem = {}
+    for aresta in arestas_info:
+        contagem[aresta['tipo']] = contagem.get(aresta['tipo'], 0) + 1
+
+    # NS que aparecem em mais de um protocolo da teia (para o usuário conferir).
+    ns_protocolos = {}
+    for no in nodes_info:
+        for valor in no['ns']:
+            ns_protocolos.setdefault(valor, []).append(no)
+    ns_comuns = []
+    for valor, lista in sorted(ns_protocolos.items()):
+        numeros = sorted({no['protocol'].protocol_number for no in lista})
+        if len(numeros) > 1:
+            ns_comuns.append({
+                'ns': valor,
+                'protocolos': numeros,
+                'ids': [no['id'] for no in lista],
+            })
+
+    return {
+        'raiz': protocol,
+        'nodes': nodes_info,
+        'edges': arestas_info,
+        'caixas': caixas,
+        'ligacoes': _TEIA_LIGACOES,
+        'cores': _TEIA_CORES_ARESTA,
+        'contagem': contagem,
+        'largura': largura,
+        'altura': altura,
+        'truncada': truncada,
+        'total': len(nodes_info),
+        'ns_raiz': sorted(ns_por_id.get(protocol.id, set())),
+        'ns_comuns': ns_comuns,
+    }
 

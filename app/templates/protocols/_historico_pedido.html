@@ -17,6 +17,8 @@
                     <span class="badge bg-dark me-1">{{ loop.index }}º</span>
                     <a href="{{ url_for('protocols.detail_protocol', id=hist.protocol.id) }}"
                        target="_blank" class="fw-bold text-info">{{ hist.protocol.protocol_number }}</a>
+                    <a href="{{ url_for('protocols.teia_protocol', id=hist.protocol.id) }}"
+                       target="_blank" class="small text-decoration-none ms-1" title="Ver a teia deste protocolo">Teia</a>
                     <span class="badge {{ hist.protocol.type_badge() }} ms-1">{{ hist.protocol.type_label() }}</span>
                     <span class="badge {{ hist.protocol.status_badge() }} ms-1">{{ hist.protocol.status_label() }}</span>
                     {% if hist.protocol.order_number or hist.protocol.original_order %}

@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .teia-aresta { transition: opacity .15s ease; }
+    .teia-no rect { transition: stroke .15s ease, filter .15s ease; }
+    .teia-no:hover rect { stroke: #ffffff; filter: brightness(1.15); }
+    .teia-no text { pointer-events: none; }
+    .teia-filtro-item { cursor: pointer; }
+    .teia-svg { background: #0b1118; border-radius: .5rem; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h3 class="mb-0"><i class="bi bi-diagram-3"></i> Teia do protocolo {{ protocol.protocol_number }}</h3>
+        <div class="small text-secondary">
+            Todo o histórico ligado a este protocolo, em um só lugar.
+            <span class="badge bg-secondary ms-1">Somente leitura</span>
+            — nada aqui altera os protocolos.
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('protocols.detail_protocol', id=protocol.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Voltar ao protocolo
+        </a>
+    </div>
+</div>
+
+{% if not teia or not teia.nodes %}
+<div class="alert alert-secondary">
+    <i class="bi bi-info-circle"></i> Não foi possível montar a teia deste protocolo.
+</div>
+{% else %}
+
+{% if teia.truncada %}
+<div class="alert alert-warning py-2">
+    <i class="bi bi-exclamation-triangle"></i>
+    A teia ficou grande e foi limitada a <strong>{{ teia.total }} protocolos</strong>.
+    Isso normalmente acontece por muitos protocolos do mesmo cliente ou do mesmo pedido.
+</div>
+{% endif %}
+
+<div class="card border-secondary mb-3">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2 py-2">
+        <span class="small">
+            <i class="bi bi-diagram-3"></i>
+            <strong>{{ teia.total }}</strong> protocolo(s) e
+            <strong>{{ teia.edges|length }}</strong> ligação(ões) encontradas
+        </span>
+        <span class="small text-secondary">Clique em uma caixa para abrir o protocolo</span>
+    </div>
+    <div class="card-body">
+        <div class="mb-2 d-flex flex-wrap gap-3">
+            {% for tipo, rotulo in teia.ligacoes.items() %}
+            {% if teia.contagem.get(tipo, 0) %}
+            <label class="form-check form-check-inline teia-filtro-item mb-0">
+                <input class="form-check-input teia-filtro" type="checkbox" checked data-tipo="{{ tipo }}">
+                <span class="form-check-label small">
+                    <span style="display:inline-block;width:16px;height:4px;border-radius:2px;background:{{ teia.cores[tipo] }};vertical-align:middle"></span>
+                    {{ rotulo }} ({{ teia.contagem.get(tipo, 0) }})
+                </span>
+            </label>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        <div class="table-responsive border rounded teia-svg">
+            <svg class="teia-svg" viewBox="0 0 {{ teia.largura }} {{ teia.altura }}"
+                 width="100%" style="min-width: {{ teia.largura }}px; height:auto" role="img"
+                 aria-label="Diagrama de protocolos ligados a {{ protocol.protocol_number }}">
+                <defs>
+                    {% for tipo, cor in teia.cores.items() %}
+                    <marker id="seta-{{ tipo }}" viewBox="0 0 10 10" refX="9" refY="5"
+                            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="{{ cor }}"></path>
+                    </marker>
+                    {% endfor %}
+                </defs>
+
+                <g>
+                    {% for aresta in teia.edges %}
+                    <line class="teia-aresta" data-tipo="{{ aresta.tipo }}"
+                          x1="{{ '%.1f'|format(aresta.x1) }}" y1="{{ '%.1f'|format(aresta.y1) }}"
+                          x2="{{ '%.1f'|format(aresta.x2) }}" y2="{{ '%.1f'|format(aresta.y2) }}"
+                          stroke="{{ aresta.cor }}" stroke-width="2.5" opacity="0.85"
+                          marker-end="url(#seta-{{ aresta.tipo }})">
+                        <title>{{ aresta.de_numero }} → {{ aresta.para_numero }} · {{ aresta.rotulo }}{% if aresta.evidencia %} · {{ aresta.evidencia }}{% endif %}</title>
+                    </line>
+                    {% endfor %}
+                </g>
+
+                <g>
+                    {% for no in teia.nodes %}
+                    {% set caixa = teia.caixas[no.id] %}
+                    {% set eh_raiz = no.id == teia.raiz.id %}
+                    <a href="{{ url_for('protocols.detail_protocol', id=no.id) }}" class="teia-no">
+                        <title>{{ no.protocol.protocol_number }} · {{ no.protocol.type_label() }} · {{ no.protocol.status_label() }}{% if no.protocol.client_name %} · {{ no.protocol.client_name }}{% endif %}</title>
+                        <rect x="{{ '%.1f'|format(caixa.x) }}" y="{{ '%.1f'|format(caixa.y) }}"
+                              width="{{ caixa.w }}" height="{{ caixa.h }}" rx="10"
+                              fill="{{ no.cor }}"
+                              stroke="{{ '#ffffff' if eh_raiz else '#05090d' }}"
+                              stroke-width="{{ 4 if eh_raiz else 1.5 }}"></rect>
+                        <text x="{{ '%.1f'|format(caixa.cx) }}" text-anchor="middle"
+                              font-family="Segoe UI, Arial, sans-serif" fill="{{ no.cor_texto }}">
+                            <tspan x="{{ '%.1f'|format(caixa.cx) }}" y="{{ '%.1f'|format(caixa.cy - 17) }}"
+                                   font-size="13" font-weight="700">{{ no.protocol.protocol_number }}</tspan>
+                            <tspan x="{{ '%.1f'|format(caixa.cx) }}" y="{{ '%.1f'|format(caixa.cy + 1) }}"
+                                   font-size="11">{{ no.tipo_curto }}{% if no.data %} · {{ no.data }}{% endif %}</tspan>
+                            <tspan x="{{ '%.1f'|format(caixa.cx) }}" y="{{ '%.1f'|format(caixa.cy + 17) }}"
+                                   font-size="10" opacity="0.9">{{ no.protocol.client_name|truncate(26, true, '...') if no.protocol.client_name else 'Cliente não informado' }}</tspan>
+                        </text>
+                    </a>
+                    {% endfor %}
+                </g>
+            </svg>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card border-secondary h-100">
+            <div class="card-header py-2">
+                <i class="bi bi-link-45deg"></i> Ligações encontradas
+                <span class="small text-secondary ms-1">(o que liga cada protocolo)</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-sm mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>De</th>
+                                <th>Para</th>
+                                <th>Ligação</th>
+                                <th>Evidência</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for aresta in teia.edges %}
+                            <tr class="teia-aresta-linha" data-tipo="{{ aresta.tipo }}">
+                                <td>
+                                    <a href="{{ url_for('protocols.detail_protocol', id=aresta.de) }}"
+                                       target="_blank" class="text-info">{{ aresta.de_numero }}</a>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('protocols.detail_protocol', id=aresta.para) }}"
+                                       target="_blank" class="text-info">{{ aresta.para_numero }}</a>
+                                </td>
+                                <td>
+                                    <span style="display:inline-block;width:12px;height:4px;border-radius:2px;background:{{ aresta.cor }};vertical-align:middle"></span>
+                                    {{ aresta.rotulo }}
+                                </td>
+                                <td class="small text-secondary">{{ aresta.evidencia or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% if not teia.edges %}
+                            <tr>
+                                <td colspan="4" class="text-secondary">
+                                    Nenhuma ligação encontrada. Este protocolo está sozinho na teia.
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card border-secondary h-100">
+            <div class="card-header py-2">
+                <i class="bi bi-upc-scan"></i> NS que aparecem em mais de um protocolo
+                <span class="badge bg-secondary ms-1">{{ teia.ns_comuns|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 340px; overflow:auto">
+                    <table class="table table-dark table-sm mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>NS</th>
+                                <th>Protocolos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in teia.ns_comuns %}
+                            <tr>
+                                <td><code>{{ item.ns }}</code></td>
+                                <td class="small">
+                                    {% for numero in item.protocolos %}
+                                    <span class="badge bg-dark border border-secondary me-1 mb-1">{{ numero }}</span>
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not teia.ns_comuns %}
+                            <tr>
+                                <td colspan="2" class="small text-secondary">
+                                    Nenhum NS repetido entre os protocolos desta teia.
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-secondary mt-3">
+    <div class="card-header py-2">
+        <i class="bi bi-list-check"></i> NS de cada protocolo
+        <span class="small text-secondary ms-1">(confira se as máquinas e peças batem)</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 420px; overflow:auto">
+            <table class="table table-dark table-sm mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th>Protocolo</th>
+                        <th>Tipo</th>
+                        <th>Data</th>
+                        <th>NS registrados</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for no in teia.nodes %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('protocols.detail_protocol', id=no.id) }}"
+                               target="_blank" class="{{ 'fw-bold text-info' if no.id == teia.raiz.id else 'text-info' }}">
+                                {{ no.protocol.protocol_number }}
+                            </a>
+                            {% if no.id == teia.raiz.id %}<span class="badge bg-info text-dark ms-1">este</span>{% endif %}
+                        </td>
+                        <td class="small">{{ no.protocol.type_label() }}</td>
+                        <td class="small">{{ no.data or '-' }}</td>
+                        <td>
+                            {% for valor in no.ns %}
+                            <code class="d-inline-block me-1 mb-1 {{ 'text-warning' if valor in teia.ns_raiz else '' }}">{{ valor }}</code>
+                            {% endfor %}
+                            {% if not no.ns %}<span class="small text-secondary">Sem NS registrado</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<p class="small text-secondary mt-3 mb-0">
+    <i class="bi bi-shield-lock"></i>
+    Esta teia serve só para consulta. Para registrar um novo retorno use o botão
+    <strong>Novo retorno</strong> no protocolo desejado; para ligar um registro feito do zero,
+    use <strong>Retorno de PRO</strong> na tela de novo protocolo.
+</p>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filtros = document.querySelectorAll('.teia-filtro');
+    filtros.forEach(function(caixa) {
+        caixa.addEventListener('change', function() {
+            const tipo = caixa.dataset.tipo;
+            const visivel = caixa.checked;
+            document.querySelectorAll('.teia-aresta[data-tipo="' + tipo + '"]').forEach(function(linha) {
+                linha.style.display = visivel ? '' : 'none';
+            });
+            document.querySelectorAll('.teia-aresta-linha[data-tipo="' + tipo + '"]').forEach(function(linha) {
+                linha.style.display = visivel ? '' : 'none';
+            });
+        });
+    });
+});
+</script>
+
+{% endif %}
+{% endblock %}

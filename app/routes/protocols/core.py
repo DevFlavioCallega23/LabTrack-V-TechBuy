@@ -24,7 +24,7 @@ from app.routes.protocols.helpers import (
     buscar_pronta_entrega, vendas_por_maquina_pe, pe_por_maquina, avisos_pe_ja_vendida,
     pe_refs_para_formulario, remover_referencias_da_pe,
     criar_protocolo_retorno, historico_do_protocolo, historico_por_pedido,
-    protocolos_por_pedido, historico_por_referencia,
+    protocolos_por_pedido, historico_por_referencia, teia_do_protocolo,
 )
 
 @protocols_bp.route('/')
@@ -314,6 +314,15 @@ def detail_protocol(id):
                            pe_vendas=pe_vendas, pe_origens=pe_origens,
                            origem=origem, retornos=retornos, cadeia=cadeia,
                            pedido_relacionados=pedido_relacionados)
+
+@protocols_bp.route('/<int:id>/teia')
+@login_required
+def teia_protocol(id):
+    """Mostra, só para leitura, todo o histórico ligado a este protocolo."""
+    protocol = Protocol.query.get_or_404(id)
+    teia = teia_do_protocolo(protocol)
+    return render_template('protocols/teia.html', protocol=protocol, teia=teia)
+
 
 @protocols_bp.route('/<int:id>/ignorar-incompletos', methods=['POST'])
 @login_required
