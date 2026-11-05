@@ -1,8 +1,12 @@
 """Helpers compartilhados dos protocolos: parsing de formulários e validação."""
 import json
-import math
+import os
 import re
+import shutil
+import tempfile
 from datetime import datetime
+
+from flask import current_app
 
 from app import db
 from app.datas import parse_date_br as parse_date_br  # noqa: F401  (reexportado)
@@ -889,7 +893,7 @@ def criar_protocolo_retorno(origem, novo_tipo, user_id):
             'protocolo': origem.protocol_number,
             'ns': _primeiro_serial(origem.rma_test_result),
             'ns_novo': _primeiro_serial(origem.rma_trocados),
-            'pedido': '',
+            'pedido': origem.original_order or origem.order_number or '',
             'data_entrada': _data_br(origem.rma_entry_date or origem.entry_date),
             'data_saida': _data_br(origem.exit_date),
         })
@@ -1008,6 +1012,7 @@ _TEIA_CORES_ARESTA = {
     'retorno': '#0dcaf0',
     'venda_pe': '#20c997',
     'pedido': '#ffc107',
+    'equipamento': '#0d6efd',
     'ns': '#0d6efd',
     'cliente': '#adb5bd',
 }
@@ -1016,54 +1021,174 @@ _TEIA_LIGACOES = {
     'retorno': 'Retorno',
     'venda_pe': 'Venda ↔ PE',
     'pedido': 'Mesmo pedido',
+    'equipamento': 'Mesmo equipamento',
     'ns': 'Mesmo NS',
     'cliente': 'Mesmo cliente',
 }
 
 
+_PLACEHOLDERS = {
+    '', 'NIL', 'N/A', 'NA', '-', 'NONE', 'SEM PEDIDO', 'SEM VENDEDOR',
+}
+
+
+def _texto_limpo(valor):
+    return str(valor or '').strip()
+
+
+def _pedido_valido(valor):
+    """Pedido de verdade: ignora NIL e códigos curtos que não são números."""
+    texto = _texto_limpo(valor)
+    if not texto or texto.upper() in _PLACEHOLDERS:
+        return False
+    if len(texto) < 6 and not texto.isdigit():
+        return False
+    return True
+
+
+def _vendedor_valido(valor):
+    texto = _texto_limpo(valor)
+    return bool(texto) and texto.upper() not in _PLACEHOLDERS
+
+
+def _cliente_valido(valor):
+    texto = _texto_limpo(valor)
+    return bool(texto) and texto.upper() not in _PLACEHOLDERS
+
+
+def _lote_valido(valor):
+    texto = _texto_limpo(valor)
+    return bool(texto) and texto.upper() not in _PLACEHOLDERS
+
+
+def _cliente_normalizado(protocol):
+    texto = _texto_limpo(protocol.client_name)
+    if not _cliente_valido(texto):
+        return ''
+    return ' '.join(texto.upper().split())
+
+
+def _pedidos_do_protocolo(protocol):
+    pedidos = set()
+    for valor in (protocol.order_number, protocol.original_order):
+        if _pedido_valido(valor):
+            pedidos.add(_texto_limpo(valor).upper())
+    return pedidos
+
+
+def _pedido_principal(protocol):
+    for valor in (protocol.original_order, protocol.order_number):
+        if _pedido_valido(valor):
+            return _texto_limpo(valor)
+    return ''
+
+
+def _data_ordem(protocol):
+    return (protocol.rma_entry_date or protocol.entry_date
+            or protocol.created_at or datetime.min)
+
+
+def _tipo_peca(valor):
+    texto = _texto_limpo(valor).lower()
+    return texto or 'peca'
+
+
+def _ns_limpo(valor):
+    texto = _texto_limpo(valor).upper()
+    if len(texto) < 4 or texto in ('NIL', 'NONE', 'N/A', 'NA', '0'):
+        return ''
+    return texto
+
+
 def _equip_entradas(dados):
-    """Aceita {unidade: {components: [...]}} ou a lista antiga de componentes."""
+    """Devolve [(unidade, entrada)] para o formato antigo e o novo."""
     if isinstance(dados, dict):
-        return [entrada for entrada in dados.values() if isinstance(entrada, dict)]
+        return [(str(chave), entrada) for chave, entrada in dados.items()
+                if isinstance(entrada, dict)]
     if isinstance(dados, list):
-        return [{'components': dados}]
+        return [('', {'components': dados})]
     return []
 
 
 def ns_do_protocolo(protocol):
-    """Todos os números de série que identificam a máquina/peças do protocolo."""
-    ns = set()
+    """NS do protocolo com o tipo da peça e a unidade onde apareceu."""
+    info = {}
 
-    def adicionar(valor):
-        texto = str(valor or '').strip().upper()
-        if len(texto) >= 4 and texto not in ('NIL', 'NONE', 'N/A', 'NA', '0'):
-            ns.add(texto)
+    def adicionar(valor, tipo='peca', unidade='', maquina='', fonte=''):
+        ns = _ns_limpo(valor)
+        if not ns:
+            return
+        item = info.setdefault(ns, {
+            'tipos': set(), 'unidades': set(),
+            'maquinas': set(), 'fontes': set(),
+        })
+        item['tipos'].add(_tipo_peca(tipo))
+        if _texto_limpo(unidade):
+            item['unidades'].add(_texto_limpo(unidade))
+        if _texto_limpo(maquina):
+            item['maquinas'].add(_texto_limpo(maquina))
+        if fonte:
+            item['fontes'].add(fonte)
 
     for componente in protocol.components or []:
-        adicionar(componente.serial_number)
-        adicionar(componente.machine_ref_ns)
-    for info in protocol.get_pe_refs().values():
-        if isinstance(info, dict):
-            adicionar(info.get('fonte'))
-    for entrada in _equip_entradas(_json_ou(protocol.rma_equip_itens, {})):
+        adicionar(componente.serial_number, componente.component_type,
+                  componente.unit, componente.machine_name, 'componente')
+        adicionar(componente.machine_ref_ns, 'maquina',
+                  componente.unit, componente.machine_name, 'maquina')
+
+    for info_pe in protocol.get_pe_refs().values():
+        if isinstance(info_pe, dict):
+            adicionar(info_pe.get('fonte'), 'fonte_pe',
+                      info_pe.get('unit'), info_pe.get('machine_name'), 'pe')
+
+    for unidade, entrada in _equip_entradas(_json_ou(protocol.rma_equip_itens, {})):
         for componente in entrada.get('components') or []:
             if isinstance(componente, dict):
-                adicionar(componente.get('serial'))
+                adicionar(componente.get('serial'), componente.get('type'),
+                          unidade or componente.get('unit'),
+                          entrada.get('name'), 'equipamento')
+
     for item in _json_ou(protocol.rma_test_result, []) or []:
-        if isinstance(item, dict):
-            adicionar(item.get('serial'))
-            for componente in item.get('components') or []:
-                if isinstance(componente, dict):
-                    adicionar(componente.get('serial'))
-    for entrada in _equip_entradas(_json_ou(protocol.rma_trocados, {})):
+        if not isinstance(item, dict):
+            continue
+        adicionar(item.get('serial'), item.get('component'),
+                  item.get('unit'), item.get('machine'), 'teste')
+        for componente in item.get('components') or []:
+            if isinstance(componente, dict):
+                adicionar(componente.get('serial'),
+                          componente.get('type') or componente.get('component'),
+                          componente.get('unit'), item.get('machine'), 'teste')
+
+    for unidade, entrada in _equip_entradas(_json_ou(protocol.rma_trocados, {})):
         for componente in entrada.get('components') or []:
             if isinstance(componente, dict):
-                adicionar(componente.get('serial'))
-    adicionar(protocol.ref_ns)
-    adicionar(protocol.rma_test_serial)
+                adicionar(componente.get('serial'), componente.get('type'),
+                          unidade or componente.get('unit'),
+                          entrada.get('name'), 'trocado')
+
     for defeito in protocol.defects or []:
-        adicionar(defeito.serial_number)
-    return ns
+        adicionar(defeito.serial_number, defeito.component_type,
+                  '', defeito.maquina, 'defeito')
+
+    adicionar(protocol.ref_ns, 'ref', '', '', 'ref')
+    adicionar(protocol.rma_test_serial, 'ref', '', '', 'ref')
+    return info
+
+
+def _comparar_ns(info_a, info_b):
+    """NS iguais com o mesmo tipo e NS iguais com tipo diferente (conferir)."""
+    comuns = []
+    conflitos = []
+    for ns in set(info_a) & set(info_b):
+        tipos_a = info_a[ns]['tipos']
+        tipos_b = info_b[ns]['tipos']
+        tipos = tipos_a & tipos_b
+        if tipos:
+            comuns.append((ns, sorted(tipos)[0], info_a[ns], info_b[ns]))
+        else:
+            conflitos.append((ns, sorted(tipos_a), sorted(tipos_b),
+                              info_a[ns], info_b[ns]))
+    return comuns, conflitos
 
 
 def _indice_teia(todos):
@@ -1073,105 +1198,145 @@ def _indice_teia(todos):
     pedido_idx = {}
     cliente_idx = {}
     for protocolo in todos:
-        ns = ns_do_protocolo(protocolo)
-        ns_por_id[protocolo.id] = ns
-        for valor in ns:
+        info = ns_do_protocolo(protocolo)
+        ns_por_id[protocolo.id] = info
+        for valor in info:
             ns_idx.setdefault(valor, []).append(protocolo)
-        for pedido in {_pedido_normalizado(protocolo.order_number),
-                       _pedido_normalizado(protocolo.original_order)}:
-            if pedido:
-                pedido_idx.setdefault(pedido, []).append(protocolo)
-        cliente = _pedido_normalizado(protocolo.client_name)
+        for pedido in _pedidos_do_protocolo(protocolo):
+            pedido_idx.setdefault(pedido, []).append(protocolo)
+        cliente = _cliente_normalizado(protocolo)
         if cliente:
             cliente_idx.setdefault(cliente, []).append(protocolo)
     return ns_por_id, ns_idx, pedido_idx, cliente_idx
 
 
-def _ponto_borda(cx, cy, largura, altura, alvo_x, alvo_y):
-    """Ponto onde a linha centro→alvo cruza a borda da caixa."""
-    dx = alvo_x - cx
-    dy = alvo_y - cy
-    if not dx and not dy:
-        return cx, cy
-    escalas = []
-    if dx:
-        escalas.append((largura / 2) / abs(dx))
-    if dy:
-        escalas.append((altura / 2) / abs(dy))
-    escala = min(escalas) if escalas else 1
-    return cx + dx * escala, cy + dy * escala
+
+def _tipo_peca_label(tipo):
+    return COMPONENT_LABELS.get(tipo, (tipo or '').replace('_', ' ').title())
 
 
-def _layout_teia(nodes_info, arestas, raiz_id):
-    """Posiciona os nós em anéis ao redor do protocolo atual."""
-    ids = {no['id'] for no in nodes_info}
-    vizinhos = {i: set() for i in ids}
-    for aresta in arestas:
-        if aresta['de'] in vizinhos and aresta['para'] in vizinhos:
-            vizinhos[aresta['de']].add(aresta['para'])
-            vizinhos[aresta['para']].add(aresta['de'])
+def _unidades(info_ns):
+    unidades = set()
+    for item in info_ns.values():
+        unidades.update(item['unidades'])
+    return unidades
 
-    profundidade = {raiz_id: 0}
-    fila = [raiz_id]
-    while fila:
-        atual = fila.pop(0)
-        for vizinho in vizinhos.get(atual, ()):
-            if vizinho not in profundidade:
-                profundidade[vizinho] = profundidade[atual] + 1
-                fila.append(vizinho)
 
-    grupos = {}
-    for no in nodes_info:
-        nivel = profundidade.get(no['id'], 0)
-        grupos.setdefault(nivel, []).append(no)
+def _mesmo_contexto(a, b):
+    """Mesmo cliente ou mesmo pedido válido — confirma que é a mesma máquina."""
+    cliente_a = _cliente_normalizado(a)
+    cliente_b = _cliente_normalizado(b)
+    if cliente_a and cliente_a == cliente_b:
+        return True
+    return bool(_pedidos_do_protocolo(a) & _pedidos_do_protocolo(b))
 
-    posicoes = {}
-    for nivel, grupo in grupos.items():
-        if nivel == 0:
-            for no in grupo:
-                posicoes[no['id']] = (0.0, 0.0)
-            continue
-        total = len(grupo)
-        raio = max(260 * nivel, (total * 125) / (2 * math.pi))
-        for indice, no in enumerate(grupo):
-            angulo = (2 * math.pi * indice / total) + (nivel * 0.4)
-            posicoes[no['id']] = (raio * math.cos(angulo),
-                                  raio * math.sin(angulo))
 
-    largura_caixa, altura_caixa = 176, 66
-    caixas = {}
-    for no in nodes_info:
-        x, y = posicoes[no['id']]
-        caixas[no['id']] = {
-            'x': x - largura_caixa / 2,
-            'y': y - altura_caixa / 2,
-            'cx': x,
-            'cy': y,
-        }
+def _vizinhos_principais(atual, ns_por_id, ns_idx, por_id):
+    """Vizinhos que entram na coluna principal da máquina."""
+    achados = {}
 
-    min_x = min(c['x'] for c in caixas.values())
-    min_y = min(c['y'] for c in caixas.values())
-    max_x = max(c['x'] + largura_caixa for c in caixas.values())
-    max_y = max(c['y'] + altura_caixa for c in caixas.values())
-    margem = 70
-    deslocamento_x = -min_x + margem
-    deslocamento_y = -min_y + margem
+    def adicionar(outro, tipo, evidencia):
+        if not outro or outro.id == atual.id:
+            return
+        existente = achados.get(outro.id)
+        if existente is None:
+            achados[outro.id] = {
+                'protocol': outro,
+                'tipo': tipo,
+                'evidencias': [evidencia] if evidencia else [],
+            }
+        elif evidencia and evidencia not in existente['evidencias']:
+            existente['evidencias'].append(evidencia)
 
-    for caixa in caixas.values():
-        for chave in ('x', 'cx'):
-            caixa[chave] += deslocamento_x
-        for chave in ('y', 'cy'):
-            caixa[chave] += deslocamento_y
-        caixa['w'] = largura_caixa
-        caixa['h'] = altura_caixa
+    origem = atual.get_origin()
+    if origem:
+        adicionar(origem, 'retorno', f'Retorno de {atual.protocol_number}')
+    for retorno in atual.get_returns():
+        adicionar(retorno, 'retorno', f'Gerou {retorno.protocol_number}')
 
-    largura = max(max_x - min_x + 2 * margem, 560)
-    altura = max(max_y - min_y + 2 * margem, 360)
-    return caixas, largura, altura
+    info_atual = ns_por_id.get(atual.id, {})
+    for ns, item in info_atual.items():
+        for outro in ns_idx.get(ns, []):
+            if outro.id == atual.id:
+                continue
+            comuns, _ = _comparar_ns({ns: item}, ns_por_id.get(outro.id, {}))
+            if not comuns:
+                continue
+            if _mesmo_contexto(atual, outro):
+                tipo_peca = comuns[0][1]
+                adicionar(outro, 'equipamento',
+                         f'NS {ns} · {_tipo_peca_label(tipo_peca)}')
+
+    if atual.type == 'venda':
+        for info in pe_por_maquina(atual).values():
+            outro = por_id.get(info.get('id'))
+            if outro:
+                adicionar(
+                    outro, 'venda_pe',
+                    f"Máquina {info.get('unit') or '?'} · fonte "
+                    f"{info.get('fonte') or 'sem NS'}")
+    elif atual.type == 'ponta_entrega':
+        for unidade, vendas in vendas_por_maquina_pe(atual).items():
+            for venda in vendas:
+                outro = por_id.get(venda.get('id'))
+                if outro:
+                    adicionar(
+                        outro, 'venda_pe',
+                        f"Máquina {unidade} · fonte "
+                        f"{venda.get('fonte') or 'sem NS'}")
+
+    return achados
+
+
+def _ns_detalhe(info_ns):
+    detalhe = []
+    for ns in sorted(info_ns):
+        item = info_ns[ns]
+        tipos = sorted(item['tipos'])
+        detalhe.append({
+            'ns': ns,
+            'tipos': tipos,
+            'tipos_label': ', '.join(_tipo_peca_label(t) for t in tipos),
+            'unidades': sorted(item['unidades']),
+            'maquinas': sorted(item['maquinas']),
+        })
+    return detalhe
+
+
+def _montar_no(protocol, info_ns, flags=None, papel=''):
+    data_ref = _data_ordem(protocol)
+    cor, cor_texto = _TEIA_CORES_NO.get(protocol.type, ('#0d6efd', '#ffffff'))
+    pedidos = sorted(_pedidos_do_protocolo(protocol))
+    return {
+        'id': protocol.id,
+        'protocol': protocol,
+        'numero': protocol.protocol_number,
+        'tipo': protocol.type,
+        'tipo_label': protocol.type_label() or '',
+        'status_label': protocol.status_label() or '',
+        'status_badge': protocol.status_badge() or 'bg-secondary',
+        'data': data_ref.strftime('%d/%m/%Y') if data_ref else '',
+        'data_ordem': data_ref,
+        'cor': cor,
+        'cor_texto': cor_texto,
+        'ns': sorted(info_ns),
+        'ns_detalhe': _ns_detalhe(info_ns),
+        'pedidos': pedidos,
+        'pedido': pedidos[0] if pedidos else '',
+        'cliente': _texto_limpo(protocol.client_name),
+        'retorno_label': protocol.return_label() or '',
+        'flags': flags or {},
+        'papel': papel,
+    }
 
 
 def teia_do_protocolo(protocol, limite=60):
-    """Monta a teia somente leitura com todos os protocolos ligados ao atual."""
+    """Linha do tempo vertical da máquina + ramos laterais de peças.
+
+    Coluna principal: retorno, mesmo equipamento (cliente/pedido + NS + tipo)
+    e venda ↔ PE. O que só compartilha NS sem ser a mesma máquina vira ramo
+    lateral. Protocolos do mesmo cliente/pedido aparecem como contexto.
+    """
     if not protocol:
         return None
 
@@ -1179,160 +1344,637 @@ def teia_do_protocolo(protocol, limite=60):
     por_id = {p.id: p for p in todos}
     ns_por_id, ns_idx, pedido_idx, cliente_idx = _indice_teia(todos)
 
-    nodes = {protocol.id: protocol}
+    principal = {protocol.id: protocol}
     fila = [protocol]
     arestas = {}
     truncada = False
 
-    while fila and not truncada:
+    while fila:
         atual = fila.pop(0)
-        candidatos = []
-
-        origem = atual.get_origin()
-        if origem:
-            candidatos.append((origem, 'retorno',
-                               f'Retorno de {atual.protocol_number}',
-                               origem.id, atual.id))
-        for retorno in atual.get_returns():
-            candidatos.append((retorno, 'retorno',
-                               f'Gerou {retorno.protocol_number}',
-                               atual.id, retorno.id))
-
-        for pedido in {_pedido_normalizado(atual.order_number),
-                       _pedido_normalizado(atual.original_order)}:
-            if not pedido:
-                continue
-            for outro in pedido_idx.get(pedido, []):
-                if outro.id != atual.id:
-                    candidatos.append((outro, 'pedido', f'Pedido {pedido}',
-                                       atual.id, outro.id))
-
-        if atual.type == 'venda':
-            for info in pe_por_maquina(atual).values():
-                outro = por_id.get(info.get('id'))
-                if outro:
-                    candidatos.append((
-                        outro, 'venda_pe',
-                        f"Máquina {info.get('unit') or '?'} · fonte "
-                        f"{info.get('fonte') or 'sem NS'}",
-                        atual.id, outro.id))
-        elif atual.type == 'ponta_entrega':
-            for unidade, vendas in vendas_por_maquina_pe(atual).items():
-                for venda in vendas:
-                    outro = por_id.get(venda.get('id'))
-                    if outro:
-                        candidatos.append((
-                            outro, 'venda_pe',
-                            f"Máquina {unidade} · fonte "
-                            f"{venda.get('fonte') or 'sem NS'}",
-                            outro.id, atual.id))
-
-        for valor in ns_por_id.get(atual.id, set()):
-            for outro in ns_idx.get(valor, []):
-                if outro.id != atual.id:
-                    candidatos.append((outro, 'ns', f'NS {valor}',
-                                       atual.id, outro.id))
-
-        cliente = _pedido_normalizado(atual.client_name)
-        if cliente:
-            for outro in cliente_idx.get(cliente, []):
-                if outro.id != atual.id:
-                    candidatos.append((outro, 'cliente',
-                                       f'Cliente {atual.client_name}',
-                                       atual.id, outro.id))
-
-        for outro, tipo, evidencia, de, para in candidatos:
-            if outro.id not in nodes:
-                if len(nodes) >= limite:
+        vizinhos = _vizinhos_principais(atual, ns_por_id, ns_idx, por_id)
+        for vizinho in vizinhos.values():
+            outro = vizinho['protocol']
+            if outro.id not in principal:
+                if len(principal) >= limite:
                     truncada = True
                     continue
-                nodes[outro.id] = outro
+                principal[outro.id] = outro
                 fila.append(outro)
-
-            chave = (min(de, para), max(de, para), tipo)
+            chave = (min(atual.id, outro.id), max(atual.id, outro.id),
+                     vizinho['tipo'])
             existente = arestas.get(chave)
             if existente is None:
                 arestas[chave] = {
-                    'de': de, 'para': para, 'tipo': tipo,
-                    'rotulo': _TEIA_LIGACOES.get(tipo, tipo),
-                    'evidencias': [evidencia] if evidencia else [],
+                    'de': atual.id,
+                    'para': outro.id,
+                    'tipo': vizinho['tipo'],
+                    'rotulo': _TEIA_LIGACOES.get(vizinho['tipo'], vizinho['tipo']),
+                    'evidencias': list(vizinho['evidencias']),
                 }
-            elif evidencia and evidencia not in existente['evidencias']:
-                existente['evidencias'].append(evidencia)
+            else:
+                for evidencia in vizinho['evidencias']:
+                    if evidencia and evidencia not in existente['evidencias']:
+                        existente['evidencias'].append(evidencia)
 
-    nodes_info = []
-    for protocolo in nodes.values():
-        cor, cor_texto = _TEIA_CORES_NO.get(protocolo.type, ('#0d6efd', '#ffffff'))
-        data_ref = protocolo.rma_entry_date or protocolo.entry_date
-        nodes_info.append({
-            'id': protocolo.id,
-            'protocol': protocolo,
-            'ns': sorted(ns_por_id.get(protocolo.id, set())),
-            'cor': cor,
-            'cor_texto': cor_texto,
-            'tipo_curto': (protocolo.type_label() or '')[:26],
-            'data': data_ref.strftime('%d/%m/%Y') if data_ref else '',
+    principal_lista = sorted(
+        principal.values(), key=lambda p: (_data_ordem(p), p.id))
+    principal_ids = {p.id for p in principal_lista}
+
+    # --- Ramos laterais: mesmo NS + mesmo tipo, mas outra máquina ----------
+    incluidos = dict(principal)
+    ramos_por_ancora = {}
+    for outro in sorted(todos, key=lambda p: (_data_ordem(p), p.id)):
+        if outro.id in incluidos:
+            continue
+        info_outro = ns_por_id.get(outro.id, {})
+        ancoras = []
+        for ns, item in info_outro.items():
+            for candidato in principal_lista:
+                comuns, _ = _comparar_ns(
+                    {ns: item}, ns_por_id.get(candidato.id, {}))
+                if comuns:
+                    ancoras.append((candidato, ns, comuns[0][1]))
+        if not ancoras:
+            continue
+        ancora, ns, tipo_peca = max(
+            ancoras, key=lambda t: (_data_ordem(t[0]), t[0].id))
+        ramos_por_ancora.setdefault(ancora.id, []).append({
+            'protocol': outro,
+            'ns': ns,
+            'tipo_peca': tipo_peca,
+            'motivo': ('mesmo NS' if not _mesmo_contexto(ancora, outro)
+                       else 'mesmo equipamento'),
+        })
+        incluidos[outro.id] = outro
+
+    # --- Contexto: mesmo cliente/pedido, útil para os filtros --------------
+    cliente_raiz = _cliente_normalizado(protocol)
+    pedidos_raiz = _pedidos_do_protocolo(protocol)
+    contexto = []
+    for outro in sorted(todos, key=lambda p: (_data_ordem(p), p.id)):
+        if outro.id in incluidos:
+            continue
+        mesmo_cliente = bool(cliente_raiz
+                             and _cliente_normalizado(outro) == cliente_raiz)
+        mesmo_pedido = bool(pedidos_raiz
+                            & _pedidos_do_protocolo(outro))
+        if mesmo_cliente or mesmo_pedido:
+            contexto.append(outro)
+            incluidos[outro.id] = outro
+
+    # --- Flags usadas pelos filtros da tela --------------------------------
+    info_raiz = ns_por_id.get(protocol.id, {})
+    unidades_raiz = _unidades(info_raiz)
+    cadeia_ids = {p.id for p in protocol.get_return_chain()}
+    ids_venda_pe = set()
+    if protocol.type == 'venda':
+        for info in pe_por_maquina(protocol).values():
+            if info.get('id'):
+                ids_venda_pe.add(info['id'])
+    elif protocol.type == 'ponta_entrega':
+        for vendas in vendas_por_maquina_pe(protocol).values():
+            for venda in vendas:
+                if venda.get('id'):
+                    ids_venda_pe.add(venda['id'])
+
+    def flags_de(outro, papel):
+        info_outro = ns_por_id.get(outro.id, {})
+        mesmo_cliente = bool(cliente_raiz
+                             and _cliente_normalizado(outro) == cliente_raiz)
+        mesmo_pedido = bool(pedidos_raiz
+                            & _pedidos_do_protocolo(outro))
+        mesmo_equipamento = False
+        for ns, item in info_outro.items():
+            if _comparar_ns({ns: item}, info_raiz)[0]:
+                mesmo_equipamento = True
+                break
+        mesma_unidade = bool(_unidades(info_outro) & unidades_raiz) and (
+            mesmo_cliente or mesmo_pedido)
+        return {
+            'mesmo_pedido': mesmo_pedido,
+            'mesmo_cliente': mesmo_cliente,
+            'mesmo_equipamento': mesmo_equipamento,
+            'mesma_unidade': mesma_unidade,
+            'retorno': outro.id in cadeia_ids,
+            'venda_pe': outro.id in ids_venda_pe,
+            'principal': outro.id in principal_ids,
+            'ramo': papel == 'ramo',
+            'contexto': papel == 'contexto',
+        }
+
+    principal_nos = [
+        _montar_no(p, ns_por_id.get(p.id, {}),
+                   flags_de(p, 'principal'), 'principal')
+        for p in principal_lista
+    ]
+
+    ramos = []
+    ramo_ids = set()
+    for ancora in principal_lista:
+        itens = ramos_por_ancora.get(ancora.id)
+        if not itens:
+            continue
+        nos = []
+        for item in itens:
+            outro = item['protocol']
+            ramo_ids.add(outro.id)
+            no = _montar_no(outro, ns_por_id.get(outro.id, {}),
+                            flags_de(outro, 'ramo'), 'ramo')
+            no['ramo_ns'] = item['ns']
+            no['ramo_tipo'] = _tipo_peca_label(item['tipo_peca'])
+            no['ramo_motivo'] = item['motivo']
+            nos.append(no)
+        nos.sort(key=lambda no: (no['data_ordem'], no['id']))
+        ramos.append({
+            'ancora_id': ancora.id,
+            'ancora_numero': ancora.protocol_number,
+            'ancora': ancora,
+            'nos': nos,
         })
 
-    nodes_info.sort(key=lambda no: (
-        no['id'] != protocol.id,
-        no['protocol'].entry_date or no['protocol'].created_at or datetime.min,
-        no['id']))
+    contexto_nos = [
+        _montar_no(p, ns_por_id.get(p.id, {}),
+                   flags_de(p, 'contexto'), 'contexto')
+        for p in contexto
+    ]
 
-    arestas_info = sorted(
-        arestas.values(),
-        key=lambda a: (a['tipo'], a['de'], a['para']))
-    caixas, largura, altura = _layout_teia(nodes_info, arestas_info, protocol.id)
-
-    for aresta in arestas_info:
-        caixa_de = caixas[aresta['de']]
-        caixa_para = caixas[aresta['para']]
-        x1, y1 = _ponto_borda(caixa_de['cx'], caixa_de['cy'],
-                              caixa_de['w'], caixa_de['h'],
-                              caixa_para['cx'], caixa_para['cy'])
-        x2, y2 = _ponto_borda(caixa_para['cx'], caixa_para['cy'],
-                              caixa_para['w'], caixa_para['h'],
-                              caixa_de['cx'], caixa_de['cy'])
-        aresta.update({
-            'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2,
+    # --- Arestas só da coluna principal ------------------------------------
+    arestas_info = []
+    for aresta in arestas.values():
+        if aresta['de'] not in principal_ids or aresta['para'] not in principal_ids:
+            continue
+        arestas_info.append({
+            'de': aresta['de'],
+            'para': aresta['para'],
+            'tipo': aresta['tipo'],
+            'rotulo': aresta['rotulo'],
             'de_numero': por_id[aresta['de']].protocol_number,
             'para_numero': por_id[aresta['para']].protocol_number,
             'evidencia': ' · '.join(aresta['evidencias']),
             'cor': _TEIA_CORES_ARESTA.get(aresta['tipo'], '#adb5bd'),
         })
+    arestas_info.sort(key=lambda a: (a['tipo'], a['de'], a['para']))
 
     contagem = {}
     for aresta in arestas_info:
         contagem[aresta['tipo']] = contagem.get(aresta['tipo'], 0) + 1
 
-    # NS que aparecem em mais de um protocolo da teia (para o usuário conferir).
-    ns_protocolos = {}
-    for no in nodes_info:
-        for valor in no['ns']:
-            ns_protocolos.setdefault(valor, []).append(no)
+    # --- Conferência: mesmo NS com peça diferente --------------------------
+    # A conferência olha só a máquina (coluna principal + ramos), não o
+    # contexto do cliente, para não encher a tela com casos de outra máquina.
+    lista_maquina = [protocol] + principal_lista
+    for ramo in ramos:
+        lista_maquina.extend(no['protocol'] for no in ramo['nos'])
+    vistos_ids = set()
+    lista_maquina_unica = []
+    for item in lista_maquina:
+        if item.id in vistos_ids:
+            continue
+        vistos_ids.add(item.id)
+        lista_maquina_unica.append(item)
+
+    # Para conferir, traga também quem repete o NS com outro tipo de peça,
+    # mesmo sendo de outro cliente/pedido (ex.: FONTE em um, RAM em outro).
+    ids_conflito = set(vistos_ids)
+    for item in lista_maquina_unica:
+        for ns in ns_por_id.get(item.id, {}):
+            for outro in ns_idx.get(ns, []):
+                ids_conflito.add(outro.id)
+    lista_conflito = [por_id[i] for i in sorted(ids_conflito)][:200]
+
+    conflitos = []
+    vistos_conflitos = set()
+    for indice, a in enumerate(lista_conflito):
+        for b in lista_conflito[indice + 1:]:
+            _, conf = _comparar_ns(
+                ns_por_id.get(a.id, {}), ns_por_id.get(b.id, {}))
+            for ns, tipos_a, tipos_b, info_a, info_b in conf:
+                chave = (ns, min(a.id, b.id), max(a.id, b.id))
+                if chave in vistos_conflitos:
+                    continue
+                vistos_conflitos.add(chave)
+                conflitos.append({
+                    'ns': ns,
+                    'protocolo_a': a.protocol_number,
+                    'protocolo_b': b.protocol_number,
+                    'id_a': a.id,
+                    'id_b': b.id,
+                    'tipos_a': [_tipo_peca_label(t) for t in tipos_a],
+                    'tipos_b': [_tipo_peca_label(t) for t in tipos_b],
+                    'unidades_a': sorted(info_a['unidades']),
+                    'unidades_b': sorted(info_b['unidades']),
+                })
+    conflitos.sort(key=lambda c: (c['ns'], c['protocolo_a']))
+
+    # --- NS iguais com o mesmo tipo (ligações reais) -----------------------
+    ns_comuns_mapa = {}
+    for item in lista_maquina_unica:
+        info = ns_por_id.get(item.id, {})
+        for ns, dados in info.items():
+            for tipo in dados['tipos']:
+                chave = (ns, tipo)
+                entrada = ns_comuns_mapa.setdefault(chave, {
+                    'ns': ns,
+                    'tipo': _tipo_peca_label(tipo),
+                    'protocolos': set(),
+                    'ids': set(),
+                })
+                entrada['protocolos'].add(item.protocol_number)
+                entrada['ids'].add(item.id)
     ns_comuns = []
-    for valor, lista in sorted(ns_protocolos.items()):
-        numeros = sorted({no['protocol'].protocol_number for no in lista})
-        if len(numeros) > 1:
-            ns_comuns.append({
-                'ns': valor,
-                'protocolos': numeros,
-                'ids': [no['id'] for no in lista],
-            })
+    for chave in sorted(ns_comuns_mapa):
+        entrada = ns_comuns_mapa[chave]
+        if len(entrada['protocolos']) < 2:
+            continue
+        ns_comuns.append({
+            'ns': entrada['ns'],
+            'tipo': entrada['tipo'],
+            'protocolos': sorted(entrada['protocolos']),
+            'ids': sorted(entrada['ids']),
+        })
+
+    # --- Pedidos da coluna principal ---------------------------------------
+    pedidos_principais = {}
+    for item in principal_lista:
+        for pedido in _pedidos_do_protocolo(item):
+            pedidos_principais.setdefault(pedido, []).append(item)
+    por_pedido = []
+    for pedido, itens in sorted(pedidos_principais.items()):
+        if len(itens) < 2:
+            continue
+        por_pedido.append({
+            'pedido': pedido,
+            'protocolos': [p.protocol_number for p in itens],
+            'ids': [p.id for p in itens],
+        })
+    pedido_conflito = len(pedidos_principais) > 1
+    pedidos_principais_lista = sorted(pedidos_principais)
+
+    nodes_info = principal_nos + contexto_nos
+    for ramo in ramos:
+        nodes_info.extend(ramo['nos'])
 
     return {
         'raiz': protocol,
+        'main': principal_nos,
+        'branches': ramos,
+        'context': contexto_nos,
         'nodes': nodes_info,
         'edges': arestas_info,
-        'caixas': caixas,
         'ligacoes': _TEIA_LIGACOES,
         'cores': _TEIA_CORES_ARESTA,
         'contagem': contagem,
-        'largura': largura,
-        'altura': altura,
         'truncada': truncada,
         'total': len(nodes_info),
-        'ns_raiz': sorted(ns_por_id.get(protocol.id, set())),
+        'total_principal': len(principal_nos),
+        'ns_raiz': sorted(info_raiz),
         'ns_comuns': ns_comuns,
+        'conflicts': conflitos,
+        'por_pedido': por_pedido,
+        'pedido_conflito': pedido_conflito,
+        'pedidos_principais': pedidos_principais_lista,
+        'ramo_ids': sorted(ramo_ids),
     }
 
+
+# --- Preenchimento automático da teia -------------------------------------
+
+_CAMPOS_PREENCHIVEIS = [
+    ('client_name', 'Cliente', _cliente_valido),
+    ('order_number', 'Pedido', _pedido_valido),
+    ('original_order', 'Pedido original', _pedido_valido),
+    ('seller', 'Vendedor', _vendedor_valido),
+    ('lote', 'Quantidade', _lote_valido),
+]
+
+
+def _serial_principal(protocol):
+    serial = _primeiro_serial(protocol.rma_test_result)
+    if serial:
+        return serial
+    serial = _primeiro_serial(protocol.rma_trocados)
+    if serial:
+        return serial
+    for componente in protocol.components or []:
+        if _ns_limpo(componente.serial_number):
+            return componente.serial_number
+    return ''
+
+
+def sugestoes_preenchimento(protocol, teia=None):
+    """Sugere completar campos vazios/NIL, passagens e vínculo de retorno."""
+    if teia is None:
+        teia = teia_do_protocolo(protocol)
+    if not teia:
+        return {'itens': [], 'conflitos': [], 'principal': []}
+
+    principais = [no['protocol'] for no in teia['main']]
+    if protocol.id not in {p.id for p in principais}:
+        principais.append(protocol)
+    principais.sort(key=lambda p: (_data_ordem(p), p.id))
+
+    itens = []
+    conflitos = []
+
+    for alvo in principais:
+        for campo, rotulo, valido in _CAMPOS_PREENCHIVEIS:
+            # Pedido conflitante não é preenchido no automático: abre o ajuste.
+            if (campo in ('order_number', 'original_order')
+                    and teia.get('pedido_conflito')):
+                continue
+            atual = getattr(alvo, campo, None)
+            if valido(atual):
+                continue
+            candidatos = []
+            for fonte in principais:
+                if fonte.id == alvo.id:
+                    continue
+                valor = getattr(fonte, campo, None)
+                if valido(valor):
+                    candidatos.append((fonte, _texto_limpo(valor)))
+            if not candidatos:
+                continue
+            distintos = {}
+            for fonte, valor in candidatos:
+                distintos.setdefault(valor.upper(), []).append((fonte, valor))
+            if len(distintos) > 1:
+                conflitos.append({
+                    'protocolo_id': alvo.id,
+                    'protocolo_numero': alvo.protocol_number,
+                    'campo': campo,
+                    'campo_label': rotulo,
+                    'opcoes': [
+                        {'valor': lista[0][1],
+                         'protocolo': lista[0][0].protocol_number}
+                        for lista in distintos.values()
+                    ],
+                })
+                if campo == 'original_order':
+                    # Pedido original precisa ser único na corrente.
+                    continue
+            fonte, valor = max(
+                candidatos, key=lambda par: (_data_ordem(par[0]), par[0].id))
+            itens.append({
+                'protocolo_id': alvo.id,
+                'protocolo_numero': alvo.protocol_number,
+                'campo': campo,
+                'campo_label': rotulo,
+                'valor_atual': _texto_limpo(atual),
+                'valor_novo': valor,
+                'origem_numero': fonte.protocol_number,
+                'tipo': 'campo',
+                'descricao': (
+                    f"{alvo.protocol_number}: {rotulo} "
+                    f"{_texto_limpo(atual) or '(vazio)'} → {valor} "
+                    f"(de {fonte.protocol_number})"),
+            })
+
+    # --- Passagens nos protocolos de retorno ------------------------------
+    alvo_passagem = max(principais, key=lambda p: (_data_ordem(p), p.id))
+    info_por_id = {p.id: ns_do_protocolo(p) for p in principais}
+
+    def _origem_provavel(alvo):
+        if alvo.type not in ('rma', 'servico'):
+            return None
+        anteriores = [
+            p for p in principais
+            if p.id != alvo.id
+            and p.type in ('rma', 'servico')
+            and (_data_ordem(p), p.id) < (_data_ordem(alvo), alvo.id)
+        ]
+        candidatos = []
+        for fonte in anteriores:
+            comuns, _ = _comparar_ns(
+                info_por_id.get(alvo.id, {}), info_por_id.get(fonte.id, {}))
+            if comuns and _mesmo_contexto(alvo, fonte):
+                candidatos.append(fonte)
+        if not candidatos:
+            return None
+        return max(candidatos, key=lambda p: (_data_ordem(p), p.id))
+
+    for alvo in principais:
+        if alvo.type not in ('rma', 'servico'):
+            continue
+        anteriores = [
+            p for p in principais
+            if (_data_ordem(p), p.id) < (_data_ordem(alvo), alvo.id)
+        ]
+        if not anteriores:
+            continue
+        provavel = _origem_provavel(alvo)
+        eh_mais_novo = alvo.id == alvo_passagem.id
+        # O mais novo recebe todo o histórico; os retornos do meio recebem
+        # apenas a passagem do seu provável protocolo de origem.
+        fontes = anteriores if eh_mais_novo else (
+            [provavel] if provavel else [])
+        passagens_atuais = _json_ou(alvo.rma_passagens, [])
+        if not isinstance(passagens_atuais, list):
+            passagens_atuais = []
+        existentes = {
+            str(pas.get('protocolo'))
+            for pas in passagens_atuais if isinstance(pas, dict)
+        }
+        for fonte in fontes:
+            if fonte is None or fonte.id == alvo.id:
+                continue
+            if fonte.protocol_number in existentes:
+                continue
+            tem_historico = bool(
+                fonte.rma_test_result or fonte.rma_trocados
+                or fonte.type in ('rma', 'servico', 'nao_comprado'))
+            if not tem_historico:
+                continue
+            direta = bool(alvo.origin_id and fonte.id == alvo.origin_id)
+            if not alvo.origin_id and provavel is not None:
+                direta = fonte.id == provavel.id
+            passagem = {
+                'protocolo': fonte.protocol_number,
+                'ns': _primeiro_serial(fonte.rma_test_result),
+                'ns_novo': _primeiro_serial(fonte.rma_trocados),
+                'pedido': fonte.original_order or fonte.order_number or '',
+                'data_entrada': _data_br(fonte.rma_entry_date or fonte.entry_date),
+                'data_saida': _data_br(fonte.exit_date),
+                'outra': not direta,
+            }
+            itens.append({
+                'protocolo_id': alvo.id,
+                'protocolo_numero': alvo.protocol_number,
+                'campo': 'passagem',
+                'campo_label': 'Passagem',
+                'valor_atual': '',
+                'valor_novo': fonte.protocol_number,
+                'origem_numero': fonte.protocol_number,
+                'tipo': 'passagem',
+                'passagem': passagem,
+                'descricao': (
+                    f"{alvo.protocol_number}: registrar passagem de "
+                    f"{fonte.protocol_number}"
+                    + ('' if direta else ' como outra passagem')),
+            })
+
+    # --- Vínculo de retorno (RMA que voltou de outro RMA) -----------------
+    for alvo in principais:
+        if alvo.type not in ('rma', 'servico') or alvo.origin_id:
+            continue
+        anteriores = [
+            p for p in principais
+            if p.id != alvo.id
+            and p.type in ('rma', 'servico')
+            and (_data_ordem(p), p.id) < (_data_ordem(alvo), alvo.id)
+        ]
+        candidatos = []
+        for fonte in anteriores:
+            comuns, _ = _comparar_ns(
+                info_por_id.get(alvo.id, {}), info_por_id.get(fonte.id, {}))
+            if not comuns:
+                continue
+            if not _mesmo_contexto(alvo, fonte):
+                continue
+            candidatos.append(fonte)
+        if not candidatos:
+            continue
+        fonte = max(candidatos, key=lambda p: (_data_ordem(p), p.id))
+        itens.append({
+            'protocolo_id': alvo.id,
+            'protocolo_numero': alvo.protocol_number,
+            'campo': 'origin_id',
+            'campo_label': 'Vínculo de retorno',
+            'valor_atual': '',
+            'valor_novo': fonte.id,
+            'origem_numero': fonte.protocol_number,
+            'tipo': 'origem',
+            'descricao': (
+                f"{alvo.protocol_number}: marcar como retorno de "
+                f"{fonte.protocol_number}"),
+        })
+
+    return {
+        'itens': itens,
+        'conflitos': conflitos,
+        'principal': principais,
+        'alvo_passagem': alvo_passagem,
+    }
+
+
+def _pasta_backup():
+    if current_app.config.get('TESTING'):
+        pasta = os.path.join(tempfile.gettempdir(), 'labtrack-test-backups')
+    else:
+        pasta = os.path.abspath(os.path.join(
+            current_app.root_path, '..', '_dev', 'backups'))
+    os.makedirs(pasta, exist_ok=True)
+    return pasta
+
+
+def _backup_antes_preenchimento():
+    caminho = db.engine.url.database
+    if not caminho or caminho == ':memory:':
+        return None
+    if not os.path.exists(caminho):
+        return None
+    pasta = _pasta_backup()
+    agora = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+    destino = os.path.join(
+        pasta, f'labtrack-{agora}-antes-preenchimento-teia.db')
+    shutil.copy2(caminho, destino)
+    return destino
+
+
+def aplicar_preenchimento(protocol, indices):
+    """Aplica somente as sugestões escolhidas. Sempre faz backup antes."""
+    teia = teia_do_protocolo(protocol)
+    pacote = sugestoes_preenchimento(protocol, teia)
+    itens = pacote['itens']
+
+    selecionados = []
+    for indice in indices:
+        try:
+            selecionados.append(itens[int(indice)])
+        except (TypeError, ValueError, IndexError):
+            continue
+    if not selecionados:
+        return {'alterados': [], 'backup': None, 'log': None}
+
+    backup = _backup_antes_preenchimento()
+    alterados = []
+
+    for item in selecionados:
+        alvo = db.session.get(Protocol, item['protocolo_id'])
+        if not alvo:
+            continue
+        campo = item['campo']
+
+        if campo == 'passagem':
+            passagens = _json_ou(alvo.rma_passagens, [])
+            if not isinstance(passagens, list):
+                passagens = []
+            nova = item.get('passagem') or {}
+            numero = str(nova.get('protocolo') or '')
+            if not numero:
+                continue
+            if any(str(pas.get('protocolo')) == numero
+                   for pas in passagens if isinstance(pas, dict)):
+                continue
+            passagens.append(nova)
+            alvo.rma_passagens = json.dumps(passagens, ensure_ascii=False)
+            alterados.append({
+                'protocolo': alvo.protocol_number,
+                'campo': 'passagem',
+                'valor_novo': numero,
+            })
+            continue
+
+        if campo == 'origin_id':
+            if alvo.origin_id:
+                continue
+            try:
+                alvo.origin_id = int(item['valor_novo'])
+            except (TypeError, ValueError):
+                continue
+            alterados.append({
+                'protocolo': alvo.protocol_number,
+                'campo': 'origin_id',
+                'valor_novo': alvo.origin_id,
+            })
+            continue
+
+        validador = next(
+            (valido for nome, _, valido in _CAMPOS_PREENCHIVEIS
+             if nome == campo), None)
+        if validador is None:
+            continue
+        if validador(getattr(alvo, campo, None)):
+            continue
+        valor = _texto_limpo(item.get('valor_novo'))
+        if not valor:
+            continue
+        anterior = _texto_limpo(getattr(alvo, campo, None))
+        setattr(alvo, campo, valor)
+        alterados.append({
+            'protocolo': alvo.protocol_number,
+            'campo': campo,
+            'valor_atual': anterior,
+            'valor_novo': valor,
+        })
+
+    if not alterados:
+        db.session.rollback()
+        return {'alterados': [], 'backup': backup, 'log': None}
+
+    db.session.commit()
+
+    log = None
+    if backup:
+        log = os.path.splitext(backup)[0] + '.json'
+        try:
+            with open(log, 'w', encoding='utf-8') as arquivo:
+                json.dump({
+                    'data': datetime.utcnow().isoformat(),
+                    'protocolo': protocol.protocol_number,
+                    'backup': backup,
+                    'alteracoes': alterados,
+                }, arquivo, ensure_ascii=False, indent=2)
+        except OSError:
+            log = None
+
+    return {'alterados': alterados, 'backup': backup, 'log': log}

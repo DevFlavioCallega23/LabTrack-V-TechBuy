@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h3 class="mb-0"><i class="bi bi-pencil-square"></i> Ajustar identificação</h3>
+        <div class="small text-secondary">
+            Corrija somente cliente, pedidos, vendedor e quantidade do
+            <strong>{{ protocol.protocol_number }}</strong>.
+            Defeitos, peças e equipamento não são alterados aqui.
+        </div>
+    </div>
+    <a href="{{ url_for('protocols.teia_protocol', id=protocol.id) }}"
+       class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Voltar para a teia
+    </a>
+</div>
+
+<div class="card border-secondary">
+    <div class="card-header py-2">
+        <i class="bi bi-person-vcard"></i> Dados de identificação
+        <span class="badge {{ protocol.type_badge() }} ms-1">{{ protocol.type_label() }}</span>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label">Cliente</label>
+                    <input type="text" name="client_name" class="form-control"
+                           value="{{ protocol.client_name or '' }}"
+                           placeholder="Nome do cliente">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Quantidade / Lote</label>
+                    <input type="text" name="lote" class="form-control"
+                           value="{{ protocol.lote or '' }}"
+                           placeholder="Ex.: 1">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Pedido</label>
+                    <input type="text" name="order_number" class="form-control"
+                           value="{{ protocol.order_number or '' }}"
+                           placeholder="Número do pedido">
+                    <div class="form-text">
+                        Deixe vazio ou NIL quando não houver pedido.
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Pedido original</label>
+                    <input type="text" name="original_order" class="form-control"
+                           value="{{ protocol.original_order or '' }}"
+                           placeholder="Pedido de origem">
+                    <div class="form-text">
+                        Precisa ser o mesmo em toda a corrente da máquina.
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Vendedor</label>
+                    <select name="seller" class="form-select">
+                        {% for valor, rotulo in seller_choices %}
+                        <option value="{{ valor }}"
+                                {{ 'selected' if (protocol.seller or '') == valor else '' }}>
+                            {{ rotulo }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <hr>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg"></i> Salvar ajustes
+                </button>
+                <a href="{{ url_for('protocols.teia_protocol', id=protocol.id) }}"
+                   class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

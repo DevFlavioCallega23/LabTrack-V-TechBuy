@@ -8,7 +8,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.decorators import master_required
 from app.models import Protocol, Component, Defect, WindowsKey, Produto
-from app.forms import ProtocolForm
+from app.forms import ProtocolForm, SELLER_CHOICES
 from app.labels import (
     TEMPO_LABELS,
 )
@@ -25,6 +25,7 @@ from app.routes.protocols.helpers import (
     pe_refs_para_formulario, remover_referencias_da_pe,
     criar_protocolo_retorno, historico_do_protocolo, historico_por_pedido,
     protocolos_por_pedido, historico_por_referencia, teia_do_protocolo,
+    sugestoes_preenchimento, aplicar_preenchimento,
 )
 
 @protocols_bp.route('/')
@@ -318,10 +319,47 @@ def detail_protocol(id):
 @protocols_bp.route('/<int:id>/teia')
 @login_required
 def teia_protocol(id):
-    """Mostra, só para leitura, todo o histórico ligado a este protocolo."""
+    """Linha do tempo da máquina, com ramos laterais e conferências."""
     protocol = Protocol.query.get_or_404(id)
     teia = teia_do_protocolo(protocol)
-    return render_template('protocols/teia.html', protocol=protocol, teia=teia)
+    sugestoes = sugestoes_preenchimento(protocol, teia)
+    return render_template('protocols/teia.html', protocol=protocol, teia=teia,
+                           sugestoes=sugestoes, seller_choices=SELLER_CHOICES)
+
+
+@protocols_bp.route('/<int:id>/teia/preencher', methods=['POST'])
+@login_required
+def preencher_teia(id):
+    """Aplica as sugestões de preenchimento escolhidas na teia."""
+    protocol = Protocol.query.get_or_404(id)
+    indices = request.form.getlist('sugestao')
+    resultado = aplicar_preenchimento(protocol, indices)
+    alterados = resultado.get('alterados') or []
+    if alterados:
+        flash(
+            f'{len(alterados)} ajuste(s) aplicado(s). Backup: '
+            f'{resultado.get("backup") or "não necessário"}.', 'success')
+    else:
+        flash('Nenhuma alteração foi aplicada.', 'info')
+    return redirect(url_for('protocols.teia_protocol', id=id))
+
+
+@protocols_bp.route('/<int:id>/teia/ajustar', methods=['GET', 'POST'])
+@login_required
+def ajustar_protocol(id):
+    """Aba focada para corrigir cliente, pedidos, vendedor e quantidade."""
+    protocol = Protocol.query.get_or_404(id)
+    if request.method == 'POST':
+        protocol.client_name = request.form.get('client_name', '').strip() or None
+        protocol.order_number = request.form.get('order_number', '').strip() or None
+        protocol.original_order = request.form.get('original_order', '').strip() or None
+        protocol.seller = request.form.get('seller', '').strip() or None
+        protocol.lote = request.form.get('lote', '').strip() or None
+        db.session.commit()
+        flash('Dados de identificação atualizados.', 'success')
+        return redirect(url_for('protocols.teia_protocol', id=id))
+    return render_template('protocols/ajustar.html', protocol=protocol,
+                           seller_choices=SELLER_CHOICES)
 
 
 @protocols_bp.route('/<int:id>/ignorar-incompletos', methods=['POST'])

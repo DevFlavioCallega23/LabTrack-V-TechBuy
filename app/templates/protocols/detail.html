@@ -256,7 +256,7 @@
                     </div>
                     <div class="col-md-3">
                         <label class="text-secondary small d-block">Tipo</label>
-                        <span class="badge {{ protocol.type_badge() }}">{{ protocol.type_label() }}</span>{% if protocol.venda_pe %} <span class="badge bg-info" title="Venda Pronta-Entrega">PE</span>{% endif %}
+                        <span class="badge {{ protocol.type_badge() }}">{{ protocol.type_label() }}</span>{% if protocol.venda_pe %} <span class="badge bg-info" title="Venda Pronta-Entrega">PE</span>{% endif %}{% if protocol.return_label() %} <span class="badge bg-primary" title="Este protocolo veio de outro protocolo">{{ protocol.return_label() }}</span>{% endif %}
                     </div>
                     {% if protocol.client_name %}
                     <div class="col-md-2">
@@ -691,7 +691,7 @@
                 {% set passagens = protocol.rma_passagens|from_json %}
                 {% if passagens %}
                 <div class="mt-2">
-                    <label class="text-secondary small d-block mb-1"><i class="bi bi-arrow-repeat"></i> Outras Passagens</label>
+                    <label class="text-secondary small d-block mb-1"><i class="bi bi-arrow-repeat"></i> Passagens</label>
                     <div class="table-responsive">
                         <table class="table table-dark table-sm">
                             <thead>
@@ -707,7 +707,10 @@
                             <tbody>
                                 {% for p in passagens %}
                                 <tr>
-                                    <td>{{ p.protocolo or '-' }}</td>
+                                    <td>
+                                        {{ p.protocolo or '-' }}
+                                        {% if p.outra %}<span class="badge bg-secondary ms-1">outra passagem</span>{% endif %}
+                                    </td>
                                     <td>{{ p.data_entrada or p.data or '-' }}</td>
                                     <td>{{ p.data_saida or '-' }}</td>
                                     <td>{{ p.pedido or '-' }}</td>

@@ -3,6 +3,7 @@ from datetime import datetime
 
 from app import db as _db
 from app.models import Component, Protocol, User
+from app.routes.protocols.helpers import sugestoes_preenchimento
 
 
 def _uid(app):
@@ -112,7 +113,7 @@ def test_teia_liga_venda_com_pronta_entrega(app, logged_client):
     assert 'PRO-2099-9406' in html
 
 
-def test_teia_liga_pelo_ns_mesmo_com_pedido_nil(app, logged_client):
+def test_teia_coloca_mesmo_ns_outra_maquina_como_ramo_lateral(app, logged_client):
     venda_id = _criar(app, 'PRO-2099-9407', 'venda',
                       client_name='Cliente NS Teia', order_number='NIL')
     _add_comp(app, venda_id, ns='TEIA-NS-9407')
@@ -124,11 +125,12 @@ def test_teia_liga_pelo_ns_mesmo_com_pedido_nil(app, logged_client):
     assert 'PRO-2099-9408' in html
     assert 'Mesmo NS' in html
     assert 'TEIA-NS-9407' in html
-    # O NS repetido aparece na conferência
+    assert 'Ramo de peça' in html
+    # O NS repetido aparece na conferência de ligações reais
     assert 'NS que aparecem em mais de um protocolo' in html
 
 
-def test_teia_liga_protocolos_do_mesmo_cliente(app, logged_client):
+def test_teia_mostra_contexto_do_mesmo_cliente(app, logged_client):
     a = _criar(app, 'PRO-2099-9409', 'servico',
                client_name='CLIENTE REPETIDO TEIA')
     b = _criar(app, 'PRO-2099-9410', 'nao_comprado',
@@ -174,16 +176,141 @@ def test_teia_nao_altera_nenhum_protocolo(app, logged_client):
     assert antes == depois
 
 
-def test_teia_mostra_caixa_do_protocolo_atual_e_tabela_de_ns(app, logged_client):
-    pid = _criar(app, 'PRO-2099-9413', 'rma', client_name='Cliente Desenho Teia')
-    _add_comp(app, pid, ns='TEIA-NS-9413')
+def test_teia_mostra_linha_do_tempo_vertical(app, logged_client):
+    antigo = _criar(app, 'PRO-2099-9413', 'rma',
+                    client_name='Cliente Desenho Teia',
+                    entry_date=datetime(2026, 7, 1))
+    _add_comp(app, antigo, ns='TEIA-NS-9413')
+    novo = _criar(app, 'PRO-2099-9415', 'rma',
+                  client_name='Cliente Desenho Teia',
+                  entry_date=datetime(2026, 8, 1))
+    _add_comp(app, novo, ns='TEIA-NS-9413')
 
-    html = _html(logged_client, pid)
-    assert '<svg' in html
-    assert 'PRO-2099-9413' in html
+    html = _html(logged_client, antigo)
+    assert 'Linha do tempo da máquina' in html
+    assert 'Mais antigo embaixo' in html
     assert 'NS de cada protocolo' in html
     assert 'TEIA-NS-9413' in html
-    assert 'Clique em uma caixa para abrir o protocolo' in html
+    # Mais novo aparece antes (em cima) na linha do tempo.
+    trecho = html.split('Linha do tempo da máquina', 1)[1]
+    assert trecho.index('PRO-2099-9415') < trecho.index('PRO-2099-9413')
+
+
+def test_teia_nao_liga_ns_com_peca_diferente(app, logged_client):
+    a = _criar(app, 'PRO-2099-9416', 'venda',
+               client_name='Cliente Peca Diferente')
+    _add_comp(app, a, tipo='ram', ns='TEIA-NS-9416')
+    b = _criar(app, 'PRO-2099-9417', 'rma',
+               client_name='Cliente Peca Diferente')
+    _add_comp(app, b, tipo='fonte', ns='TEIA-NS-9416')
+
+    html = _html(logged_client, a)
+    assert 'Conferir: NS repetido com peça diferente' in html
+    assert 'PRO-2099-9417' in html
+    assert 'Memória RAM' in html
+    assert 'Fonte' in html
+
+
+def test_teia_sugere_preencher_pedido_nil(app, logged_client):
+    venda = _criar(app, 'PRO-2099-9418', 'venda',
+                   client_name='Cliente NIL Teia', order_number='NIL')
+    _add_comp(app, venda, ns='TEIA-NS-9418')
+    rma = _criar(app, 'PRO-2099-9419', 'rma',
+                 client_name='Cliente NIL Teia', order_number='957890')
+    _add_comp(app, rma, ns='TEIA-NS-9418')
+
+    html = _html(logged_client, venda)
+    assert 'Preenchimento automático?' in html
+    assert '957890' in html
+
+    with app.app_context():
+        protocolo = _db.session.get(Protocol, venda)
+        pacote = sugestoes_preenchimento(protocolo)
+        indices = [
+            str(i) for i, item in enumerate(pacote['itens'])
+            if item['protocolo_id'] == venda and item['campo'] == 'order_number'
+        ]
+    assert indices
+
+    resp = logged_client.post(f'/protocolos/{venda}/teia/preencher',
+                              data={'sugestao': indices})
+    assert resp.status_code == 302
+
+    with app.app_context():
+        assert _db.session.get(Protocol, venda).order_number == '957890'
+
+
+def test_teia_sugere_vinculo_e_passagem_de_rma(app, logged_client):
+    antigo = _criar(app, 'PRO-2099-9420', 'rma',
+                    client_name='Cliente Passagem Teia',
+                    order_number='957891')
+    _add_comp(app, antigo, ns='TEIA-NS-9420')
+    novo = _criar(app, 'PRO-2099-9421', 'rma',
+                  client_name='Cliente Passagem Teia',
+                  order_number='957891',
+                  entry_date=datetime(2026, 8, 1))
+    _add_comp(app, novo, ns='TEIA-NS-9420')
+
+    with app.app_context():
+        protocolo = _db.session.get(Protocol, novo)
+        pacote = sugestoes_preenchimento(protocolo)
+        tipos = {item['tipo'] for item in pacote['itens']
+                 if item['protocolo_id'] == novo}
+        indices = [
+            str(i) for i, item in enumerate(pacote['itens'])
+            if item['protocolo_id'] == novo
+            and item['tipo'] in ('origem', 'passagem')
+        ]
+    assert 'origem' in tipos
+    assert 'passagem' in tipos
+    assert indices
+
+    resp = logged_client.post(f'/protocolos/{novo}/teia/preencher',
+                              data={'sugestao': indices})
+    assert resp.status_code == 302
+
+    with app.app_context():
+        atualizado = _db.session.get(Protocol, novo)
+        assert atualizado.origin_id == antigo
+        passagens = json.loads(atualizado.rma_passagens or '[]')
+        assert any(p.get('protocolo') == 'PRO-2099-9420' for p in passagens)
+
+
+def test_teia_marca_retorno_de_rma_no_detalhe(app, logged_client):
+    origem = _criar(app, 'PRO-2099-9422', 'rma',
+                    client_name='Cliente Selo Teia')
+    novo = _criar(app, 'PRO-2099-9423', 'rma',
+                  client_name='Cliente Selo Teia',
+                  origin_id=origem)
+    html = logged_client.get(f'/protocolos/{novo}').get_data(as_text=True)
+    assert 'Retorno de RMA' in html
+
+
+def test_teia_tem_aba_de_ajuste_da_identificacao(app, logged_client):
+    pid = _criar(app, 'PRO-2099-9424', 'venda',
+                 client_name='Cliente Ajuste Teia', order_number='NIL')
+
+    html = logged_client.get(f'/protocolos/{pid}/teia/ajustar').get_data(as_text=True)
+    assert 'Ajustar identificação' in html
+    assert 'client_name' in html
+    assert 'original_order' in html
+
+    resp = logged_client.post(f'/protocolos/{pid}/teia/ajustar', data={
+        'client_name': 'Cliente Ajustado',
+        'order_number': '957892',
+        'original_order': '957892',
+        'seller': 'Myris',
+        'lote': '2',
+    })
+    assert resp.status_code == 302
+
+    with app.app_context():
+        protocolo = _db.session.get(Protocol, pid)
+        assert protocolo.client_name == 'Cliente Ajustado'
+        assert protocolo.order_number == '957892'
+        assert protocolo.original_order == '957892'
+        assert protocolo.seller == 'Myris'
+        assert protocolo.lote == '2'
 
 
 def test_busca_de_historico_tem_link_para_teia(app, logged_client):

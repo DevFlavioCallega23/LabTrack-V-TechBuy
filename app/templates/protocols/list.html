@@ -99,7 +99,7 @@
                             <i class="bi bi-exclamation-triangle text-warning ms-1" title="Faltam: {{ incomplete_map[p.id]|join(', ') }}"></i>
                             {% endif %}
                         </td>
-                        <td><span class="badge {{ p.type_badge() }}">{{ p.type_label() }}</span>{% if p.venda_pe %} <span class="badge bg-info" title="Venda Pronta-Entrega">PE</span>{% endif %}</td>
+                        <td><span class="badge {{ p.type_badge() }}">{{ p.type_label() }}</span>{% if p.venda_pe %} <span class="badge bg-info" title="Venda Pronta-Entrega">PE</span>{% endif %}{% if p.return_label() %} <span class="badge bg-primary" title="Este protocolo veio de outro protocolo">{{ p.return_label() }}</span>{% endif %}</td>
                         <td>{{ p.client_name or '-' }}</td>
                         <td>{{ p.seller or '-' }}</td>
                         <td>{{ p.lote or '-' }}</td>

@@ -1,31 +1,60 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
-    .teia-aresta { transition: opacity .15s ease; }
-    .teia-no rect { transition: stroke .15s ease, filter .15s ease; }
-    .teia-no:hover rect { stroke: #ffffff; filter: brightness(1.15); }
-    .teia-no text { pointer-events: none; }
-    .teia-filtro-item { cursor: pointer; }
-    .teia-svg { background: #0b1118; border-radius: .5rem; }
+    .teia-timeline { display: flex; flex-direction: column; }
+    .teia-linha { display: flex; align-items: stretch; gap: 1rem; flex-wrap: wrap; }
+    .teia-coluna { position: relative; flex: 0 0 380px; max-width: 100%; padding: 0 0 2rem 2.4rem; }
+    .teia-coluna::before {
+        content: ''; position: absolute; left: 1.1rem; top: 0; bottom: 0;
+        width: 3px; background: rgba(13, 110, 253, .45);
+    }
+    .teia-linha:first-child .teia-coluna::before { top: 1.5rem; }
+    .teia-linha:last-child .teia-coluna::before { bottom: calc(100% - 1.5rem); }
+    .teia-coluna::after {
+        content: ''; position: absolute; left: .78rem; top: 1.35rem;
+        width: .72rem; height: .72rem; border-radius: 50%;
+        background: #0d6efd; border: 2px solid #0b1118;
+    }
+    .teia-card {
+        border: 1px solid #343a40; border-left: 5px solid var(--teia-cor, #0d6efd);
+        border-radius: .55rem; background: #161b22; padding: .75rem .9rem;
+        height: 100%;
+    }
+    .teia-card.raiz { box-shadow: 0 0 0 2px #0dcaf0; }
+    .teia-card.ramo { border-left-color: #6c757d; background: #1b1f24; }
+    .teia-ramos { flex: 1 1 260px; display: flex; flex-direction: column; gap: .6rem; padding-bottom: 2rem; }
+    .teia-ramos-titulo { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: #8b949e; }
+    .teia-ns { font-size: .72rem; }
+    .teia-chip {
+        display: inline-block; border: 1px solid #343a40; border-radius: .35rem;
+        padding: .05rem .35rem; margin: 0 .25rem .25rem 0; background: #0d1117;
+    }
+    .teia-contexto-card { border-left-color: #6c757d; }
+    .teia-contexto-card[data-contexto="1"] { display: none; }
+    .teia-legenda { font-size: .78rem; color: #8b949e; }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
         <h3 class="mb-0"><i class="bi bi-diagram-3"></i> Teia do protocolo {{ protocol.protocol_number }}</h3>
         <div class="small text-secondary">
-            Todo o histórico ligado a este protocolo, em um só lugar.
+            Linha do tempo da máquina: mais antigo embaixo, mais novo em cima.
             <span class="badge bg-secondary ms-1">Somente leitura</span>
-            — nada aqui altera os protocolos.
+            — nada aqui altera os protocolos sem a sua confirmação.
         </div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('protocols.ajustar_protocol', id=protocol.id) }}"
+           class="btn btn-outline-warning" target="_blank">
+            <i class="bi bi-pencil-square"></i> Ajustar identificação
+        </a>
         <a href="{{ url_for('protocols.detail_protocol', id=protocol.id) }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Voltar ao protocolo
         </a>
     </div>
 </div>
 
-{% if not teia or not teia.nodes %}
+{% if not teia or not teia.main %}
 <div class="alert alert-secondary">
     <i class="bi bi-info-circle"></i> Não foi possível montar a teia deste protocolo.
 </div>
@@ -34,94 +63,318 @@
 {% if teia.truncada %}
 <div class="alert alert-warning py-2">
     <i class="bi bi-exclamation-triangle"></i>
-    A teia ficou grande e foi limitada a <strong>{{ teia.total }} protocolos</strong>.
-    Isso normalmente acontece por muitos protocolos do mesmo cliente ou do mesmo pedido.
+    A teia ficou grande e foi limitada a <strong>{{ teia.total }}</strong> protocolos.
+</div>
+{% endif %}
+
+{% if teia.pedido_conflito %}
+<div class="alert alert-warning py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+        <i class="bi bi-exclamation-triangle"></i>
+        <strong>Pedidos diferentes nesta máquina:</strong>
+        {{ teia.pedidos_principais|join(' · ') }}.
+        O pedido original precisa ser o mesmo na corrente.
+    </div>
+    <a href="{{ url_for('protocols.ajustar_protocol', id=protocol.id) }}"
+       class="btn btn-sm btn-warning" target="_blank">
+        <i class="bi bi-pencil-square"></i> Ajustar agora
+    </a>
+</div>
+{% endif %}
+
+<div class="row g-2 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="card border-secondary h-100"><div class="card-body py-2">
+            <div class="text-secondary small">Coluna da máquina</div>
+            <div class="fs-5 fw-bold">{{ teia.total_principal }}</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-secondary h-100"><div class="card-body py-2">
+            <div class="text-secondary small">Ramos de peça</div>
+            <div class="fs-5 fw-bold">{{ teia.ramo_ids|length }}</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-secondary h-100"><div class="card-body py-2">
+            <div class="text-secondary small">Ligações reais</div>
+            <div class="fs-5 fw-bold">{{ teia.edges|length }}</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-secondary h-100"><div class="card-body py-2">
+            <div class="text-secondary small">Para conferir</div>
+            <div class="fs-5 fw-bold {{ 'text-warning' if teia.conflicts else '' }}">{{ teia.conflicts|length }}</div>
+        </div></div>
+    </div>
+</div>
+
+{% if sugestoes and sugestoes.itens %}
+<div class="card border-info mb-3">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span><i class="bi bi-magic"></i> <strong>Preenchimento automático?</strong></span>
+        <span class="badge bg-info text-dark">{{ sugestoes.itens|length }} sugestão(ões)</span>
+    </div>
+    <div class="card-body">
+        <p class="small text-secondary mb-2">
+            A teia encontrou dados faltando ou com <code>NIL</code>.
+            Marque o que deseja completar. Campos já preenchidos nunca são sobrescritos.
+            Um backup é feito antes de aplicar.
+        </p>
+        <form method="post" action="{{ url_for('protocols.preencher_teia', id=protocol.id) }}">
+            <div class="table-responsive">
+                <table class="table table-dark table-sm align-middle mb-2">
+                    <thead>
+                        <tr>
+                            <th style="width:2.5rem">Sim</th>
+                            <th>O que será feito</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in sugestoes.itens %}
+                        <tr>
+                            <td>
+                                <input class="form-check-input" type="checkbox"
+                                       name="sugestao" value="{{ loop.index0 }}" checked>
+                            </td>
+                            <td class="small">
+                                {% if item.tipo == 'passagem' %}
+                                <span class="badge bg-secondary me-1">Passagem</span>
+                                {% elif item.tipo == 'origem' %}
+                                <span class="badge bg-primary me-1">Retorno</span>
+                                {% else %}
+                                <span class="badge bg-info text-dark me-1">Campo</span>
+                                {% endif %}
+                                {{ item.descricao }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="submit" class="btn btn-info text-dark">
+                    <i class="bi bi-check-lg"></i> Sim, aplicar selecionados
+                </button>
+                <a href="{{ url_for('protocols.teia_protocol', id=protocol.id) }}"
+                   class="btn btn-outline-secondary">
+                    <i class="bi bi-x-lg"></i> Não, obrigado
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if sugestoes and sugestoes.conflitos %}
+<div class="alert alert-warning">
+    <div class="fw-bold mb-1"><i class="bi bi-exclamation-triangle"></i> Conferir antes de preencher</div>
+    <ul class="mb-2 small">
+        {% for conflito in sugestoes.conflitos %}
+        <li>
+            <strong>{{ conflito.protocolo_numero }}</strong> ·
+            {{ conflito.campo_label }}:
+            {% for opcao in conflito.opcoes %}
+                            <span class="badge bg-dark border border-secondary">{{ opcao.valor }} ({{ opcao.protocolo }})</span>
+            {% endfor %}
+        </li>
+        {% endfor %}
+    </ul>
+    <a href="{{ url_for('protocols.ajustar_protocol', id=protocol.id) }}"
+       class="btn btn-sm btn-warning" target="_blank">
+        <i class="bi bi-pencil-square"></i> Abrir aba de ajuste
+    </a>
 </div>
 {% endif %}
 
 <div class="card border-secondary mb-3">
-    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2 py-2">
-        <span class="small">
-            <i class="bi bi-diagram-3"></i>
-            <strong>{{ teia.total }}</strong> protocolo(s) e
-            <strong>{{ teia.edges|length }}</strong> ligação(ões) encontradas
-        </span>
-        <span class="small text-secondary">Clique em uma caixa para abrir o protocolo</span>
+    <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span><i class="bi bi-funnel"></i> Filtros</span>
+        <span class="teia-legenda">Os filtros mostram protocolos do mesmo cliente/pedido fora da coluna principal.</span>
+    </div>
+    <div class="card-body py-2 d-flex flex-wrap gap-3">
+        <label class="form-check form-check-inline mb-0">
+            <input class="form-check-input teia-filtro-contexto" type="checkbox" data-flag="mesmo_pedido">
+            <span class="form-check-label small">Mesmo pedido</span>
+        </label>
+        <label class="form-check form-check-inline mb-0">
+            <input class="form-check-input teia-filtro-contexto" type="checkbox" data-flag="mesmo_equipamento">
+            <span class="form-check-label small">Mesmo equipamento</span>
+        </label>
+        <label class="form-check form-check-inline mb-0">
+            <input class="form-check-input teia-filtro-contexto" type="checkbox" data-flag="mesma_unidade">
+            <span class="form-check-label small">Mesma unidade</span>
+        </label>
+        <label class="form-check form-check-inline mb-0">
+            <input class="form-check-input teia-filtro-contexto" type="checkbox" data-flag="mesmo_cliente">
+            <span class="form-check-label small">Mesmo cliente</span>
+        </label>
+        <label class="form-check form-check-inline mb-0">
+            <input class="form-check-input teia-filtro-contexto" type="checkbox" data-flag="retorno">
+            <span class="form-check-label small">Retorno</span>
+        </label>
+        <label class="form-check form-check-inline mb-0">
+            <input class="form-check-input teia-filtro-contexto" type="checkbox" data-flag="venda_pe">
+            <span class="form-check-label small">Venda ↔ PE</span>
+        </label>
+    </div>
+</div>
+
+<div class="card border-secondary mb-3">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span><i class="bi bi-clock-history"></i> Linha do tempo da máquina</span>
+        <span class="teia-legenda">Mais antigo embaixo · mais novo em cima</span>
     </div>
     <div class="card-body">
-        <div class="mb-2 d-flex flex-wrap gap-3">
-            {% for tipo, rotulo in teia.ligacoes.items() %}
-            {% if teia.contagem.get(tipo, 0) %}
-            <label class="form-check form-check-inline teia-filtro-item mb-0">
-                <input class="form-check-input teia-filtro" type="checkbox" checked data-tipo="{{ tipo }}">
-                <span class="form-check-label small">
-                    <span style="display:inline-block;width:16px;height:4px;border-radius:2px;background:{{ teia.cores[tipo] }};vertical-align:middle"></span>
-                    {{ rotulo }} ({{ teia.contagem.get(tipo, 0) }})
-                </span>
-            </label>
-            {% endif %}
+        <div class="teia-timeline">
+            {% for no in teia.main|reverse %}
+            <div class="teia-linha" data-id="{{ no.id }}">
+                <div class="teia-coluna">
+                    <div class="teia-card {{ 'raiz' if no.id == teia.raiz.id else '' }}"
+                         style="--teia-cor: {{ no.cor }}">
+                        <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                            <div>
+                                <a href="{{ url_for('protocols.detail_protocol', id=no.id) }}"
+                                   class="fw-bold text-info text-decoration-none fs-6">
+                                    {{ no.numero }}
+                                </a>
+                                {% if no.id == teia.raiz.id %}
+                                <span class="badge bg-info text-dark ms-1">este</span>
+                                {% endif %}
+                            </div>
+                            <div class="d-flex gap-1 flex-wrap">
+                                <span class="badge {{ no.protocol.type_badge() }}">{{ no.tipo_label }}</span>
+                                <span class="badge {{ no.status_badge }}">{{ no.status_label or 'Pendente' }}</span>
+                                {% if no.retorno_label %}
+                                <span class="badge bg-primary">{{ no.retorno_label }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="small text-secondary mt-1">
+                            {% if no.data %}<i class="bi bi-calendar3"></i> {{ no.data }}{% endif %}
+                            {% if no.cliente %} · <i class="bi bi-person"></i> {{ no.cliente }}{% endif %}
+                            {% if no.pedido %} · <i class="bi bi-hash"></i> Pedido {{ no.pedido }}{% endif %}
+                        </div>
+                        {% if no.ns_detalhe %}
+                        <div class="teia-ns mt-2">
+                            {% for ns in no.ns_detalhe %}
+                            <span class="teia-chip">
+                                <code>{{ ns.ns }}</code>
+                                <span class="text-secondary">· {{ ns.tipos_label }}</span>
+                                {% if ns.unidades %}<span class="text-secondary">· Un. {{ ns.unidades|join(', ') }}</span>{% endif %}
+                            </span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <div class="mt-2 d-flex gap-1 flex-wrap">
+                            {% if no.flags.retorno %}<span class="badge bg-dark border border-info">Retorno</span>{% endif %}
+                            {% if no.flags.venda_pe %}<span class="badge bg-dark border border-success">Venda ↔ PE</span>{% endif %}
+                            {% if no.flags.mesmo_equipamento %}<span class="badge bg-dark border border-primary">Mesmo equipamento</span>{% endif %}
+                            {% if no.flags.mesmo_pedido %}<span class="badge bg-dark border border-warning">Mesmo pedido</span>{% endif %}
+                            {% if no.flags.mesmo_cliente %}<span class="badge bg-dark border border-secondary">Mesmo cliente</span>{% endif %}
+                        </div>
+                        <a href="{{ url_for('protocols.detail_protocol', id=no.id) }}"
+                           class="small text-info d-inline-block mt-2">
+                            Abrir protocolo <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="teia-ramos">
+                    {% for ramo in teia.branches if ramo.ancora_id == no.id %}
+                    <div class="teia-ramos-titulo">
+                        <i class="bi bi-bezier2"></i> ao lado do {{ ramo.ancora_numero }}
+                    </div>
+                    {% for r in ramo.nos %}
+                    <div class="teia-card ramo" style="--teia-cor: #6c757d">
+                        <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                            <div>
+                                <a href="{{ url_for('protocols.detail_protocol', id=r.id) }}"
+                                   class="fw-bold text-info text-decoration-none">{{ r.numero }}</a>
+                                <span class="badge bg-secondary ms-1">Ramo de peça</span>
+                            </div>
+                            <div class="d-flex gap-1 flex-wrap">
+                                <span class="badge {{ r.protocol.type_badge() }}">{{ r.tipo_label }}</span>
+                                {% if r.retorno_label %}<span class="badge bg-primary">{{ r.retorno_label }}</span>{% endif %}
+                            </div>
+                        </div>
+                        <div class="small text-secondary mt-1">
+                            {% if r.data %}{{ r.data }}{% endif %}
+                            {% if r.cliente %} · {{ r.cliente }}{% endif %}
+                            {% if r.pedido %} · Pedido {{ r.pedido }}{% endif %}
+                        </div>
+                        <div class="small mt-2">
+                            <span class="badge bg-dark border border-primary">Mesmo NS</span>
+                            <code>{{ r.ramo_ns }}</code>
+                            <span class="text-secondary">· {{ r.ramo_tipo }}</span>
+                        </div>
+                        <div class="small text-secondary mt-1">
+                            {{ r.ramo_motivo }} — mesma peça, outra máquina. Não entra na coluna principal.
+                        </div>
+                        <a href="{{ url_for('protocols.detail_protocol', id=r.id) }}"
+                           class="small text-info d-inline-block mt-2">
+                            Abrir protocolo <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
+                    </div>
+                    {% endfor %}
+                    {% endfor %}
+                </div>
+            </div>
             {% endfor %}
-        </div>
-
-        <div class="table-responsive border rounded teia-svg">
-            <svg class="teia-svg" viewBox="0 0 {{ teia.largura }} {{ teia.altura }}"
-                 width="100%" style="min-width: {{ teia.largura }}px; height:auto" role="img"
-                 aria-label="Diagrama de protocolos ligados a {{ protocol.protocol_number }}">
-                <defs>
-                    {% for tipo, cor in teia.cores.items() %}
-                    <marker id="seta-{{ tipo }}" viewBox="0 0 10 10" refX="9" refY="5"
-                            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                        <path d="M 0 0 L 10 5 L 0 10 z" fill="{{ cor }}"></path>
-                    </marker>
-                    {% endfor %}
-                </defs>
-
-                <g>
-                    {% for aresta in teia.edges %}
-                    <line class="teia-aresta" data-tipo="{{ aresta.tipo }}"
-                          x1="{{ '%.1f'|format(aresta.x1) }}" y1="{{ '%.1f'|format(aresta.y1) }}"
-                          x2="{{ '%.1f'|format(aresta.x2) }}" y2="{{ '%.1f'|format(aresta.y2) }}"
-                          stroke="{{ aresta.cor }}" stroke-width="2.5" opacity="0.85"
-                          marker-end="url(#seta-{{ aresta.tipo }})">
-                        <title>{{ aresta.de_numero }} → {{ aresta.para_numero }} · {{ aresta.rotulo }}{% if aresta.evidencia %} · {{ aresta.evidencia }}{% endif %}</title>
-                    </line>
-                    {% endfor %}
-                </g>
-
-                <g>
-                    {% for no in teia.nodes %}
-                    {% set caixa = teia.caixas[no.id] %}
-                    {% set eh_raiz = no.id == teia.raiz.id %}
-                    <a href="{{ url_for('protocols.detail_protocol', id=no.id) }}" class="teia-no">
-                        <title>{{ no.protocol.protocol_number }} · {{ no.protocol.type_label() }} · {{ no.protocol.status_label() }}{% if no.protocol.client_name %} · {{ no.protocol.client_name }}{% endif %}</title>
-                        <rect x="{{ '%.1f'|format(caixa.x) }}" y="{{ '%.1f'|format(caixa.y) }}"
-                              width="{{ caixa.w }}" height="{{ caixa.h }}" rx="10"
-                              fill="{{ no.cor }}"
-                              stroke="{{ '#ffffff' if eh_raiz else '#05090d' }}"
-                              stroke-width="{{ 4 if eh_raiz else 1.5 }}"></rect>
-                        <text x="{{ '%.1f'|format(caixa.cx) }}" text-anchor="middle"
-                              font-family="Segoe UI, Arial, sans-serif" fill="{{ no.cor_texto }}">
-                            <tspan x="{{ '%.1f'|format(caixa.cx) }}" y="{{ '%.1f'|format(caixa.cy - 17) }}"
-                                   font-size="13" font-weight="700">{{ no.protocol.protocol_number }}</tspan>
-                            <tspan x="{{ '%.1f'|format(caixa.cx) }}" y="{{ '%.1f'|format(caixa.cy + 1) }}"
-                                   font-size="11">{{ no.tipo_curto }}{% if no.data %} · {{ no.data }}{% endif %}</tspan>
-                            <tspan x="{{ '%.1f'|format(caixa.cx) }}" y="{{ '%.1f'|format(caixa.cy + 17) }}"
-                                   font-size="10" opacity="0.9">{{ no.protocol.client_name|truncate(26, true, '...') if no.protocol.client_name else 'Cliente não informado' }}</tspan>
-                        </text>
-                    </a>
-                    {% endfor %}
-                </g>
-            </svg>
         </div>
     </div>
 </div>
 
+<div class="card border-secondary mb-3">
+    <div class="card-header py-2">
+        <i class="bi bi-people"></i> Outros protocolos deste cliente/pedido
+        <span class="small text-secondary ms-1">(use os filtros acima para mostrar)</span>
+    </div>
+    <div class="card-body">
+        {% if teia.context %}
+        <div class="row g-2">
+            {% for no in teia.context %}
+            <div class="col-md-6 col-xl-4">
+                <div class="teia-card teia-contexto-card"
+                     data-contexto="1"
+                     data-flags="{% if no.flags.mesmo_pedido %}mesmo_pedido {% endif %}{% if no.flags.mesmo_equipamento %}mesmo_equipamento {% endif %}{% if no.flags.mesma_unidade %}mesma_unidade {% endif %}{% if no.flags.mesmo_cliente %}mesmo_cliente {% endif %}{% if no.flags.retorno %}retorno {% endif %}{% if no.flags.venda_pe %}venda_pe{% endif %}"
+                     style="--teia-cor: #6c757d">
+                    <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                        <a href="{{ url_for('protocols.detail_protocol', id=no.id) }}"
+                           class="fw-bold text-info text-decoration-none">{{ no.numero }}</a>
+                        <span class="badge {{ no.protocol.type_badge() }}">{{ no.tipo_label }}</span>
+                    </div>
+                    <div class="small text-secondary mt-1">
+                        {% if no.data %}{{ no.data }}{% endif %}
+                        {% if no.cliente %} · {{ no.cliente }}{% endif %}
+                        {% if no.pedido %} · Pedido {{ no.pedido }}{% endif %}
+                    </div>
+                    <div class="mt-2 d-flex gap-1 flex-wrap">
+                        {% if no.flags.mesmo_pedido %}<span class="badge bg-dark border border-warning">Mesmo pedido</span>{% endif %}
+                        {% if no.flags.mesmo_equipamento %}<span class="badge bg-dark border border-primary">Mesmo equipamento</span>{% endif %}
+                        {% if no.flags.mesma_unidade %}<span class="badge bg-dark border border-info">Mesma unidade</span>{% endif %}
+                        {% if no.flags.mesmo_cliente %}<span class="badge bg-dark border border-secondary">Mesmo cliente</span>{% endif %}
+                        {% if no.flags.retorno %}<span class="badge bg-dark border border-info">Retorno</span>{% endif %}
+                        {% if no.flags.venda_pe %}<span class="badge bg-dark border border-success">Venda ↔ PE</span>{% endif %}
+                    </div>
+                    {% if no.pedido %}
+                    <div class="small text-secondary mt-1">Pedido {{ no.pedido }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="small text-secondary">Nenhum outro protocolo do mesmo cliente/pedido.</div>
+        {% endif %}
+    </div>
+</div>
+
 <div class="row g-3">
-    <div class="col-lg-7">
+    <div class="col-lg-6">
         <div class="card border-secondary h-100">
             <div class="card-header py-2">
-                <i class="bi bi-link-45deg"></i> Ligações encontradas
-                <span class="small text-secondary ms-1">(o que liga cada protocolo)</span>
+                <i class="bi bi-link-45deg"></i> Ligações da coluna principal
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -136,15 +389,11 @@
                         </thead>
                         <tbody>
                             {% for aresta in teia.edges %}
-                            <tr class="teia-aresta-linha" data-tipo="{{ aresta.tipo }}">
-                                <td>
-                                    <a href="{{ url_for('protocols.detail_protocol', id=aresta.de) }}"
-                                       target="_blank" class="text-info">{{ aresta.de_numero }}</a>
-                                </td>
-                                <td>
-                                    <a href="{{ url_for('protocols.detail_protocol', id=aresta.para) }}"
-                                       target="_blank" class="text-info">{{ aresta.para_numero }}</a>
-                                </td>
+                            <tr>
+                                <td><a href="{{ url_for('protocols.detail_protocol', id=aresta.de) }}"
+                                       target="_blank" class="text-info">{{ aresta.de_numero }}</a></td>
+                                <td><a href="{{ url_for('protocols.detail_protocol', id=aresta.para) }}"
+                                       target="_blank" class="text-info">{{ aresta.para_numero }}</a></td>
                                 <td>
                                     <span style="display:inline-block;width:12px;height:4px;border-radius:2px;background:{{ aresta.cor }};vertical-align:middle"></span>
                                     {{ aresta.rotulo }}
@@ -154,8 +403,8 @@
                             {% endfor %}
                             {% if not teia.edges %}
                             <tr>
-                                <td colspan="4" class="text-secondary">
-                                    Nenhuma ligação encontrada. Este protocolo está sozinho na teia.
+                                <td colspan="4" class="text-secondary small">
+                                    Nenhuma ligação encontrada. Este protocolo está sozinho na coluna da máquina.
                                 </td>
                             </tr>
                             {% endif %}
@@ -166,7 +415,7 @@
         </div>
     </div>
 
-    <div class="col-lg-5">
+    <div class="col-lg-6">
         <div class="card border-secondary h-100">
             <div class="card-header py-2">
                 <i class="bi bi-upc-scan"></i> NS que aparecem em mais de um protocolo
@@ -178,6 +427,7 @@
                         <thead>
                             <tr>
                                 <th>NS</th>
+                                <th>Peça</th>
                                 <th>Protocolos</th>
                             </tr>
                         </thead>
@@ -185,6 +435,7 @@
                             {% for item in teia.ns_comuns %}
                             <tr>
                                 <td><code>{{ item.ns }}</code></td>
+                                <td class="small">{{ item.tipo }}</td>
                                 <td class="small">
                                     {% for numero in item.protocolos %}
                                     <span class="badge bg-dark border border-secondary me-1 mb-1">{{ numero }}</span>
@@ -194,7 +445,7 @@
                             {% endfor %}
                             {% if not teia.ns_comuns %}
                             <tr>
-                                <td colspan="2" class="small text-secondary">
+                                <td colspan="3" class="small text-secondary">
                                     Nenhum NS repetido entre os protocolos desta teia.
                                 </td>
                             </tr>
@@ -206,6 +457,51 @@
         </div>
     </div>
 </div>
+
+{% if teia.conflicts %}
+<div class="card border-warning mt-3">
+    <div class="card-header py-2 text-warning">
+        <i class="bi bi-exclamation-triangle"></i> Conferir: NS repetido com peça diferente
+        <span class="badge bg-warning text-dark ms-1">{{ teia.conflicts|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-sm mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th>NS</th>
+                        <th>Protocolo A</th>
+                        <th>Peça no A</th>
+                        <th>Protocolo B</th>
+                        <th>Peça no B</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for conflito in teia.conflicts %}
+                    <tr>
+                        <td><code>{{ conflito.ns }}</code></td>
+                        <td>
+                            <a href="{{ url_for('protocols.detail_protocol', id=conflito.id_a) }}"
+                               target="_blank" class="text-info">{{ conflito.protocolo_a }}</a>
+                        </td>
+                        <td class="small">{{ conflito.tipos_a|join(', ') }}
+                            {% if conflito.unidades_a %}<span class="text-secondary">· Un. {{ conflito.unidades_a|join(', ') }}</span>{% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('protocols.detail_protocol', id=conflito.id_b) }}"
+                               target="_blank" class="text-info">{{ conflito.protocolo_b }}</a>
+                        </td>
+                        <td class="small">{{ conflito.tipos_b|join(', ') }}
+                            {% if conflito.unidades_b %}<span class="text-secondary">· Un. {{ conflito.unidades_b|join(', ') }}</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="card border-secondary mt-3">
     <div class="card-header py-2">
@@ -229,17 +525,22 @@
                         <td>
                             <a href="{{ url_for('protocols.detail_protocol', id=no.id) }}"
                                target="_blank" class="{{ 'fw-bold text-info' if no.id == teia.raiz.id else 'text-info' }}">
-                                {{ no.protocol.protocol_number }}
+                                {{ no.numero }}
                             </a>
                             {% if no.id == teia.raiz.id %}<span class="badge bg-info text-dark ms-1">este</span>{% endif %}
+                            {% if no.papel == 'ramo' %}<span class="badge bg-secondary ms-1">ramo</span>{% endif %}
+                            {% if no.papel == 'contexto' %}<span class="badge bg-dark border border-secondary ms-1">contexto</span>{% endif %}
                         </td>
-                        <td class="small">{{ no.protocol.type_label() }}</td>
+                        <td class="small">{{ no.tipo_label }}</td>
                         <td class="small">{{ no.data or '-' }}</td>
                         <td>
-                            {% for valor in no.ns %}
-                            <code class="d-inline-block me-1 mb-1 {{ 'text-warning' if valor in teia.ns_raiz else '' }}">{{ valor }}</code>
+                            {% for detalhe in no.ns_detalhe %}
+                            <span class="teia-chip">
+                                <code class="{{ 'text-warning' if detalhe.ns in teia.ns_raiz else '' }}">{{ detalhe.ns }}</code>
+                                <span class="text-secondary">· {{ detalhe.tipos_label }}</span>
+                            </span>
                             {% endfor %}
-                            {% if not no.ns %}<span class="small text-secondary">Sem NS registrado</span>{% endif %}
+                            {% if not no.ns_detalhe %}<span class="small text-secondary">Sem NS registrado</span>{% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -249,28 +550,50 @@
     </div>
 </div>
 
+<div class="card border-secondary mt-3">
+    <div class="card-header py-2">
+        <i class="bi bi-journal-text"></i> Pedidos desta máquina
+    </div>
+    <div class="card-body py-2">
+        {% if teia.por_pedido %}
+        <div class="d-flex flex-wrap gap-2">
+            {% for grupo in teia.por_pedido %}
+            <span class="badge bg-dark border border-secondary">
+                Pedido {{ grupo.pedido }} · {{ grupo.protocolos|join(', ') }}
+            </span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="small text-secondary">Nenhum pedido válido repetido na coluna principal.</div>
+        {% endif %}
+    </div>
+</div>
+
 <p class="small text-secondary mt-3 mb-0">
     <i class="bi bi-shield-lock"></i>
-    Esta teia serve só para consulta. Para registrar um novo retorno use o botão
-    <strong>Novo retorno</strong> no protocolo desejado; para ligar um registro feito do zero,
-    use <strong>Retorno de PRO</strong> na tela de novo protocolo.
+    A teia não altera protocolos sozinha. O preenchimento automático só aplica o que
+    você marcar, sempre com backup. Passagens novas ficam apenas no protocolo mais novo;
+    protocolos antigos e finalizados não ganham passagens novas.
 </p>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const filtros = document.querySelectorAll('.teia-filtro');
-    filtros.forEach(function(caixa) {
-        caixa.addEventListener('change', function() {
-            const tipo = caixa.dataset.tipo;
-            const visivel = caixa.checked;
-            document.querySelectorAll('.teia-aresta[data-tipo="' + tipo + '"]').forEach(function(linha) {
-                linha.style.display = visivel ? '' : 'none';
-            });
-            document.querySelectorAll('.teia-aresta-linha[data-tipo="' + tipo + '"]').forEach(function(linha) {
-                linha.style.display = visivel ? '' : 'none';
-            });
+document.addEventListener('DOMContentLoaded', function () {
+    const filtros = document.querySelectorAll('.teia-filtro-contexto');
+    function aplicarFiltros() {
+        const ativos = Array.prototype.map.call(
+            document.querySelectorAll('.teia-filtro-contexto:checked'),
+            function (caixa) { return caixa.dataset.flag; }
+        );
+        document.querySelectorAll('[data-contexto="1"]').forEach(function (card) {
+            const flags = (card.dataset.flags || '').split(/\s+/);
+            const mostrar = ativos.some(function (flag) { return flags.indexOf(flag) !== -1; });
+            card.style.display = mostrar ? '' : 'none';
         });
+    }
+    filtros.forEach(function (caixa) {
+        caixa.addEventListener('change', aplicarFiltros);
     });
+    aplicarFiltros();
 });
 </script>
 

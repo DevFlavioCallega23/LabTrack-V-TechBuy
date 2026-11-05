@@ -126,6 +126,19 @@ class Protocol(db.Model):
         except Exception:
             return {}
 
+    def return_label(self):
+        """Selo derivado do vínculo de retorno (não é um tipo novo)."""
+        origem = self.get_origin()
+        if not origem:
+            return ''
+        if self.type == 'rma' and origem.type == 'rma':
+            return 'Retorno de RMA'
+        if self.type in ('rma', 'servico'):
+            return f'Retorno de {origem.type_label()}'
+        if self.type in ('venda', 'ponta_entrega', 'nao_comprado'):
+            return f'Retorno de {origem.type_label()}'
+        return ''
+
     def get_origin(self):
         """Protocolo anterior que deu origem a este retorno."""
         if not self.origin_id:
