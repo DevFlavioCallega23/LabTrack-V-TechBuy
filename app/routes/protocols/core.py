@@ -3,6 +3,7 @@ import re
 import io
 import os
 from datetime import datetime
+from urllib.parse import urlsplit, urlunsplit
 from flask import render_template, redirect, url_for, flash, request, send_file, current_app, jsonify
 from flask_login import login_required, current_user
 from app import db
@@ -296,6 +297,43 @@ def buscar_historico():
                            mostrar_retorno=not selecionar,
                            mostrar_selecao=selecionar)
 
+def destino_voltar():
+    """Descobre para onde o botão Voltar deve levar, com um rótulo amigável.
+
+    Usa o parâmetro ``voltar`` (enviado pelos links da teia/rastreio) ou, se
+    ele não existir, a página anterior. Só aceita caminhos internos do próprio
+    site, para não abrir endereços externos por engano.
+    """
+    candidatos = []
+    pedido = (request.args.get('voltar') or '').strip()
+    if pedido:
+        candidatos.append(pedido)
+    if request.referrer:
+        candidatos.append(request.referrer)
+
+    for destino in candidatos:
+        partes = urlsplit(destino)
+        if partes.scheme or partes.netloc:
+            # Endereço completo: só aceita se for o mesmo host.
+            if partes.netloc != request.host:
+                continue
+        caminho = partes.path or ''
+        if not caminho.startswith('/'):
+            continue
+        if caminho.rstrip('/') == request.path.rstrip('/'):
+            continue
+        alvo = urlunsplit(('', '', caminho, partes.query, ''))
+        if '/teia' in caminho:
+            return alvo, 'Voltar para a teia'
+        if caminho == '/ns' or caminho.startswith('/ns/'):
+            return alvo, 'Voltar para o rastreio de NS'
+        if caminho.startswith('/busca'):
+            return alvo, 'Voltar para a busca'
+        return alvo, 'Voltar'
+
+    return url_for('protocols.list_protocols'), 'Voltar para protocolos'
+
+
 @protocols_bp.route('/<int:id>')
 @login_required
 def detail_protocol(id):
@@ -310,11 +348,13 @@ def detail_protocol(id):
         protocol.order_number or protocol.original_order, ignorar_id=protocol.id)
     ids_cadeia = {p.id for p in cadeia}
     pedido_relacionados = [p for p in pedido_relacionados if p.id not in ids_cadeia]
+    voltar_url, voltar_label = destino_voltar()
     return render_template('protocols/detail.html', protocol=protocol,
                            incomplete_fields=incomplete_fields,
                            pe_vendas=pe_vendas, pe_origens=pe_origens,
                            origem=origem, retornos=retornos, cadeia=cadeia,
-                           pedido_relacionados=pedido_relacionados)
+                           pedido_relacionados=pedido_relacionados,
+                           voltar_url=voltar_url, voltar_label=voltar_label)
 
 @protocols_bp.route('/<int:id>/teia')
 @login_required

@@ -319,3 +319,50 @@ def test_busca_de_historico_tem_link_para_teia(app, logged_client):
     html = logged_client.get(
         '/protocolos/buscar-historico?q=TEIA-LINK-1').get_data(as_text=True)
     assert f'/protocolos/{pid}/teia' in html
+
+
+def test_voltar_do_protocolo_retorna_para_a_teia(app, logged_client):
+    pid = _criar(app, 'PRO-2099-9430', 'rma', client_name='Cliente Voltar Teia')
+    html = logged_client.get(
+        f'/protocolos/{pid}?voltar=/protocolos/{pid}/teia').get_data(as_text=True)
+    assert 'Voltar para a teia' in html
+    assert f'href="/protocolos/{pid}/teia"' in html
+
+
+def test_voltar_do_protocolo_retorna_para_o_rastreio_de_ns(app, logged_client):
+    pid = _criar(app, 'PRO-2099-9431', 'rma', client_name='Cliente Voltar NS')
+    html = logged_client.get(
+        f'/protocolos/{pid}',
+        headers={'Referer': '/ns?busca=NS-VOLTAR-1'}).get_data(as_text=True)
+    assert 'Voltar para o rastreio de NS' in html
+    assert 'href="/ns?busca=NS-VOLTAR-1"' in html
+
+
+def test_voltar_ignora_endereco_externo(app, logged_client):
+    pid = _criar(app, 'PRO-2099-9432', 'rma', client_name='Cliente Voltar Externo')
+    html = logged_client.get(
+        f'/protocolos/{pid}?voltar=https://exemplo.com/fora').get_data(as_text=True)
+    assert 'Voltar para protocolos' in html
+    assert 'exemplo.com' not in html
+
+
+def test_links_da_teia_levam_o_caminho_de_volta(app, logged_client):
+    origem_id = _criar(app, 'PRO-2099-9433', 'rma',
+                       client_name='Cliente Link Volta Teia')
+    novo_id = _criar(app, 'PRO-2099-9434', 'rma',
+                     client_name='Cliente Link Volta Teia', origin_id=origem_id)
+    html = _html(logged_client, novo_id)
+    assert f'/protocolos/{origem_id}?voltar=/protocolos/{novo_id}/teia' in html
+
+
+def test_links_do_rastreio_ns_levam_o_caminho_de_volta(app, logged_client):
+    pid = _criar(app, 'PRO-2099-9435', 'rma', client_name='Cliente Link Volta NS')
+    _add_comp(app, pid, ns='NS-VOLTA-9435')
+    html = logged_client.get(
+        '/ns?busca=NS-VOLTA-9435').get_data(as_text=True)
+    from urllib.parse import unquote
+    import re
+    achado = re.search(r'href="(/protocolos/%d\?voltar=[^"]+)"' % pid, html)
+    assert achado, html
+    assert unquote(achado.group(1)) == (
+        f'/protocolos/{pid}?voltar=/ns?busca=NS-VOLTA-9435')

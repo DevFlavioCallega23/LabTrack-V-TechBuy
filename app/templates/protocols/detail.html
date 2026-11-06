@@ -19,8 +19,8 @@
         <a href="{{ url_for('protocols.teia_protocol', id=protocol.id) }}" class="btn btn-outline-info">
             <i class="bi bi-diagram-3"></i> Teia
         </a>
-        <a href="{{ url_for('protocols.list_protocols') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Voltar
+        <a href="{{ voltar_url or url_for('protocols.list_protocols') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> {{ voltar_label or 'Voltar' }}
         </a>
         {% if current_user.is_manager() %}
         <a href="{{ url_for('protocols.edit_protocol', id=protocol.id) }}" class="btn btn-warning">

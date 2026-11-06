@@ -116,7 +116,8 @@ document.addEventListener('DOMContentLoaded', function() {
     var rows = document.querySelectorAll('.clickable-row');
     rows.forEach(function(row) {
         row.addEventListener('click', function(e) {
-            if (e.target.closest('.action-btns')) return;
+            // Cliques em links, botões e campos já têm ação própria.
+            if (e.target.closest('a, button, input, select, textarea, label, .action-btns')) return;
             var href = this.getAttribute('data-href');
             if (href) window.location.href = href;
         });

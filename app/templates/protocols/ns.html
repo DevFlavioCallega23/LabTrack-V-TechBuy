@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+{% set voltar_atual = request.full_path.rstrip('?') %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3><i class="bi bi-upc-scan"></i> Rastreio de NS</h3>
     <div class="d-flex gap-2 flex-wrap">
@@ -64,9 +65,9 @@
                     {% set p = r.protocolo %}
                     {% set qtd = r.ocorrencias|length %}
                     {% for occ in r.ocorrencias %}
-                    <tr class="clickable-row" data-href="{{ url_for('protocols.detail_protocol', id=p.id) }}">
+                    <tr class="clickable-row" data-href="{{ url_for('protocols.detail_protocol', id=p.id, voltar=voltar_atual) }}">
                         {% if loop.first %}
-                        <td rowspan="{{ qtd }}"><a href="{{ url_for('protocols.detail_protocol', id=p.id) }}">{{ p.protocol_number }}</a></td>
+                        <td rowspan="{{ qtd }}"><a href="{{ url_for('protocols.detail_protocol', id=p.id, voltar=voltar_atual) }}">{{ p.protocol_number }}</a></td>
                         <td rowspan="{{ qtd }}"><span class="badge {{ p.type_badge() }}">{{ p.type_label() }}</span></td>
                         <td rowspan="{{ qtd }}">{{ p.client_name or '-' }}</td>
                         <td rowspan="{{ qtd }}"><span class="badge {{ p.status_badge() }}">{{ p.status_label() }}</span></td>

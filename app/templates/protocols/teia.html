@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+{% set voltar_atual = request.full_path.rstrip('?') %}
 <style>
     .teia-timeline { display: flex; flex-direction: column; }
     .teia-linha { display: flex; align-items: stretch; gap: 1rem; flex-wrap: wrap; }
@@ -48,7 +49,7 @@
            class="btn btn-outline-warning" target="_blank">
             <i class="bi bi-pencil-square"></i> Ajustar identificação
         </a>
-        <a href="{{ url_for('protocols.detail_protocol', id=protocol.id) }}" class="btn btn-outline-secondary">
+        <a href="{{ url_for('protocols.detail_protocol', id=protocol.id, voltar=voltar_atual) }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Voltar ao protocolo
         </a>
     </div>
@@ -234,7 +235,7 @@
                          style="--teia-cor: {{ no.cor }}">
                         <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
                             <div>
-                                <a href="{{ url_for('protocols.detail_protocol', id=no.id) }}"
+                                <a href="{{ url_for('protocols.detail_protocol', id=no.id, voltar=voltar_atual) }}"
                                    class="fw-bold text-info text-decoration-none fs-6">
                                     {{ no.numero }}
                                 </a>
@@ -273,7 +274,7 @@
                             {% if no.flags.mesmo_pedido %}<span class="badge bg-dark border border-warning">Mesmo pedido</span>{% endif %}
                             {% if no.flags.mesmo_cliente %}<span class="badge bg-dark border border-secondary">Mesmo cliente</span>{% endif %}
                         </div>
-                        <a href="{{ url_for('protocols.detail_protocol', id=no.id) }}"
+                        <a href="{{ url_for('protocols.detail_protocol', id=no.id, voltar=voltar_atual) }}"
                            class="small text-info d-inline-block mt-2">
                             Abrir protocolo <i class="bi bi-box-arrow-up-right"></i>
                         </a>
@@ -289,7 +290,7 @@
                     <div class="teia-card ramo" style="--teia-cor: #6c757d">
                         <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
                             <div>
-                                <a href="{{ url_for('protocols.detail_protocol', id=r.id) }}"
+                                <a href="{{ url_for('protocols.detail_protocol', id=r.id, voltar=voltar_atual) }}"
                                    class="fw-bold text-info text-decoration-none">{{ r.numero }}</a>
                                 <span class="badge bg-secondary ms-1">Ramo de peça</span>
                             </div>
@@ -311,7 +312,7 @@
                         <div class="small text-secondary mt-1">
                             {{ r.ramo_motivo }} — mesma peça, outra máquina. Não entra na coluna principal.
                         </div>
-                        <a href="{{ url_for('protocols.detail_protocol', id=r.id) }}"
+                        <a href="{{ url_for('protocols.detail_protocol', id=r.id, voltar=voltar_atual) }}"
                            class="small text-info d-inline-block mt-2">
                             Abrir protocolo <i class="bi bi-box-arrow-up-right"></i>
                         </a>
@@ -340,7 +341,7 @@
                      data-flags="{% if no.flags.mesmo_pedido %}mesmo_pedido {% endif %}{% if no.flags.mesmo_equipamento %}mesmo_equipamento {% endif %}{% if no.flags.mesma_unidade %}mesma_unidade {% endif %}{% if no.flags.mesmo_cliente %}mesmo_cliente {% endif %}{% if no.flags.retorno %}retorno {% endif %}{% if no.flags.venda_pe %}venda_pe{% endif %}"
                      style="--teia-cor: #6c757d">
                     <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
-                        <a href="{{ url_for('protocols.detail_protocol', id=no.id) }}"
+                        <a href="{{ url_for('protocols.detail_protocol', id=no.id, voltar=voltar_atual) }}"
                            class="fw-bold text-info text-decoration-none">{{ no.numero }}</a>
                         <span class="badge {{ no.protocol.type_badge() }}">{{ no.tipo_label }}</span>
                     </div>
@@ -390,10 +391,10 @@
                         <tbody>
                             {% for aresta in teia.edges %}
                             <tr>
-                                <td><a href="{{ url_for('protocols.detail_protocol', id=aresta.de) }}"
-                                       target="_blank" class="text-info">{{ aresta.de_numero }}</a></td>
-                                <td><a href="{{ url_for('protocols.detail_protocol', id=aresta.para) }}"
-                                       target="_blank" class="text-info">{{ aresta.para_numero }}</a></td>
+                                <td><a href="{{ url_for('protocols.detail_protocol', id=aresta.de, voltar=voltar_atual) }}"
+                                       class="text-info">{{ aresta.de_numero }}</a></td>
+                                <td><a href="{{ url_for('protocols.detail_protocol', id=aresta.para, voltar=voltar_atual) }}"
+                                       class="text-info">{{ aresta.para_numero }}</a></td>
                                 <td>
                                     <span style="display:inline-block;width:12px;height:4px;border-radius:2px;background:{{ aresta.cor }};vertical-align:middle"></span>
                                     {{ aresta.rotulo }}
@@ -481,15 +482,15 @@
                     <tr>
                         <td><code>{{ conflito.ns }}</code></td>
                         <td>
-                            <a href="{{ url_for('protocols.detail_protocol', id=conflito.id_a) }}"
-                               target="_blank" class="text-info">{{ conflito.protocolo_a }}</a>
+                            <a href="{{ url_for('protocols.detail_protocol', id=conflito.id_a, voltar=voltar_atual) }}"
+                               class="text-info">{{ conflito.protocolo_a }}</a>
                         </td>
                         <td class="small">{{ conflito.tipos_a|join(', ') }}
                             {% if conflito.unidades_a %}<span class="text-secondary">· Un. {{ conflito.unidades_a|join(', ') }}</span>{% endif %}
                         </td>
                         <td>
-                            <a href="{{ url_for('protocols.detail_protocol', id=conflito.id_b) }}"
-                               target="_blank" class="text-info">{{ conflito.protocolo_b }}</a>
+                            <a href="{{ url_for('protocols.detail_protocol', id=conflito.id_b, voltar=voltar_atual) }}"
+                               class="text-info">{{ conflito.protocolo_b }}</a>
                         </td>
                         <td class="small">{{ conflito.tipos_b|join(', ') }}
                             {% if conflito.unidades_b %}<span class="text-secondary">· Un. {{ conflito.unidades_b|join(', ') }}</span>{% endif %}
@@ -523,8 +524,8 @@
                     {% for no in teia.nodes %}
                     <tr>
                         <td>
-                            <a href="{{ url_for('protocols.detail_protocol', id=no.id) }}"
-                               target="_blank" class="{{ 'fw-bold text-info' if no.id == teia.raiz.id else 'text-info' }}">
+                            <a href="{{ url_for('protocols.detail_protocol', id=no.id, voltar=voltar_atual) }}"
+                               class="{{ 'fw-bold text-info' if no.id == teia.raiz.id else 'text-info' }}">
                                 {{ no.numero }}
                             </a>
                             {% if no.id == teia.raiz.id %}<span class="badge bg-info text-dark ms-1">este</span>{% endif %}
