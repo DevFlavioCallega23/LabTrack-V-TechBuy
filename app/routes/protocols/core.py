@@ -356,15 +356,33 @@ def detail_protocol(id):
                            pedido_relacionados=pedido_relacionados,
                            voltar_url=voltar_url, voltar_label=voltar_label)
 
+def _maquina_da_url():
+    """Lê ``?maquina=``: None é o padrão, 'sem' é a máquina sem unidade."""
+    valor = request.values.get('maquina')
+    if valor is None:
+        return None
+    return '' if valor.strip() == 'sem' else valor.strip()
+
+
+def _url_da_teia(id, unidade):
+    params = {}
+    if unidade is not None:
+        params['maquina'] = unidade or 'sem'
+    return url_for('protocols.teia_protocol', id=id, **params)
+
+
 @protocols_bp.route('/<int:id>/teia')
 @login_required
 def teia_protocol(id):
     """Linha do tempo da máquina, com ramos laterais e conferências."""
     protocol = Protocol.query.get_or_404(id)
-    teia = teia_do_protocolo(protocol)
+    unidade = _maquina_da_url()
+    teia = teia_do_protocolo(protocol, unidade=unidade)
     sugestoes = sugestoes_preenchimento(protocol, teia)
-    return render_template('protocols/teia.html', protocol=protocol, teia=teia,
-                           sugestoes=sugestoes, seller_choices=SELLER_CHOICES)
+    return render_template(
+        'protocols/teia.html', protocol=protocol, teia=teia,
+        sugestoes=sugestoes, seller_choices=SELLER_CHOICES,
+        maquina=(None if unidade is None else (unidade or 'sem')))
 
 
 @protocols_bp.route('/<int:id>/teia/preencher', methods=['POST'])
@@ -372,8 +390,9 @@ def teia_protocol(id):
 def preencher_teia(id):
     """Aplica as sugestões de preenchimento escolhidas na teia."""
     protocol = Protocol.query.get_or_404(id)
+    unidade = _maquina_da_url()
     indices = request.form.getlist('sugestao')
-    resultado = aplicar_preenchimento(protocol, indices)
+    resultado = aplicar_preenchimento(protocol, indices, unidade=unidade)
     alterados = resultado.get('alterados') or []
     if alterados:
         flash(
@@ -381,7 +400,7 @@ def preencher_teia(id):
             f'{resultado.get("backup") or "não necessário"}.', 'success')
     else:
         flash('Nenhuma alteração foi aplicada.', 'info')
-    return redirect(url_for('protocols.teia_protocol', id=id))
+    return redirect(_url_da_teia(id, unidade))
 
 
 @protocols_bp.route('/<int:id>/teia/ajustar', methods=['GET', 'POST'])
@@ -389,6 +408,7 @@ def preencher_teia(id):
 def ajustar_protocol(id):
     """Aba focada para corrigir cliente, pedidos, vendedor e quantidade."""
     protocol = Protocol.query.get_or_404(id)
+    unidade = _maquina_da_url()
     if request.method == 'POST':
         protocol.client_name = request.form.get('client_name', '').strip() or None
         protocol.order_number = request.form.get('order_number', '').strip() or None
@@ -397,9 +417,11 @@ def ajustar_protocol(id):
         protocol.lote = request.form.get('lote', '').strip() or None
         db.session.commit()
         flash('Dados de identificação atualizados.', 'success')
-        return redirect(url_for('protocols.teia_protocol', id=id))
-    return render_template('protocols/ajustar.html', protocol=protocol,
-                           seller_choices=SELLER_CHOICES)
+        return redirect(_url_da_teia(id, unidade))
+    return render_template(
+        'protocols/ajustar.html', protocol=protocol,
+        seller_choices=SELLER_CHOICES,
+        maquina=(None if unidade is None else (unidade or 'sem')))
 
 
 @protocols_bp.route('/<int:id>/ignorar-incompletos', methods=['POST'])

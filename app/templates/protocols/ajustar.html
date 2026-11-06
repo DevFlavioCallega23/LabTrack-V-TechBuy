@@ -9,7 +9,7 @@
             Defeitos, peças e equipamento não são alterados aqui.
         </div>
     </div>
-    <a href="{{ url_for('protocols.teia_protocol', id=protocol.id) }}"
+    <a href="{{ url_for('protocols.teia_protocol', id=protocol.id, maquina=maquina) if maquina else url_for('protocols.teia_protocol', id=protocol.id) }}"
        class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Voltar para a teia
     </a>
@@ -22,6 +22,7 @@
     </div>
     <div class="card-body">
         <form method="post">
+            {% if maquina %}<input type="hidden" name="maquina" value="{{ maquina }}">{% endif %}
             <div class="row g-3">
                 <div class="col-md-8">
                     <label class="form-label">Cliente</label>
@@ -71,7 +72,7 @@
                 <button type="submit" class="btn btn-primary">
                     <i class="bi bi-check-lg"></i> Salvar ajustes
                 </button>
-                <a href="{{ url_for('protocols.teia_protocol', id=protocol.id) }}"
+                <a href="{{ url_for('protocols.teia_protocol', id=protocol.id, maquina=maquina) if maquina else url_for('protocols.teia_protocol', id=protocol.id) }}"
                    class="btn btn-outline-secondary">Cancelar</a>
             </div>
         </form>

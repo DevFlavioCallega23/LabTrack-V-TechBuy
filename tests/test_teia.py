@@ -366,3 +366,92 @@ def test_links_do_rastreio_ns_levam_o_caminho_de_volta(app, logged_client):
     assert achado, html
     assert unquote(achado.group(1)) == (
         f'/protocolos/{pid}?voltar=/ns?busca=NS-VOLTA-9435')
+
+
+def test_teia_separa_maquinas_e_abre_na_maquina_ligada(app, logged_client):
+    venda = _criar(app, 'PRO-2099-9440', 'venda',
+                   client_name='Cliente Maquinas Teia',
+                   order_number='TEIA-MAQ-1')
+    _add_comp(app, venda, tipo='ram', ns='TEIA-MAQ-01', unit='01')
+    _add_comp(app, venda, tipo='ram', ns='TEIA-MAQ-02', unit='02')
+    rma = _criar(app, 'PRO-2099-9441', 'rma',
+                 client_name='Cliente Maquinas Teia',
+                 order_number='TEIA-MAQ-1')
+    _add_comp(app, rma, tipo='ram', ns='TEIA-MAQ-02', unit='01')
+
+    html = _html(logged_client, venda)
+    assert 'name="maquina"' in html
+    assert 'value="01"' in html
+    assert 'value="02"' in html
+    # A venda abre direto na máquina 02, que tem ligação com o RMA.
+    assert 'value="02" selected' in html
+    assert 'TEIA-MAQ-02' in html
+    # A peça da máquina 01 não entra na linha do tempo da máquina 02.
+    assert 'TEIA-MAQ-01' not in html
+
+    html = logged_client.get(
+        f'/protocolos/{venda}/teia?maquina=01').get_data(as_text=True)
+    assert 'value="01" selected' in html
+    assert 'TEIA-MAQ-01' in html
+    # O RMA é de outra máquina (02), então fica no contexto, não na linha atual.
+    assert 'PRO-2099-9441' in html
+    assert 'Outros protocolos deste cliente/pedido' in html
+
+
+def test_teia_contexto_em_abas_por_tipo(app, logged_client):
+    raiz = _criar(app, 'PRO-2099-9442', 'rma',
+                  client_name='Cliente Abas Teia')
+    _criar(app, 'PRO-2099-9443', 'venda',
+           client_name='Cliente Abas Teia')
+    _criar(app, 'PRO-2099-9444', 'ponta_entrega',
+           client_name='Cliente Abas Teia')
+
+    html = _html(logged_client, raiz)
+    assert 'nav-tabs' in html
+    assert 'Outros protocolos deste cliente/pedido' in html
+    assert 'PRO-2099-9443' in html
+    assert 'PRO-2099-9444' in html
+    assert 'Venda' in html
+    assert 'Pronta-Entrega' in html
+
+
+def test_teia_preserva_maquina_no_ajuste_e_no_preenchimento(app, logged_client):
+    venda = _criar(app, 'PRO-2099-9445', 'venda',
+                   client_name='Cliente Maquina URL')
+    _add_comp(app, venda, ns='TEIA-URL-01', unit='01')
+    _add_comp(app, venda, ns='TEIA-URL-02', unit='02')
+
+    html = logged_client.get(
+        f'/protocolos/{venda}/teia/ajustar?maquina=02').get_data(as_text=True)
+    assert 'name="maquina" value="02"' in html
+    assert f'/protocolos/{venda}/teia?maquina=02' in html
+
+    resp = logged_client.post(
+        f'/protocolos/{venda}/teia/preencher', data={'maquina': '02'})
+    assert resp.status_code == 302
+    assert f'/protocolos/{venda}/teia?maquina=02' in resp.headers['Location']
+
+
+def test_teia_filtro_mesmo_equipamento_inclui_cliente_e_pedido(app, logged_client):
+    venda = _criar(app, 'PRO-2099-9446', 'venda',
+                   client_name='Cliente Filtro Teia',
+                   order_number='TEIA-FILTRO-1')
+    _add_comp(app, venda, ns='TEIA-FILTRO-01', unit='01')
+    rma = _criar(app, 'PRO-2099-9447', 'rma',
+                 client_name='Cliente Filtro Teia',
+                 order_number='TEIA-FILTRO-1')
+    _add_comp(app, rma, ns='TEIA-FILTRO-02', unit='02')
+
+    html = _html(logged_client, venda)
+    linha = html.split('Linha do tempo da máquina', 1)[1].split(
+        'Outros protocolos deste cliente/pedido', 1)[0]
+    contexto = html.split('Outros protocolos deste cliente/pedido', 1)[1]
+
+    # Mesmo cliente e mesmo pedido, mas outra máquina: fica fora da linha.
+    assert 'PRO-2099-9447' not in linha
+    assert 'PRO-2099-9447' in contexto
+    # O filtro "Mesmo equipamento" também aceita cliente + pedido.
+    assert 'mesmo_cliente_pedido' in contexto
+    assert 'Mesmo cliente e pedido' in contexto
+    assert '(ou cliente + pedido)' in html
+    assert "mesmo_cliente_pedido" in html.split('<script>', 1)[1]

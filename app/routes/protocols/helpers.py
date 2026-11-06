@@ -1110,29 +1110,64 @@ def _equip_entradas(dados):
     return []
 
 
-def ns_do_protocolo(protocol):
-    """NS do protocolo com o tipo da peça e a unidade onde apareceu."""
+def _unidade_da_maquina(maquina):
+    """Tenta descobrir a unidade pelo nome da máquina ('Computador 01' -> '01')."""
+    texto = _texto_limpo(maquina)
+    achado = re.search(r'(\d+)\s*$', texto)
+    return _unidade(achado.group(1)) if achado else ''
+
+
+def _coletar_ns(protocol, por_unidade=None):
+    """NS do protocolo com tipo, unidade, máquina, modelo e origem.
+
+    Quando ``por_unidade`` é passado, também preenche
+    ``{unidade: {'nome': ..., 'ns': {...}}}`` para a teia por máquina.
+    """
     info = {}
 
-    def adicionar(valor, tipo='peca', unidade='', maquina='', fonte=''):
+    def adicionar(valor, tipo='peca', unidade='', maquina='', fonte='', modelo=''):
         ns = _ns_limpo(valor)
         if not ns:
             return
+        unidade_txt = _texto_limpo(unidade)
+        maquina_txt = _texto_limpo(maquina)
+        modelo_txt = _texto_limpo(modelo)
+        unidade_final = (_unidade(unidade_txt) if unidade_txt
+                         else _unidade_da_maquina(maquina_txt))
+        tipo_final = _tipo_peca(tipo)
+
+        def preencher(item):
+            item['tipos'].add(tipo_final)
+            if unidade_final:
+                item['unidades'].add(unidade_final)
+            if maquina_txt:
+                item['maquinas'].add(maquina_txt)
+            if modelo_txt:
+                item['modelos'].add(modelo_txt)
+            if fonte:
+                item['fontes'].add(fonte)
+
         item = info.setdefault(ns, {
-            'tipos': set(), 'unidades': set(),
-            'maquinas': set(), 'fontes': set(),
+            'tipos': set(), 'unidades': set(), 'maquinas': set(),
+            'modelos': set(), 'fontes': set(),
         })
-        item['tipos'].add(_tipo_peca(tipo))
-        if _texto_limpo(unidade):
-            item['unidades'].add(_texto_limpo(unidade))
-        if _texto_limpo(maquina):
-            item['maquinas'].add(_texto_limpo(maquina))
-        if fonte:
-            item['fontes'].add(fonte)
+        preencher(item)
+
+        if por_unidade is not None:
+            entrada = por_unidade.setdefault(
+                unidade_final, {'nome': '', 'ns': {}})
+            if maquina_txt and not entrada['nome']:
+                entrada['nome'] = maquina_txt
+            item_unidade = entrada['ns'].setdefault(ns, {
+                'tipos': set(), 'unidades': set(), 'maquinas': set(),
+                'modelos': set(), 'fontes': set(),
+            })
+            preencher(item_unidade)
 
     for componente in protocol.components or []:
         adicionar(componente.serial_number, componente.component_type,
-                  componente.unit, componente.machine_name, 'componente')
+                  componente.unit, componente.machine_name, 'componente',
+                  componente.specification)
         adicionar(componente.machine_ref_ns, 'maquina',
                   componente.unit, componente.machine_name, 'maquina')
 
@@ -1146,33 +1181,49 @@ def ns_do_protocolo(protocol):
             if isinstance(componente, dict):
                 adicionar(componente.get('serial'), componente.get('type'),
                           unidade or componente.get('unit'),
-                          entrada.get('name'), 'equipamento')
+                          entrada.get('name'), 'equipamento',
+                          componente.get('model'))
 
     for item in _json_ou(protocol.rma_test_result, []) or []:
         if not isinstance(item, dict):
             continue
         adicionar(item.get('serial'), item.get('component'),
-                  item.get('unit'), item.get('machine'), 'teste')
+                  item.get('unit'), item.get('machine'), 'teste',
+                  item.get('model'))
         for componente in item.get('components') or []:
             if isinstance(componente, dict):
                 adicionar(componente.get('serial'),
                           componente.get('type') or componente.get('component'),
-                          componente.get('unit'), item.get('machine'), 'teste')
+                          componente.get('unit'), item.get('machine'), 'teste',
+                          componente.get('model') or item.get('model'))
 
     for unidade, entrada in _equip_entradas(_json_ou(protocol.rma_trocados, {})):
         for componente in entrada.get('components') or []:
             if isinstance(componente, dict):
                 adicionar(componente.get('serial'), componente.get('type'),
                           unidade or componente.get('unit'),
-                          entrada.get('name'), 'trocado')
+                          entrada.get('name'), 'trocado',
+                          componente.get('model'))
 
     for defeito in protocol.defects or []:
         adicionar(defeito.serial_number, defeito.component_type,
-                  '', defeito.maquina, 'defeito')
+                  '', defeito.maquina, 'defeito', defeito.specification)
 
     adicionar(protocol.ref_ns, 'ref', '', '', 'ref')
     adicionar(protocol.rma_test_serial, 'ref', '', '', 'ref')
     return info
+
+
+def ns_do_protocolo(protocol):
+    """NS do protocolo com o tipo da peça e a unidade onde apareceu."""
+    return _coletar_ns(protocol)
+
+
+def ns_por_unidade(protocol):
+    """NS separados por unidade/máquina: {unidade: {'nome': ..., 'ns': {...}}}."""
+    por_unidade = {}
+    _coletar_ns(protocol, por_unidade)
+    return por_unidade
 
 
 def _comparar_ns(info_a, info_b):
@@ -1194,12 +1245,15 @@ def _comparar_ns(info_a, info_b):
 def _indice_teia(todos):
     """Índices para achar vizinhos sem varrer o banco a cada nó."""
     ns_por_id = {}
+    unidades_por_id = {}
     ns_idx = {}
     pedido_idx = {}
     cliente_idx = {}
     for protocolo in todos:
-        info = ns_do_protocolo(protocolo)
+        por_unidade = {}
+        info = _coletar_ns(protocolo, por_unidade)
         ns_por_id[protocolo.id] = info
+        unidades_por_id[protocolo.id] = por_unidade
         for valor in info:
             ns_idx.setdefault(valor, []).append(protocolo)
         for pedido in _pedidos_do_protocolo(protocolo):
@@ -1207,8 +1261,7 @@ def _indice_teia(todos):
         cliente = _cliente_normalizado(protocolo)
         if cliente:
             cliente_idx.setdefault(cliente, []).append(protocolo)
-    return ns_por_id, ns_idx, pedido_idx, cliente_idx
-
+    return ns_por_id, ns_idx, pedido_idx, cliente_idx, unidades_por_id
 
 
 def _tipo_peca_label(tipo):
@@ -1231,59 +1284,174 @@ def _mesmo_contexto(a, b):
     return bool(_pedidos_do_protocolo(a) & _pedidos_do_protocolo(b))
 
 
-def _vizinhos_principais(atual, ns_por_id, ns_idx, por_id):
-    """Vizinhos que entram na coluna principal da máquina."""
+def _ordem_unidade(unidade):
+    """Ordena 01, 02, ..., 10, depois nomes e por último 'sem unidade'."""
+    texto = _texto_limpo(unidade)
+    if texto.isdigit():
+        return (0, int(texto), '')
+    if texto:
+        return (1, 0, texto)
+    return (2, 0, '')
+
+
+def _label_unidade(unidade, nome=''):
+    texto = _texto_limpo(unidade)
+    nome = _texto_limpo(nome)
+    if nome:
+        return nome
+    if texto:
+        return f'Máquina {texto}'
+    return 'Sem unidade'
+
+
+def _label_da_unidade(protocol, unidade, unidades_por_id):
+    entrada = (unidades_por_id.get(protocol.id) or {}).get(unidade) or {}
+    return _label_unidade(unidade, entrada.get('nome') or '')
+
+
+def _info_da_unidade(protocol, unidade, unidades_por_id, ns_por_id):
+    """NS que pertencem a uma máquina específica do protocolo."""
+    por_unidade = unidades_por_id.get(protocol.id) or {}
+    unidade = _texto_limpo(unidade)
+    if unidade in por_unidade:
+        return por_unidade[unidade]['ns']
+    if not unidade:
+        entrada = por_unidade.get('')
+        if entrada:
+            return entrada['ns']
+        if not por_unidade:
+            return ns_por_id.get(protocol.id, {})
+    return {}
+
+
+def _melhor_unidade(por_unidade, info_atual):
+    """Unidade do outro protocolo que mais combina (NS + tipo) com a atual."""
+    melhor = None
+    melhor_qtd = 0
+    for unidade, entrada in (por_unidade or {}).items():
+        comuns, _ = _comparar_ns(info_atual, entrada.get('ns') or {})
+        qtd = len(comuns)
+        if qtd > melhor_qtd:
+            melhor = unidade
+            melhor_qtd = qtd
+        elif qtd and qtd == melhor_qtd and _ordem_unidade(unidade) < _ordem_unidade(melhor):
+            melhor = unidade
+    return melhor if melhor_qtd else None
+
+
+def _unidade_do_vinculo(outro, info_atual, unidade_atual, unidades_por_id):
+    """Unidade do outro protocolo que representa a mesma máquina."""
+    por_unidade = unidades_por_id.get(outro.id) or {}
+    melhor = _melhor_unidade(por_unidade, info_atual)
+    if melhor is not None:
+        return melhor
+    if unidade_atual in por_unidade:
+        return unidade_atual
+    return ''
+
+
+def _unidade_da_venda_na_pe(venda, pe, pe_unidade):
+    """Descobre a unidade da Venda que aponta para a máquina da PE."""
+    for venda_unidade, info in (venda.get_pe_refs() or {}).items():
+        if not isinstance(info, dict):
+            continue
+        try:
+            pe_id = int(info.get('protocol_id'))
+        except (TypeError, ValueError):
+            continue
+        if pe_id == pe.id and _unidade(info.get('unit')) == _unidade(pe_unidade):
+            return _unidade(venda_unidade)
+    return ''
+
+
+def _venda_pe_vizinhos(atual, unidade, por_id):
+    """Pares Venda ↔ PE que pertencem à máquina selecionada."""
+    if atual.type == 'venda':
+        mapa = pe_por_maquina(atual)
+        if unidade in mapa:
+            pares = [(unidade, [mapa[unidade]])]
+        elif not unidade and len(mapa) == 1:
+            pares = [(chave, [info]) for chave, info in mapa.items()]
+        else:
+            pares = []
+        for chave, itens in pares:
+            for info in itens:
+                pe = por_id.get(info.get('id'))
+                if pe:
+                    yield pe, info.get('unit') or '', (
+                        f"Máquina {chave or '?'} · fonte "
+                        f"{info.get('fonte') or 'sem NS'}")
+    elif atual.type == 'ponta_entrega':
+        mapa = vendas_por_maquina_pe(atual)
+        if unidade in mapa:
+            pares = [(unidade, mapa[unidade])]
+        elif not unidade and len(mapa) == 1:
+            pares = list(mapa.items())
+        else:
+            pares = []
+        for pe_unidade, itens in pares:
+            for info in itens:
+                venda = por_id.get(info.get('id'))
+                if not venda:
+                    continue
+                venda_unidade = _unidade_da_venda_na_pe(
+                    venda, atual, pe_unidade)
+                yield venda, venda_unidade, (
+                    f"Máquina {pe_unidade or '?'} · fonte "
+                    f"{info.get('fonte') or 'sem NS'}")
+
+
+def _vizinhos_da_maquina(atual, unidade, ns_por_id, ns_idx,
+                        unidades_por_id, por_id):
+    """Vizinhos da máquina: retorno, mesmo NS + tipo e Venda ↔ PE."""
     achados = {}
 
-    def adicionar(outro, tipo, evidencia):
+    def adicionar(outro, unidade_outro, tipo, evidencia):
         if not outro or outro.id == atual.id:
             return
-        existente = achados.get(outro.id)
+        chave = (outro.id, unidade_outro or '')
+        existente = achados.get(chave)
         if existente is None:
-            achados[outro.id] = {
+            achados[chave] = {
                 'protocol': outro,
+                'unidade': unidade_outro or '',
                 'tipo': tipo,
                 'evidencias': [evidencia] if evidencia else [],
             }
         elif evidencia and evidencia not in existente['evidencias']:
             existente['evidencias'].append(evidencia)
 
+    info_atual = _info_da_unidade(atual, unidade, unidades_por_id, ns_por_id)
+
     origem = atual.get_origin()
     if origem:
-        adicionar(origem, 'retorno', f'Retorno de {atual.protocol_number}')
+        adicionar(
+            origem,
+            _unidade_do_vinculo(origem, info_atual, unidade, unidades_por_id),
+            'retorno', f'Retorno de {atual.protocol_number}')
     for retorno in atual.get_returns():
-        adicionar(retorno, 'retorno', f'Gerou {retorno.protocol_number}')
+        adicionar(
+            retorno,
+            _unidade_do_vinculo(retorno, info_atual, unidade, unidades_por_id),
+            'retorno', f'Gerou {retorno.protocol_number}')
 
-    info_atual = ns_por_id.get(atual.id, {})
     for ns, item in info_atual.items():
         for outro in ns_idx.get(ns, []):
             if outro.id == atual.id:
                 continue
-            comuns, _ = _comparar_ns({ns: item}, ns_por_id.get(outro.id, {}))
-            if not comuns:
+            unidade_outro = _melhor_unidade(
+                unidades_por_id.get(outro.id) or {}, {ns: item})
+            if unidade_outro is None:
                 continue
-            if _mesmo_contexto(atual, outro):
-                tipo_peca = comuns[0][1]
-                adicionar(outro, 'equipamento',
-                         f'NS {ns} · {_tipo_peca_label(tipo_peca)}')
+            if not _mesmo_contexto(atual, outro):
+                continue
+            tipo_peca = sorted(item['tipos'])[0]
+            adicionar(outro, unidade_outro, 'equipamento',
+                      f'NS {ns} · {_tipo_peca_label(tipo_peca)}')
 
-    if atual.type == 'venda':
-        for info in pe_por_maquina(atual).values():
-            outro = por_id.get(info.get('id'))
-            if outro:
-                adicionar(
-                    outro, 'venda_pe',
-                    f"Máquina {info.get('unit') or '?'} · fonte "
-                    f"{info.get('fonte') or 'sem NS'}")
-    elif atual.type == 'ponta_entrega':
-        for unidade, vendas in vendas_por_maquina_pe(atual).items():
-            for venda in vendas:
-                outro = por_id.get(venda.get('id'))
-                if outro:
-                    adicionar(
-                        outro, 'venda_pe',
-                        f"Máquina {unidade} · fonte "
-                        f"{venda.get('fonte') or 'sem NS'}")
+    for outro, unidade_outro, evidencia in _venda_pe_vizinhos(
+            atual, unidade, por_id):
+        adicionar(outro, unidade_outro, 'venda_pe', evidencia)
 
     return achados
 
@@ -1293,17 +1461,21 @@ def _ns_detalhe(info_ns):
     for ns in sorted(info_ns):
         item = info_ns[ns]
         tipos = sorted(item['tipos'])
+        modelos = sorted(item.get('modelos') or [])
         detalhe.append({
             'ns': ns,
             'tipos': tipos,
             'tipos_label': ', '.join(_tipo_peca_label(t) for t in tipos),
-            'unidades': sorted(item['unidades']),
+            'unidades': sorted(item['unidades'], key=_ordem_unidade),
             'maquinas': sorted(item['maquinas']),
+            'modelos': modelos,
+            'modelos_label': ', '.join(modelos),
         })
     return detalhe
 
 
-def _montar_no(protocol, info_ns, flags=None, papel=''):
+def _montar_no(protocol, info_ns, flags=None, papel='', unidade='',
+               unidade_label=''):
     data_ref = _data_ordem(protocol)
     cor, cor_texto = _TEIA_CORES_NO.get(protocol.type, ('#0d6efd', '#ffffff'))
     pedidos = sorted(_pedidos_do_protocolo(protocol))
@@ -1319,8 +1491,11 @@ def _montar_no(protocol, info_ns, flags=None, papel=''):
         'data_ordem': data_ref,
         'cor': cor,
         'cor_texto': cor_texto,
+        'unidade': unidade or '',
+        'unidade_label': unidade_label or _label_unidade(unidade),
         'ns': sorted(info_ns),
         'ns_detalhe': _ns_detalhe(info_ns),
+        'info_ns': info_ns,
         'pedidos': pedidos,
         'pedido': pedidos[0] if pedidos else '',
         'cliente': _texto_limpo(protocol.client_name),
@@ -1330,45 +1505,109 @@ def _montar_no(protocol, info_ns, flags=None, papel=''):
     }
 
 
-def teia_do_protocolo(protocol, limite=60):
-    """Linha do tempo vertical da máquina + ramos laterais de peças.
+def teia_do_protocolo(protocol, limite=60, unidade=None):
+    """Linha do tempo de uma máquina por vez, com ramos laterais e contexto.
 
-    Coluna principal: retorno, mesmo equipamento (cliente/pedido + NS + tipo)
-    e venda ↔ PE. O que só compartilha NS sem ser a mesma máquina vira ramo
-    lateral. Protocolos do mesmo cliente/pedido aparecem como contexto.
+    A máquina é escolhida pelo parâmetro ``unidade``. Quando ele não é
+    informado, abre na máquina com mais ligações com outros protocolos.
     """
     if not protocol:
         return None
 
     todos = Protocol.query.order_by(Protocol.entry_date, Protocol.id).all()
     por_id = {p.id: p for p in todos}
-    ns_por_id, ns_idx, pedido_idx, cliente_idx = _indice_teia(todos)
+    ns_por_id, ns_idx, pedido_idx, cliente_idx, unidades_por_id = _indice_teia(todos)
 
-    principal = {protocol.id: protocol}
-    fila = [protocol]
+    unidades_raiz = unidades_por_id.get(protocol.id) or {}
+    if not unidades_raiz:
+        unidades_raiz = {'': {'nome': '', 'ns': {}}}
+
+    # --- Escolha da máquina: a que tem mais ligações com outros protocolos --
+    # Mesmo pedido pesa mais que só o mesmo cliente, e RMA/Serviço pesa mais
+    # que outra Venda, para abrir direto na máquina do caso em andamento.
+    ligacoes_por_unidade = {}
+    peso_por_unidade = {}
+    for chave_unidade in unidades_raiz:
+        info_u = _info_da_unidade(
+            protocol, chave_unidade, unidades_por_id, ns_por_id)
+        outros = {}
+        for ns, item in info_u.items():
+            for outro in ns_idx.get(ns, []):
+                if outro.id == protocol.id:
+                    continue
+                comuns, _ = _comparar_ns(
+                    {ns: item}, ns_por_id.get(outro.id, {}))
+                if not comuns:
+                    continue
+                pontos = 1
+                if (_pedidos_do_protocolo(protocol)
+                        & _pedidos_do_protocolo(outro)):
+                    pontos += 2
+                if outro.type in ('rma', 'servico'):
+                    pontos += 1
+                outros[outro.id] = max(outros.get(outro.id, 0), pontos)
+        ligacoes_por_unidade[chave_unidade] = len(outros)
+        peso_por_unidade[chave_unidade] = sum(outros.values())
+
+    ordem = sorted(
+        unidades_raiz,
+        key=lambda u: (-peso_por_unidade.get(u, 0),
+                       -ligacoes_por_unidade.get(u, 0),
+                       -len((unidades_raiz[u] or {}).get('ns') or {}),
+                       _ordem_unidade(u)))
+    if unidade is None:
+        unidade_selecionada = ordem[0] if ordem else ''
+    else:
+        unidade_selecionada = _texto_limpo(unidade)
+        if unidade_selecionada not in unidades_raiz:
+            unidade_selecionada = ordem[0] if ordem else ''
+
+    unidades = []
+    for chave_unidade in sorted(unidades_raiz, key=_ordem_unidade):
+        entrada = unidades_raiz[chave_unidade] or {}
+        info_u = entrada.get('ns') or {}
+        unidades.append({
+            'unidade': chave_unidade,
+            'valor': chave_unidade or 'sem',
+            'label': _label_unidade(chave_unidade, entrada.get('nome') or ''),
+            'ns': len(info_u),
+            'ligacoes': ligacoes_por_unidade.get(chave_unidade, 0),
+            'selecionada': chave_unidade == unidade_selecionada,
+        })
+    unidade_label = _label_da_unidade(
+        protocol, unidade_selecionada, unidades_por_id)
+
+    # --- Coluna principal: a máquina selecionada e seus vizinhos -----------
+    selecionados = {(protocol.id, unidade_selecionada or ''): protocol}
+    fila = [(protocol, unidade_selecionada or '')]
     arestas = {}
     truncada = False
 
     while fila:
-        atual = fila.pop(0)
-        vizinhos = _vizinhos_principais(atual, ns_por_id, ns_idx, por_id)
-        for vizinho in vizinhos.values():
+        atual, unidade_atual = fila.pop(0)
+        vizinhos = _vizinhos_da_maquina(
+            atual, unidade_atual, ns_por_id, ns_idx,
+            unidades_por_id, por_id)
+        for (outro_id, unidade_outro), vizinho in vizinhos.items():
             outro = vizinho['protocol']
-            if outro.id not in principal:
-                if len(principal) >= limite:
+            chave_no = (outro.id, unidade_outro or '')
+            if chave_no not in selecionados:
+                if len(selecionados) >= limite:
                     truncada = True
                     continue
-                principal[outro.id] = outro
-                fila.append(outro)
-            chave = (min(atual.id, outro.id), max(atual.id, outro.id),
-                     vizinho['tipo'])
-            existente = arestas.get(chave)
+                selecionados[chave_no] = outro
+                fila.append((outro, unidade_outro or ''))
+            de = (atual.id, unidade_atual or '')
+            para = (outro.id, unidade_outro or '')
+            chave_aresta = (min(de, para), max(de, para), vizinho['tipo'])
+            existente = arestas.get(chave_aresta)
             if existente is None:
-                arestas[chave] = {
-                    'de': atual.id,
-                    'para': outro.id,
+                arestas[chave_aresta] = {
+                    'de': de,
+                    'para': para,
                     'tipo': vizinho['tipo'],
-                    'rotulo': _TEIA_LIGACOES.get(vizinho['tipo'], vizinho['tipo']),
+                    'rotulo': _TEIA_LIGACOES.get(
+                        vizinho['tipo'], vizinho['tipo']),
                     'evidencias': list(vizinho['evidencias']),
                 }
             else:
@@ -1376,168 +1615,203 @@ def teia_do_protocolo(protocol, limite=60):
                     if evidencia and evidencia not in existente['evidencias']:
                         existente['evidencias'].append(evidencia)
 
-    principal_lista = sorted(
-        principal.values(), key=lambda p: (_data_ordem(p), p.id))
-    principal_ids = {p.id for p in principal_lista}
+    principal_itens = list(selecionados.items())
+    principal_itens.sort(
+        key=lambda item: (_data_ordem(item[1]), item[1].id,
+                          _ordem_unidade(item[0][1])))
+    chaves_principal = set(selecionados)
 
-    # --- Ramos laterais: mesmo NS + mesmo tipo, mas outra máquina ----------
-    incluidos = dict(principal)
+    # --- Ramos laterais: mesmo NS + tipo, mas outra máquina ----------------
     ramos_por_ancora = {}
+    ramo_ids = set()
     for outro in sorted(todos, key=lambda p: (_data_ordem(p), p.id)):
-        if outro.id in incluidos:
+        if any(pid == outro.id for pid, _ in selecionados):
             continue
-        info_outro = ns_por_id.get(outro.id, {})
+        por_unidade_outro = unidades_por_id.get(outro.id) or {}
         ancoras = []
-        for ns, item in info_outro.items():
-            for candidato in principal_lista:
-                comuns, _ = _comparar_ns(
-                    {ns: item}, ns_por_id.get(candidato.id, {}))
-                if comuns:
-                    ancoras.append((candidato, ns, comuns[0][1]))
+        for (pid, unidade_atual), atual in selecionados.items():
+            info_atual = _info_da_unidade(
+                atual, unidade_atual, unidades_por_id, ns_por_id)
+            for ns, item in info_atual.items():
+                unidade_outro = _melhor_unidade(
+                    por_unidade_outro, {ns: item})
+                if unidade_outro is None:
+                    continue
+                ancoras.append((atual, unidade_atual, unidade_outro, ns,
+                                sorted(item['tipos'])[0]))
         if not ancoras:
             continue
-        ancora, ns, tipo_peca = max(
+        ancora, unidade_atual, unidade_outro, ns, tipo_peca = max(
             ancoras, key=lambda t: (_data_ordem(t[0]), t[0].id))
-        ramos_por_ancora.setdefault(ancora.id, []).append({
+        chave_ancora = (ancora.id, unidade_atual or '')
+        ramos_por_ancora.setdefault(chave_ancora, []).append({
             'protocol': outro,
+            'unidade': unidade_outro or '',
             'ns': ns,
             'tipo_peca': tipo_peca,
             'motivo': ('mesmo NS' if not _mesmo_contexto(ancora, outro)
                        else 'mesmo equipamento'),
         })
-        incluidos[outro.id] = outro
+        ramo_ids.add(outro.id)
 
-    # --- Contexto: mesmo cliente/pedido, útil para os filtros --------------
+    # --- Contexto: mesmo cliente/pedido, sem vínculo com a máquina ---------
     cliente_raiz = _cliente_normalizado(protocol)
     pedidos_raiz = _pedidos_do_protocolo(protocol)
+    ids_incluidos = {pid for pid, _ in selecionados} | ramo_ids
     contexto = []
     for outro in sorted(todos, key=lambda p: (_data_ordem(p), p.id)):
-        if outro.id in incluidos:
+        if outro.id in ids_incluidos:
             continue
-        mesmo_cliente = bool(cliente_raiz
-                             and _cliente_normalizado(outro) == cliente_raiz)
-        mesmo_pedido = bool(pedidos_raiz
-                            & _pedidos_do_protocolo(outro))
+        mesmo_cliente = bool(
+            cliente_raiz and _cliente_normalizado(outro) == cliente_raiz)
+        mesmo_pedido = bool(
+            pedidos_raiz & _pedidos_do_protocolo(outro))
         if mesmo_cliente or mesmo_pedido:
             contexto.append(outro)
-            incluidos[outro.id] = outro
 
-    # --- Flags usadas pelos filtros da tela --------------------------------
-    info_raiz = ns_por_id.get(protocol.id, {})
-    unidades_raiz = _unidades(info_raiz)
+    # --- Flags usadas pelos filtros e pelos cartões ------------------------
+    info_raiz = _info_da_unidade(
+        protocol, unidade_selecionada, unidades_por_id, ns_por_id)
+    unidades_raiz_info = _unidades(info_raiz)
     cadeia_ids = {p.id for p in protocol.get_return_chain()}
     ids_venda_pe = set()
-    if protocol.type == 'venda':
-        for info in pe_por_maquina(protocol).values():
-            if info.get('id'):
-                ids_venda_pe.add(info['id'])
-    elif protocol.type == 'ponta_entrega':
-        for vendas in vendas_por_maquina_pe(protocol).values():
-            for venda in vendas:
-                if venda.get('id'):
-                    ids_venda_pe.add(venda['id'])
+    for aresta in arestas.values():
+        if aresta['tipo'] == 'venda_pe':
+            ids_venda_pe.add(aresta['de'][0])
+            ids_venda_pe.add(aresta['para'][0])
 
-    def flags_de(outro, papel):
-        info_outro = ns_por_id.get(outro.id, {})
-        mesmo_cliente = bool(cliente_raiz
-                             and _cliente_normalizado(outro) == cliente_raiz)
-        mesmo_pedido = bool(pedidos_raiz
-                            & _pedidos_do_protocolo(outro))
+    def flags_de(outro, papel, info_no, unidade_no=''):
+        mesmo_cliente = bool(
+            cliente_raiz and _cliente_normalizado(outro) == cliente_raiz)
+        mesmo_pedido = bool(
+            pedidos_raiz & _pedidos_do_protocolo(outro))
         mesmo_equipamento = False
-        for ns, item in info_outro.items():
+        for ns, item in (info_no or {}).items():
             if _comparar_ns({ns: item}, info_raiz)[0]:
                 mesmo_equipamento = True
                 break
-        mesma_unidade = bool(_unidades(info_outro) & unidades_raiz) and (
-            mesmo_cliente or mesmo_pedido)
+        mesma_unidade = bool(
+            _unidades(info_no or {}) & unidades_raiz_info
+            and (mesmo_cliente or mesmo_pedido))
         return {
             'mesmo_pedido': mesmo_pedido,
             'mesmo_cliente': mesmo_cliente,
+            'mesmo_cliente_pedido': bool(mesmo_cliente and mesmo_pedido),
             'mesmo_equipamento': mesmo_equipamento,
             'mesma_unidade': mesma_unidade,
             'retorno': outro.id in cadeia_ids,
             'venda_pe': outro.id in ids_venda_pe,
-            'principal': outro.id in principal_ids,
+            'principal': papel == 'principal',
             'ramo': papel == 'ramo',
             'contexto': papel == 'contexto',
         }
 
-    principal_nos = [
-        _montar_no(p, ns_por_id.get(p.id, {}),
-                   flags_de(p, 'principal'), 'principal')
-        for p in principal_lista
-    ]
+    principal_nos = []
+    for (pid, unidade_no), p in principal_itens:
+        info_no = _info_da_unidade(
+            p, unidade_no, unidades_por_id, ns_por_id)
+        principal_nos.append(_montar_no(
+            p, info_no, flags_de(p, 'principal', info_no, unidade_no),
+            'principal', unidade_no,
+            _label_da_unidade(p, unidade_no, unidades_por_id)))
 
     ramos = []
-    ramo_ids = set()
-    for ancora in principal_lista:
-        itens = ramos_por_ancora.get(ancora.id)
+    for ancora in principal_nos:
+        itens = ramos_por_ancora.get((ancora['id'], ancora['unidade']))
         if not itens:
             continue
         nos = []
         for item in itens:
             outro = item['protocol']
-            ramo_ids.add(outro.id)
-            no = _montar_no(outro, ns_por_id.get(outro.id, {}),
-                            flags_de(outro, 'ramo'), 'ramo')
+            unidade_outro = item['unidade']
+            info_outro = _info_da_unidade(
+                outro, unidade_outro, unidades_por_id, ns_por_id)
+            no = _montar_no(
+                outro, info_outro,
+                flags_de(outro, 'ramo', info_outro, unidade_outro),
+                'ramo', unidade_outro,
+                _label_da_unidade(outro, unidade_outro, unidades_por_id))
             no['ramo_ns'] = item['ns']
             no['ramo_tipo'] = _tipo_peca_label(item['tipo_peca'])
             no['ramo_motivo'] = item['motivo']
             nos.append(no)
-        nos.sort(key=lambda no: (no['data_ordem'], no['id']))
+        nos.sort(key=lambda no: (no['data_ordem'], no['id'],
+                                 _ordem_unidade(no['unidade'])))
         ramos.append({
-            'ancora_id': ancora.id,
-            'ancora_numero': ancora.protocol_number,
-            'ancora': ancora,
+            'ancora_id': ancora['id'],
+            'ancora_unidade': ancora['unidade'],
+            'ancora_numero': ancora['numero'],
+            'ancora': ancora['protocol'],
             'nos': nos,
         })
 
-    contexto_nos = [
-        _montar_no(p, ns_por_id.get(p.id, {}),
-                   flags_de(p, 'contexto'), 'contexto')
-        for p in contexto
-    ]
+    contexto_nos = []
+    for p in contexto:
+        info_p = ns_por_id.get(p.id, {})
+        contexto_nos.append(_montar_no(
+            p, info_p, flags_de(p, 'contexto', info_p), 'contexto'))
+
+    grupos_contexto = {}
+    for no in contexto_nos:
+        grupos_contexto.setdefault(no['tipo'], []).append(no)
+    context_tipos = []
+    for tipo in sorted(
+            grupos_contexto,
+            key=lambda t: (PROTO_TYPE_LABELS.get(t, t), t)):
+        itens = grupos_contexto[tipo]
+        itens.sort(key=lambda no: (no['data_ordem'], no['id']))
+        context_tipos.append({
+            'tipo': tipo,
+            'label': PROTO_TYPE_LABELS.get(tipo, tipo),
+            'badge': itens[0]['protocol'].type_badge() or 'bg-secondary',
+            'protocolos': itens,
+        })
 
     # --- Arestas só da coluna principal ------------------------------------
     arestas_info = []
     for aresta in arestas.values():
-        if aresta['de'] not in principal_ids or aresta['para'] not in principal_ids:
+        if (aresta['de'] not in chaves_principal
+                or aresta['para'] not in chaves_principal):
             continue
+        de_protocol = por_id[aresta['de'][0]]
+        para_protocol = por_id[aresta['para'][0]]
         arestas_info.append({
-            'de': aresta['de'],
-            'para': aresta['para'],
+            'de': aresta['de'][0],
+            'para': aresta['para'][0],
+            'de_unidade': aresta['de'][1],
+            'para_unidade': aresta['para'][1],
+            'de_label': _label_da_unidade(
+                de_protocol, aresta['de'][1], unidades_por_id),
+            'para_label': _label_da_unidade(
+                para_protocol, aresta['para'][1], unidades_por_id),
             'tipo': aresta['tipo'],
             'rotulo': aresta['rotulo'],
-            'de_numero': por_id[aresta['de']].protocol_number,
-            'para_numero': por_id[aresta['para']].protocol_number,
+            'de_numero': de_protocol.protocol_number,
+            'para_numero': para_protocol.protocol_number,
             'evidencia': ' · '.join(aresta['evidencias']),
             'cor': _TEIA_CORES_ARESTA.get(aresta['tipo'], '#adb5bd'),
         })
-    arestas_info.sort(key=lambda a: (a['tipo'], a['de'], a['para']))
+    arestas_info.sort(
+        key=lambda a: (a['tipo'], a['de'], a['para'],
+                       _ordem_unidade(a['de_unidade']),
+                       _ordem_unidade(a['para_unidade'])))
 
     contagem = {}
     for aresta in arestas_info:
         contagem[aresta['tipo']] = contagem.get(aresta['tipo'], 0) + 1
 
     # --- Conferência: mesmo NS com peça diferente --------------------------
-    # A conferência olha só a máquina (coluna principal + ramos), não o
-    # contexto do cliente, para não encher a tela com casos de outra máquina.
-    lista_maquina = [protocol] + principal_lista
+    info_maquina = {}
+    for (pid, unidade_no), p in principal_itens:
+        info_maquina[(pid, unidade_no or '')] = _info_da_unidade(
+            p, unidade_no, unidades_por_id, ns_por_id)
     for ramo in ramos:
-        lista_maquina.extend(no['protocol'] for no in ramo['nos'])
-    vistos_ids = set()
-    lista_maquina_unica = []
-    for item in lista_maquina:
-        if item.id in vistos_ids:
-            continue
-        vistos_ids.add(item.id)
-        lista_maquina_unica.append(item)
+        for no in ramo['nos']:
+            info_maquina[(no['id'], no['unidade'] or '')] = no['info_ns']
 
-    # Para conferir, traga também quem repete o NS com outro tipo de peça,
-    # mesmo sendo de outro cliente/pedido (ex.: FONTE em um, RAM em outro).
-    ids_conflito = set(vistos_ids)
-    for item in lista_maquina_unica:
-        for ns in ns_por_id.get(item.id, {}):
+    ids_conflito = {pid for pid, _ in info_maquina}
+    for info_no in info_maquina.values():
+        for ns in info_no:
             for outro in ns_idx.get(ns, []):
                 ids_conflito.add(outro.id)
     lista_conflito = [por_id[i] for i in sorted(ids_conflito)][:200]
@@ -1561,26 +1835,31 @@ def teia_do_protocolo(protocol, limite=60):
                     'id_b': b.id,
                     'tipos_a': [_tipo_peca_label(t) for t in tipos_a],
                     'tipos_b': [_tipo_peca_label(t) for t in tipos_b],
-                    'unidades_a': sorted(info_a['unidades']),
-                    'unidades_b': sorted(info_b['unidades']),
+                    'unidades_a': sorted(
+                        info_a['unidades'], key=_ordem_unidade),
+                    'unidades_b': sorted(
+                        info_b['unidades'], key=_ordem_unidade),
                 })
     conflitos.sort(key=lambda c: (c['ns'], c['protocolo_a']))
 
     # --- NS iguais com o mesmo tipo (ligações reais) -----------------------
     ns_comuns_mapa = {}
-    for item in lista_maquina_unica:
-        info = ns_por_id.get(item.id, {})
-        for ns, dados in info.items():
+    for (pid, unidade_no), p in principal_itens:
+        info_no = info_maquina.get((pid, unidade_no or ''), {})
+        for ns, dados in info_no.items():
             for tipo in dados['tipos']:
                 chave = (ns, tipo)
                 entrada = ns_comuns_mapa.setdefault(chave, {
                     'ns': ns,
                     'tipo': _tipo_peca_label(tipo),
-                    'protocolos': set(),
-                    'ids': set(),
+                    'protocolos': {},
                 })
-                entrada['protocolos'].add(item.protocol_number)
-                entrada['ids'].add(item.id)
+                entrada['protocolos'][p.id] = {
+                    'numero': p.protocol_number,
+                    'unidade': unidade_no or '',
+                    'unidade_label': _label_da_unidade(
+                        p, unidade_no, unidades_por_id),
+                }
     ns_comuns = []
     for chave in sorted(ns_comuns_mapa):
         entrada = ns_comuns_mapa[chave]
@@ -1589,15 +1868,20 @@ def teia_do_protocolo(protocol, limite=60):
         ns_comuns.append({
             'ns': entrada['ns'],
             'tipo': entrada['tipo'],
-            'protocolos': sorted(entrada['protocolos']),
-            'ids': sorted(entrada['ids']),
+            'protocolos': [
+                entrada['protocolos'][pid]
+                for pid in sorted(entrada['protocolos'])],
+            'ids': sorted(entrada['protocolos']),
         })
 
     # --- Pedidos da coluna principal ---------------------------------------
+    protocolos_principais = {}
+    for (pid, unidade_no), p in principal_itens:
+        protocolos_principais[pid] = p
     pedidos_principais = {}
-    for item in principal_lista:
-        for pedido in _pedidos_do_protocolo(item):
-            pedidos_principais.setdefault(pedido, []).append(item)
+    for p in protocolos_principais.values():
+        for pedido in _pedidos_do_protocolo(p):
+            pedidos_principais.setdefault(pedido, []).append(p)
     por_pedido = []
     for pedido, itens in sorted(pedidos_principais.items()):
         if len(itens) < 2:
@@ -1610,7 +1894,7 @@ def teia_do_protocolo(protocol, limite=60):
     pedido_conflito = len(pedidos_principais) > 1
     pedidos_principais_lista = sorted(pedidos_principais)
 
-    nodes_info = principal_nos + contexto_nos
+    nodes_info = list(principal_nos)
     for ramo in ramos:
         nodes_info.extend(ramo['nos'])
 
@@ -1619,6 +1903,7 @@ def teia_do_protocolo(protocol, limite=60):
         'main': principal_nos,
         'branches': ramos,
         'context': contexto_nos,
+        'context_tipos': context_tipos,
         'nodes': nodes_info,
         'edges': arestas_info,
         'ligacoes': _TEIA_LIGACOES,
@@ -1627,6 +1912,7 @@ def teia_do_protocolo(protocol, limite=60):
         'truncada': truncada,
         'total': len(nodes_info),
         'total_principal': len(principal_nos),
+        'total_ramos': len(ramo_ids),
         'ns_raiz': sorted(info_raiz),
         'ns_comuns': ns_comuns,
         'conflicts': conflitos,
@@ -1634,6 +1920,9 @@ def teia_do_protocolo(protocol, limite=60):
         'pedido_conflito': pedido_conflito,
         'pedidos_principais': pedidos_principais_lista,
         'ramo_ids': sorted(ramo_ids),
+        'unidades': unidades,
+        'unidade_selecionada': unidade_selecionada,
+        'unidade_label': unidade_label,
     }
 
 
@@ -1668,9 +1957,19 @@ def sugestoes_preenchimento(protocol, teia=None):
     if not teia:
         return {'itens': [], 'conflitos': [], 'principal': []}
 
-    principais = [no['protocol'] for no in teia['main']]
-    if protocol.id not in {p.id for p in principais}:
+    principais = []
+    info_por_no = {}
+    vistos = set()
+    for no in teia['main']:
+        p = no['protocol']
+        info_por_no[p.id] = no.get('info_ns') or ns_do_protocolo(p)
+        if p.id in vistos:
+            continue
+        vistos.add(p.id)
+        principais.append(p)
+    if protocol.id not in vistos:
         principais.append(protocol)
+        info_por_no[protocol.id] = ns_do_protocolo(protocol)
     principais.sort(key=lambda p: (_data_ordem(p), p.id))
 
     itens = []
@@ -1731,7 +2030,10 @@ def sugestoes_preenchimento(protocol, teia=None):
 
     # --- Passagens nos protocolos de retorno ------------------------------
     alvo_passagem = max(principais, key=lambda p: (_data_ordem(p), p.id))
-    info_por_id = {p.id: ns_do_protocolo(p) for p in principais}
+    info_por_id = {
+        p.id: info_por_no.get(p.id) or ns_do_protocolo(p)
+        for p in principais
+    }
 
     def _origem_provavel(alvo):
         if alvo.type not in ('rma', 'servico'):
@@ -1880,9 +2182,9 @@ def _backup_antes_preenchimento():
     return destino
 
 
-def aplicar_preenchimento(protocol, indices):
+def aplicar_preenchimento(protocol, indices, unidade=None):
     """Aplica somente as sugestões escolhidas. Sempre faz backup antes."""
-    teia = teia_do_protocolo(protocol)
+    teia = teia_do_protocolo(protocol, unidade=unidade)
     pacote = sugestoes_preenchimento(protocol, teia)
     itens = pacote['itens']
 

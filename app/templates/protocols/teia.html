@@ -31,7 +31,11 @@
         padding: .05rem .35rem; margin: 0 .25rem .25rem 0; background: #0d1117;
     }
     .teia-contexto-card { border-left-color: #6c757d; }
-    .teia-contexto-card[data-contexto="1"] { display: none; }
+    .teia-maquina { border-top: 1px dashed #343a40; padding-top: .45rem; }
+    .teia-maquina-titulo {
+        font-size: .74rem; text-transform: uppercase; letter-spacing: .04em;
+        color: #8b949e; margin-bottom: .3rem;
+    }
     .teia-legenda { font-size: .78rem; color: #8b949e; }
 </style>
 
@@ -45,7 +49,7 @@
         </div>
     </div>
     <div class="d-flex gap-2 flex-wrap">
-        <a href="{{ url_for('protocols.ajustar_protocol', id=protocol.id) }}"
+        <a href="{{ url_for('protocols.ajustar_protocol', id=protocol.id, maquina=maquina) if maquina else url_for('protocols.ajustar_protocol', id=protocol.id) }}"
            class="btn btn-outline-warning" target="_blank">
             <i class="bi bi-pencil-square"></i> Ajustar identificação
         </a>
@@ -76,7 +80,7 @@
         {{ teia.pedidos_principais|join(' · ') }}.
         O pedido original precisa ser o mesmo na corrente.
     </div>
-    <a href="{{ url_for('protocols.ajustar_protocol', id=protocol.id) }}"
+    <a href="{{ url_for('protocols.ajustar_protocol', id=protocol.id, maquina=maquina) if maquina else url_for('protocols.ajustar_protocol', id=protocol.id) }}"
        class="btn btn-sm btn-warning" target="_blank">
         <i class="bi bi-pencil-square"></i> Ajustar agora
     </a>
@@ -110,6 +114,33 @@
     </div>
 </div>
 
+<div class="card border-info mb-3">
+    <div class="card-body py-2 d-flex flex-wrap align-items-center gap-2">
+        <span class="fw-bold"><i class="bi bi-pc-display"></i> Máquina:</span>
+        {% if teia.unidades|length > 1 %}
+        <form method="get" class="d-flex align-items-center gap-2 flex-wrap">
+            <select name="maquina" class="form-select form-select-sm"
+                    style="max-width: 26rem" onchange="this.form.submit()">
+                {% for u in teia.unidades %}
+                <option value="{{ u.valor }}" {{ 'selected' if u.selecionada else '' }}>
+                    {{ u.label }} — {{ u.ns }} peça(s){% if u.ligacoes %} · {{ u.ligacoes }} ligação(ões){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+            <noscript><button class="btn btn-sm btn-info text-dark">Ver</button></noscript>
+        </form>
+        <span class="small text-secondary">
+            A linha do tempo mostra uma máquina por vez. Use o seletor para ver as outras.
+        </span>
+        {% else %}
+        <span class="badge bg-info text-dark">{{ teia.unidade_label }}</span>
+        <span class="small text-secondary">
+            {{ teia.ns_raiz|length }} peça(s) nesta máquina.
+        </span>
+        {% endif %}
+    </div>
+</div>
+
 {% if sugestoes and sugestoes.itens %}
 <div class="card border-info mb-3">
     <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -123,6 +154,7 @@
             Um backup é feito antes de aplicar.
         </p>
         <form method="post" action="{{ url_for('protocols.preencher_teia', id=protocol.id) }}">
+            {% if maquina %}<input type="hidden" name="maquina" value="{{ maquina }}">{% endif %}
             <div class="table-responsive">
                 <table class="table table-dark table-sm align-middle mb-2">
                     <thead>
@@ -157,7 +189,7 @@
                 <button type="submit" class="btn btn-info text-dark">
                     <i class="bi bi-check-lg"></i> Sim, aplicar selecionados
                 </button>
-                <a href="{{ url_for('protocols.teia_protocol', id=protocol.id) }}"
+                <a href="{{ url_for('protocols.teia_protocol', id=protocol.id, maquina=maquina) if maquina else url_for('protocols.teia_protocol', id=protocol.id) }}"
                    class="btn btn-outline-secondary">
                     <i class="bi bi-x-lg"></i> Não, obrigado
                 </a>
@@ -181,7 +213,7 @@
         </li>
         {% endfor %}
     </ul>
-    <a href="{{ url_for('protocols.ajustar_protocol', id=protocol.id) }}"
+    <a href="{{ url_for('protocols.ajustar_protocol', id=protocol.id, maquina=maquina) if maquina else url_for('protocols.ajustar_protocol', id=protocol.id) }}"
        class="btn btn-sm btn-warning" target="_blank">
         <i class="bi bi-pencil-square"></i> Abrir aba de ajuste
     </a>
@@ -191,16 +223,17 @@
 <div class="card border-secondary mb-3">
     <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span><i class="bi bi-funnel"></i> Filtros</span>
-        <span class="teia-legenda">Os filtros mostram protocolos do mesmo cliente/pedido fora da coluna principal.</span>
+        <span class="teia-legenda">Sem filtro, todos os outros protocolos aparecem. Os filtros apenas estreitam a lista.</span>
     </div>
     <div class="card-body py-2 d-flex flex-wrap gap-3">
         <label class="form-check form-check-inline mb-0">
             <input class="form-check-input teia-filtro-contexto" type="checkbox" data-flag="mesmo_pedido">
             <span class="form-check-label small">Mesmo pedido</span>
         </label>
-        <label class="form-check form-check-inline mb-0">
+        <label class="form-check form-check-inline mb-0"
+               title="Mostra protocolos com a mesma peça/NS ou com o mesmo cliente e o mesmo pedido">
             <input class="form-check-input teia-filtro-contexto" type="checkbox" data-flag="mesmo_equipamento">
-            <span class="form-check-label small">Mesmo equipamento</span>
+            <span class="form-check-label small">Mesmo equipamento <span class="text-secondary">(ou cliente + pedido)</span></span>
         </label>
         <label class="form-check form-check-inline mb-0">
             <input class="form-check-input teia-filtro-contexto" type="checkbox" data-flag="mesma_unidade">
@@ -223,7 +256,7 @@
 
 <div class="card border-secondary mb-3">
     <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <span><i class="bi bi-clock-history"></i> Linha do tempo da máquina</span>
+        <span><i class="bi bi-clock-history"></i> Linha do tempo da máquina: {{ teia.unidade_label }}</span>
         <span class="teia-legenda">Mais antigo embaixo · mais novo em cima</span>
     </div>
     <div class="card-body">
@@ -246,6 +279,9 @@
                             <div class="d-flex gap-1 flex-wrap">
                                 <span class="badge {{ no.protocol.type_badge() }}">{{ no.tipo_label }}</span>
                                 <span class="badge {{ no.status_badge }}">{{ no.status_label or 'Pendente' }}</span>
+                                {% if no.unidade_label %}
+                                <span class="badge bg-dark border border-secondary">{{ no.unidade_label }}</span>
+                                {% endif %}
                                 {% if no.retorno_label %}
                                 <span class="badge bg-primary">{{ no.retorno_label }}</span>
                                 {% endif %}
@@ -257,14 +293,20 @@
                             {% if no.pedido %} · <i class="bi bi-hash"></i> Pedido {{ no.pedido }}{% endif %}
                         </div>
                         {% if no.ns_detalhe %}
-                        <div class="teia-ns mt-2">
-                            {% for ns in no.ns_detalhe %}
-                            <span class="teia-chip">
-                                <code>{{ ns.ns }}</code>
-                                <span class="text-secondary">· {{ ns.tipos_label }}</span>
-                                {% if ns.unidades %}<span class="text-secondary">· Un. {{ ns.unidades|join(', ') }}</span>{% endif %}
-                            </span>
-                            {% endfor %}
+                        <div class="teia-maquina mt-2">
+                            <div class="teia-maquina-titulo">
+                                <i class="bi bi-pc-display"></i> {{ no.unidade_label or 'Sem unidade' }}
+                                <span class="text-secondary">· {{ no.ns_detalhe|length }} peça(s)</span>
+                            </div>
+                            <div class="teia-ns">
+                                {% for ns in no.ns_detalhe %}
+                                <span class="teia-chip">
+                                    <code>{{ ns.ns }}</code>
+                                    <span class="text-secondary">· {{ ns.tipos_label }}</span>
+                                    {% if ns.modelos_label %}<span class="text-secondary">· {{ ns.modelos_label }}</span>{% endif %}
+                                </span>
+                                {% endfor %}
+                            </div>
                         </div>
                         {% endif %}
                         <div class="mt-2 d-flex gap-1 flex-wrap">
@@ -282,7 +324,7 @@
                 </div>
 
                 <div class="teia-ramos">
-                    {% for ramo in teia.branches if ramo.ancora_id == no.id %}
+                    {% for ramo in teia.branches if ramo.ancora_id == no.id and ramo.ancora_unidade == no.unidade %}
                     <div class="teia-ramos-titulo">
                         <i class="bi bi-bezier2"></i> ao lado do {{ ramo.ancora_numero }}
                     </div>
@@ -308,6 +350,7 @@
                             <span class="badge bg-dark border border-primary">Mesmo NS</span>
                             <code>{{ r.ramo_ns }}</code>
                             <span class="text-secondary">· {{ r.ramo_tipo }}</span>
+                            {% if r.unidade_label %}<span class="text-secondary">· {{ r.unidade_label }}</span>{% endif %}
                         </div>
                         <div class="small text-secondary mt-1">
                             {{ r.ramo_motivo }} — mesma peça, outra máquina. Não entra na coluna principal.
@@ -327,40 +370,64 @@
 </div>
 
 <div class="card border-secondary mb-3">
-    <div class="card-header py-2">
-        <i class="bi bi-people"></i> Outros protocolos deste cliente/pedido
-        <span class="small text-secondary ms-1">(use os filtros acima para mostrar)</span>
+    <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span><i class="bi bi-people"></i> Outros protocolos deste cliente/pedido</span>
+        <span class="small text-secondary">
+            Sem vínculo com a máquina {{ teia.unidade_label }}. Ficam aqui para consulta.
+        </span>
     </div>
     <div class="card-body">
-        {% if teia.context %}
-        <div class="row g-2">
-            {% for no in teia.context %}
-            <div class="col-md-6 col-xl-4">
-                <div class="teia-card teia-contexto-card"
-                     data-contexto="1"
-                     data-flags="{% if no.flags.mesmo_pedido %}mesmo_pedido {% endif %}{% if no.flags.mesmo_equipamento %}mesmo_equipamento {% endif %}{% if no.flags.mesma_unidade %}mesma_unidade {% endif %}{% if no.flags.mesmo_cliente %}mesmo_cliente {% endif %}{% if no.flags.retorno %}retorno {% endif %}{% if no.flags.venda_pe %}venda_pe{% endif %}"
-                     style="--teia-cor: #6c757d">
-                    <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
-                        <a href="{{ url_for('protocols.detail_protocol', id=no.id, voltar=voltar_atual) }}"
-                           class="fw-bold text-info text-decoration-none">{{ no.numero }}</a>
-                        <span class="badge {{ no.protocol.type_badge() }}">{{ no.tipo_label }}</span>
+        {% if teia.context_tipos %}
+        <ul class="nav nav-tabs mb-3" role="tablist">
+            {% for grupo in teia.context_tipos %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {{ 'active' if loop.first else '' }}"
+                        id="ctx-tab-{{ grupo.tipo }}"
+                        data-bs-toggle="tab"
+                        data-bs-target="#ctx-{{ grupo.tipo }}"
+                        type="button" role="tab">
+                    {{ grupo.label }}
+                    <span class="badge {{ grupo.badge }} ms-1">{{ grupo.protocolos|length }}</span>
+                </button>
+            </li>
+            {% endfor %}
+        </ul>
+        <div class="tab-content">
+            {% for grupo in teia.context_tipos %}
+            <div class="tab-pane fade {{ 'show active' if loop.first else '' }}"
+                 id="ctx-{{ grupo.tipo }}" role="tabpanel">
+                <div class="row g-2">
+                    {% for no in grupo.protocolos %}
+                    <div class="col-md-6 col-xl-4">
+                        <div class="teia-card teia-contexto-card"
+                             data-contexto="1"
+                             data-flags="{% if no.flags.mesmo_pedido %}mesmo_pedido {% endif %}{% if no.flags.mesmo_cliente_pedido %}mesmo_cliente_pedido {% endif %}{% if no.flags.mesmo_equipamento %}mesmo_equipamento {% endif %}{% if no.flags.mesma_unidade %}mesma_unidade {% endif %}{% if no.flags.mesmo_cliente %}mesmo_cliente {% endif %}{% if no.flags.retorno %}retorno {% endif %}{% if no.flags.venda_pe %}venda_pe{% endif %}"
+                             style="--teia-cor: #6c757d">
+                            <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                                <a href="{{ url_for('protocols.detail_protocol', id=no.id, voltar=voltar_atual) }}"
+                                   class="fw-bold text-info text-decoration-none">{{ no.numero }}</a>
+                                <span class="badge {{ no.protocol.type_badge() }}">{{ no.tipo_label }}</span>
+                            </div>
+                            <div class="small text-secondary mt-1">
+                                {% if no.data %}{{ no.data }}{% endif %}
+                                {% if no.cliente %} · {{ no.cliente }}{% endif %}
+                                {% if no.pedido %} · Pedido {{ no.pedido }}{% endif %}
+                            </div>
+                            <div class="mt-2 d-flex gap-1 flex-wrap">
+                                {% if no.flags.mesmo_cliente_pedido %}
+                                <span class="badge bg-dark border border-success">Mesmo cliente e pedido</span>
+                                {% else %}
+                                {% if no.flags.mesmo_pedido %}<span class="badge bg-dark border border-warning">Mesmo pedido</span>{% endif %}
+                                {% if no.flags.mesmo_cliente %}<span class="badge bg-dark border border-secondary">Mesmo cliente</span>{% endif %}
+                                {% endif %}
+                                {% if no.flags.mesmo_equipamento %}<span class="badge bg-dark border border-primary">Mesmo equipamento</span>{% endif %}
+                                {% if no.flags.mesma_unidade %}<span class="badge bg-dark border border-info">Mesma unidade</span>{% endif %}
+                                {% if no.flags.retorno %}<span class="badge bg-dark border border-info">Retorno</span>{% endif %}
+                                {% if no.flags.venda_pe %}<span class="badge bg-dark border border-success">Venda ↔ PE</span>{% endif %}
+                            </div>
+                        </div>
                     </div>
-                    <div class="small text-secondary mt-1">
-                        {% if no.data %}{{ no.data }}{% endif %}
-                        {% if no.cliente %} · {{ no.cliente }}{% endif %}
-                        {% if no.pedido %} · Pedido {{ no.pedido }}{% endif %}
-                    </div>
-                    <div class="mt-2 d-flex gap-1 flex-wrap">
-                        {% if no.flags.mesmo_pedido %}<span class="badge bg-dark border border-warning">Mesmo pedido</span>{% endif %}
-                        {% if no.flags.mesmo_equipamento %}<span class="badge bg-dark border border-primary">Mesmo equipamento</span>{% endif %}
-                        {% if no.flags.mesma_unidade %}<span class="badge bg-dark border border-info">Mesma unidade</span>{% endif %}
-                        {% if no.flags.mesmo_cliente %}<span class="badge bg-dark border border-secondary">Mesmo cliente</span>{% endif %}
-                        {% if no.flags.retorno %}<span class="badge bg-dark border border-info">Retorno</span>{% endif %}
-                        {% if no.flags.venda_pe %}<span class="badge bg-dark border border-success">Venda ↔ PE</span>{% endif %}
-                    </div>
-                    {% if no.pedido %}
-                    <div class="small text-secondary mt-1">Pedido {{ no.pedido }}</div>
-                    {% endif %}
+                    {% endfor %}
                 </div>
             </div>
             {% endfor %}
@@ -391,10 +458,16 @@
                         <tbody>
                             {% for aresta in teia.edges %}
                             <tr>
-                                <td><a href="{{ url_for('protocols.detail_protocol', id=aresta.de, voltar=voltar_atual) }}"
-                                       class="text-info">{{ aresta.de_numero }}</a></td>
-                                <td><a href="{{ url_for('protocols.detail_protocol', id=aresta.para, voltar=voltar_atual) }}"
-                                       class="text-info">{{ aresta.para_numero }}</a></td>
+                                <td>
+                                    <a href="{{ url_for('protocols.detail_protocol', id=aresta.de, voltar=voltar_atual) }}"
+                                       class="text-info">{{ aresta.de_numero }}</a>
+                                    {% if aresta.de_label %}<div class="small text-secondary">{{ aresta.de_label }}</div>{% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('protocols.detail_protocol', id=aresta.para, voltar=voltar_atual) }}"
+                                       class="text-info">{{ aresta.para_numero }}</a>
+                                    {% if aresta.para_label %}<div class="small text-secondary">{{ aresta.para_label }}</div>{% endif %}
+                                </td>
                                 <td>
                                     <span style="display:inline-block;width:12px;height:4px;border-radius:2px;background:{{ aresta.cor }};vertical-align:middle"></span>
                                     {{ aresta.rotulo }}
@@ -429,7 +502,7 @@
                             <tr>
                                 <th>NS</th>
                                 <th>Peça</th>
-                                <th>Protocolos</th>
+                                <th>Protocolos e máquina</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -438,8 +511,10 @@
                                 <td><code>{{ item.ns }}</code></td>
                                 <td class="small">{{ item.tipo }}</td>
                                 <td class="small">
-                                    {% for numero in item.protocolos %}
-                                    <span class="badge bg-dark border border-secondary me-1 mb-1">{{ numero }}</span>
+                                    {% for protocolo_item in item.protocolos %}
+                                    <span class="badge bg-dark border border-secondary me-1 mb-1">
+                                        {{ protocolo_item.numero }}{% if protocolo_item.unidade_label %} · {{ protocolo_item.unidade_label }}{% endif %}
+                                    </span>
                                     {% endfor %}
                                 </td>
                             </tr>
@@ -516,6 +591,7 @@
                     <tr>
                         <th>Protocolo</th>
                         <th>Tipo</th>
+                        <th>Máquina</th>
                         <th>Data</th>
                         <th>NS registrados</th>
                     </tr>
@@ -533,12 +609,14 @@
                             {% if no.papel == 'contexto' %}<span class="badge bg-dark border border-secondary ms-1">contexto</span>{% endif %}
                         </td>
                         <td class="small">{{ no.tipo_label }}</td>
+                        <td class="small">{{ no.unidade_label or '-' }}</td>
                         <td class="small">{{ no.data or '-' }}</td>
                         <td>
                             {% for detalhe in no.ns_detalhe %}
                             <span class="teia-chip">
                                 <code class="{{ 'text-warning' if detalhe.ns in teia.ns_raiz else '' }}">{{ detalhe.ns }}</code>
                                 <span class="text-secondary">· {{ detalhe.tipos_label }}</span>
+                                {% if detalhe.modelos_label %}<span class="text-secondary">· {{ detalhe.modelos_label }}</span>{% endif %}
                             </span>
                             {% endfor %}
                             {% if not no.ns_detalhe %}<span class="small text-secondary">Sem NS registrado</span>{% endif %}
@@ -580,6 +658,14 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const filtros = document.querySelectorAll('.teia-filtro-contexto');
+    // "Mesmo equipamento" também aceita a confirmação por cliente + pedido.
+    const grupos = {
+        mesmo_equipamento: ['mesmo_equipamento', 'mesmo_cliente_pedido']
+    };
+    function aceita(flag, flags) {
+        const nomes = grupos[flag] || [flag];
+        return nomes.some(function (nome) { return flags.indexOf(nome) !== -1; });
+    }
     function aplicarFiltros() {
         const ativos = Array.prototype.map.call(
             document.querySelectorAll('.teia-filtro-contexto:checked'),
@@ -587,7 +673,8 @@ document.addEventListener('DOMContentLoaded', function () {
         );
         document.querySelectorAll('[data-contexto="1"]').forEach(function (card) {
             const flags = (card.dataset.flags || '').split(/\s+/);
-            const mostrar = ativos.some(function (flag) { return flags.indexOf(flag) !== -1; });
+            const mostrar = ativos.length === 0
+                || ativos.some(function (flag) { return aceita(flag, flags); });
             card.style.display = mostrar ? '' : 'none';
         });
     }
