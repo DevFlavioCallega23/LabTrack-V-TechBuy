@@ -195,7 +195,9 @@ def create_app():
     def nl2br_filter(text):
         if not text:
             return Markup('')
-        return Markup(escape(text).replace('\n', '<br>'))
+        texto = str(text).replace('\r\n', '\n').replace('\r', '\n')
+        # Escapa o conteúdo e só depois troca a quebra por <br> de verdade.
+        return Markup(escape(texto).replace('\n', Markup('<br>')))
 
     @app.template_filter('from_json')
     def from_json_filter(text):
