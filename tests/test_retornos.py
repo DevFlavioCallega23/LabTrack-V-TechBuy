@@ -329,6 +329,16 @@ def test_tela_de_novo_protocolo_tem_caixa_de_busca(app, logged_client):
     assert 'id="resultadoBuscaAnterior"' in html
 
 
+def test_caixa_de_busca_so_aparece_em_rma_e_servico(app, logged_client):
+    """A caixa 'Puxar de um protocolo existente' é exclusiva de RMA e Serviço."""
+    html = logged_client.get('/protocolos/novo').get_data(as_text=True)
+    trecho = html[html.index('Puxar de um protocolo existente') - 400:
+                  html.index('Puxar de um protocolo existente')]
+    assert 'data-show-for="rma,servico"' in trecho
+    assert 'field-group' in trecho
+    assert 'display:none' in trecho
+
+
 def test_tela_de_novo_protocolo_tem_botao_retorno_de_pro(app, logged_client):
     html = logged_client.get('/protocolos/novo').get_data(as_text=True)
     assert 'Retorno de PRO' in html
