@@ -4,11 +4,12 @@ from datetime import datetime
 from werkzeug.datastructures import MultiDict
 
 from app import db as _db
-from app.models import Component, Protocol, User
+from app.models import Component, EstoqueUso, Protocol, User
 from app.routes.protocols.helpers import (
     aplicar_vinculos_pe,
     buscar_pronta_entrega,
     limpar_vinculos_pe,
+    maquinas_pronta_entrega_para_home,
     normalizar_ns,
     ns_bate,
     parse_pe_refs,
@@ -376,3 +377,49 @@ def test_ns_obrigatorio_na_pe_e_facultativo_so_na_maquina_pe_da_venda():
     # RMA e serviço continuam com NS opcional.
     comps = parse_components(_form('servico'), 'servico')
     assert [c.component_type for c in comps] == ['processador', 'fonte']
+
+
+
+
+def test_home_pe_lista_disponiveis_e_vendidas(app):
+    pe_disponivel = _pe_com_maquina(app, 'PRO-2099-9701', unit='01', fonte='970001')
+    pe_vendida = _pe_com_maquina(app, 'PRO-2099-9702', unit='02', fonte='970002')
+    _venda_com_pe(app, 'PRO-2099-9703', pe_vendida, unit='02', fonte='970002')
+
+    with app.app_context():
+        maquinas = maquinas_pronta_entrega_para_home(incluir_estoque=False)
+
+    por_id = {(m['protocol_id'], m['unit']): m for m in maquinas}
+    assert por_id[(pe_disponivel, '01')]['disponivel'] is True
+    assert por_id[(pe_disponivel, '01')]['fonte'] == '970001'
+    assert por_id[(pe_vendida, '02')]['disponivel'] is False
+    assert por_id[(pe_vendida, '02')]['vendas'][0]['protocol_number'] == 'PRO-2099-9703'
+
+
+def test_home_pe_marca_maquina_encontrada_no_estoque(app):
+    pe_id = _pe_com_maquina(app, 'PRO-2099-9704', unit='01', fonte='970004')
+    with app.app_context():
+        item = EstoqueUso(equipamento='Fonte 970004', ns='970004')
+        _db.session.add(item)
+        _db.session.commit()
+        item_id = item.id
+
+    with app.app_context():
+        maquinas = maquinas_pronta_entrega_para_home(incluir_estoque=True)
+
+    alvo = next(m for m in maquinas
+                if m['protocol_id'] == pe_id and m['unit'] == '01')
+    assert alvo['estoque_registrado'] is True
+    assert alvo['estoque_id'] == item_id
+
+
+def test_home_mostra_secao_de_pronta_entrega(app, logged_client):
+    _pe_com_maquina(app, 'PRO-2099-9705', unit='01', fonte='970005')
+
+    html = logged_client.get('/').get_data(as_text=True)
+
+    assert 'M\u00e1quinas de Pronta-Entrega' in html
+    assert 'PRO-2099-9705' in html
+    assert '970005' in html
+    assert 'data-pe-filtro="disponivel"' in html
+    assert 'data-pe-filtro="vendida"' in html

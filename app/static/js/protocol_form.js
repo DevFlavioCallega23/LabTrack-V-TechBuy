@@ -1971,6 +1971,39 @@ document.addEventListener('DOMContentLoaded', function() {
         hidden.value = JSON.stringify(items);
     });
 
+    // Depois de salvar, a tela do formulário não deve ficar no histórico do
+    // navegador. Em uma edição aberta a partir do detalhe, volta para o detalhe
+    // (que se recarrega no mesmo item do histórico); nos demais casos, troca o
+    // formulário pelo destino.
+    function irParaDepoisDeSalvar(destino) {
+        if (!destino) {
+            window.location.reload();
+            return;
+        }
+        var id = parseInt(CFG.protocolId, 10) || 0;
+        var detalhe = id ? (window.location.origin + '/protocolos/' + id) : '';
+        var referencia = document.referrer || '';
+        var veioDoDetalhe = !!detalhe &&
+            window.history.length > 1 &&
+            referencia.indexOf(detalhe) === 0 &&
+            referencia.indexOf('/editar') === -1;
+
+        if (veioDoDetalhe) {
+            try {
+                window.sessionStorage.setItem(
+                    'labtrack_atualizar_detalhe', String(id));
+                // A entrada atual passa a apontar para o detalhe, para que o
+                // botão "avançar" não reabra a edição.
+                window.history.replaceState(null, '', destino);
+                window.history.back();
+                return;
+            } catch (e) {
+                // Sem suporte a histórico: segue pelo caminho seguro abaixo.
+            }
+        }
+        window.location.replace(destino);
+    }
+
     // Submit via fetch to preserve JS state on validation errors
     document.querySelector('form').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -1987,36 +2020,40 @@ document.addEventListener('DOMContentLoaded', function() {
             body: formData
         }).then(function(resp) {
             if (resp.redirected) {
-                window.location.href = resp.url;
-            } else {
-                return resp.json().then(function(data) {
-                    btn.disabled = false;
-                    btn.innerHTML = 'Salvar';
-                    form.querySelectorAll('.alert').forEach(function(a) { a.remove(); });
-                    if (data.errors && data.errors.length > 0) {
-                        var alertBox = document.createElement('div');
-                        alertBox.className = 'alert alert-warning alert-dismissible fade show mt-3';
-                        alertBox.innerHTML = '<i class="bi bi-exclamation-triangle"></i> <strong>Corrija os erros abaixo:</strong><ul class="mb-0 mt-1">' +
-                            data.errors.map(function(e) { return '<li>' + e + '</li>'; }).join('') +
-                            '</ul><button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
-                        form.prepend(alertBox);
-                    } else {
-                        var alertBox = document.createElement('div');
-                        alertBox.className = 'alert alert-warning alert-dismissible fade show mt-3';
-                        alertBox.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Verifique os campos obrigatórios.<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
-                        form.prepend(alertBox);
-                    }
-                    window.scrollTo(0, 0);
-                }).catch(function() {
-                    btn.disabled = false;
-                    btn.innerHTML = 'Salvar';
+                irParaDepoisDeSalvar(resp.url);
+                return;
+            }
+            return resp.json().then(function(data) {
+                if (data.ok && data.url) {
+                    irParaDepoisDeSalvar(data.url);
+                    return;
+                }
+                btn.disabled = false;
+                btn.innerHTML = 'Salvar';
+                form.querySelectorAll('.alert').forEach(function(a) { a.remove(); });
+                if (data.errors && data.errors.length > 0) {
+                    var alertBox = document.createElement('div');
+                    alertBox.className = 'alert alert-warning alert-dismissible fade show mt-3';
+                    alertBox.innerHTML = '<i class="bi bi-exclamation-triangle"></i> <strong>Corrija os erros abaixo:</strong><ul class="mb-0 mt-1">' +
+                        data.errors.map(function(e) { return '<li>' + e + '</li>'; }).join('') +
+                        '</ul><button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                    form.prepend(alertBox);
+                } else {
                     var alertBox = document.createElement('div');
                     alertBox.className = 'alert alert-warning alert-dismissible fade show mt-3';
                     alertBox.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Verifique os campos obrigatórios.<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
                     form.prepend(alertBox);
-                    window.scrollTo(0, 0);
-                });
-            }
+                }
+                window.scrollTo(0, 0);
+            }).catch(function() {
+                btn.disabled = false;
+                btn.innerHTML = 'Salvar';
+                var alertBox = document.createElement('div');
+                alertBox.className = 'alert alert-warning alert-dismissible fade show mt-3';
+                alertBox.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Verifique os campos obrigatórios.<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                form.prepend(alertBox);
+                window.scrollTo(0, 0);
+            });
         }).catch(function() {
             btn.disabled = false;
             btn.innerHTML = 'Salvar';

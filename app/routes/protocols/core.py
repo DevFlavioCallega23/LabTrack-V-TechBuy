@@ -198,6 +198,9 @@ def create_protocol():
             for aviso in avisos_pe_ja_vendida(protocol):
                 flash(aviso, 'warning')
         flash(f'Protocolo {protocol_number} criado com sucesso!', 'success')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'ok': True,
+                            'url': url_for('protocols.detail_protocol', id=protocol.id)})
         return redirect(url_for('protocols.detail_protocol', id=protocol.id))
 
     if request.method == 'POST':
@@ -613,6 +616,9 @@ def edit_protocol(id):
             for aviso in avisos_pe_ja_vendida(protocol):
                 flash(aviso, 'warning')
         flash(f'Protocolo {protocol.protocol_number} atualizado!', 'success')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'ok': True,
+                            'url': url_for('protocols.detail_protocol', id=protocol.id)})
         return redirect(url_for('protocols.detail_protocol', id=protocol.id))
 
     if request.method == 'POST':

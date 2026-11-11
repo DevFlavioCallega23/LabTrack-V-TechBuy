@@ -839,5 +839,36 @@ document.querySelectorAll('.status-select').forEach(function(sel) {
         }.bind(this));
     });
 });
+
+// Depois de salvar uma edição, o formulário volta para este detalhe pelo
+// histórico. Aqui a página se recarrega no mesmo item do histórico para
+// mostrar os dados novos e deixar o "voltar" seguir para a lista.
+(function () {
+    var CHAVE = 'labtrack_atualizar_detalhe';
+    var idAtual = '{{ protocol.id }}';
+
+    function veioDoHistorico(evento) {
+        if (evento && evento.persisted) return true;
+        try {
+            var entradas = performance.getEntriesByType('navigation');
+            return !!(entradas.length && entradas[0].type === 'back_forward');
+        } catch (e) {
+            return false;
+        }
+    }
+
+    window.addEventListener('pageshow', function (evento) {
+        var marcado = null;
+        try {
+            marcado = sessionStorage.getItem(CHAVE);
+        } catch (e) {
+            return;
+        }
+        if (!marcado) return;
+        sessionStorage.removeItem(CHAVE);
+        if (marcado !== idAtual || !veioDoHistorico(evento)) return;
+        window.location.replace(window.location.href);
+    });
+})();
 </script>
 {% endblock %}

@@ -303,3 +303,27 @@ a:hover .card-link-hover {
 .chev-rot {
     transition: transform 0.2s ease;
 }
+
+/* Tabela de Pronta-Entrega da Home: rola sem esticar a página. */
+.pe-tabela-scroll {
+    max-height: 460px;
+    overflow-y: auto;
+}
+
+.pe-tabela-scroll details summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+.pe-tabela-scroll details summary::-webkit-details-marker {
+    display: none;
+}
+
+.pe-tabela-scroll details summary::before {
+    content: '▸ ';
+    color: var(--tb-primary);
+}
+
+.pe-tabela-scroll details[open] summary::before {
+    content: '▾ ';
+}

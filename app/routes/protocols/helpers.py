@@ -11,7 +11,7 @@ from flask import current_app
 from app import db
 from app.datas import parse_date_br as parse_date_br  # noqa: F401  (reexportado)
 from app.labels import COMPONENT_LABELS, PROTO_TYPE_LABELS
-from app.models import Protocol, Component, Defect, WindowsKey
+from app.models import Protocol, Component, Defect, WindowsKey, EstoqueUso
 
 def gerar_numero_protocolo():
     """PRO-ANO-NNNN com contagem reiniciando a cada ano (0001 em diante)."""
@@ -673,6 +673,100 @@ def buscar_pronta_entrega(ns='', pe_numero='', unit='', ignorar_venda_id=None, l
             if len(resultados) >= limite:
                 return resultados
     return resultados
+
+
+def maquinas_pronta_entrega_para_home(incluir_estoque=True):
+    """Lista todas as máquinas de Pronta-Entrega para a visão geral da Home.
+
+    Cada item traz a unidade, os componentes, a fonte (NS), as vendas ativas
+    ligadas àquela máquina e, opcionalmente, se algum NS dela aparece no Uso
+    do Estoque. A disponibilidade segue a mesma regra da tela do protocolo:
+    uma máquina está disponível quando não há venda ativa ligada a ela.
+    """
+    # Vendas ativas por (protocolo da PE, unidade), calculadas de uma vez.
+    vendas_por_unidade = {}
+    for venda in Protocol.query.filter(Protocol.type == 'venda').order_by(Protocol.id).all():
+        if (venda.status or '').lower() == 'cancelado':
+            continue
+        for info in venda.get_pe_refs().values():
+            if not isinstance(info, dict):
+                continue
+            try:
+                pe_id = int(info.get('protocol_id'))
+            except (TypeError, ValueError):
+                continue
+            unit = _unidade(info.get('unit'))
+            vendas_por_unidade.setdefault((pe_id, unit), []).append({
+                'id': venda.id,
+                'protocol_number': venda.protocol_number,
+                'client_name': venda.client_name or '',
+                'date': venda.entry_date or venda.created_at,
+            })
+
+    # Índice dos NS do Uso do Estoque. Guarda o texto normalizado e os
+    # dígitos, para casar do mesmo jeito que o ns_bate().
+    estoque_por_texto = {}
+    estoque_por_digito = {}
+    if incluir_estoque:
+        for item in EstoqueUso.query.order_by(EstoqueUso.id).all():
+            seriais = [item.ns] + [c.serial_number for c in item.components]
+            for serial in seriais:
+                chave = normalizar_ns(serial)
+                if not chave:
+                    continue
+                estoque_por_texto.setdefault(chave, item.id)
+                digitos = _somente_digitos(chave)
+                if len(digitos) >= 4:
+                    estoque_por_digito.setdefault(digitos.lstrip('0'), item.id)
+
+    def estoque_da_maquina(comps):
+        if not incluir_estoque:
+            return None
+        for c in comps:
+            chave = normalizar_ns(c.serial_number)
+            if not chave:
+                continue
+            if chave in estoque_por_texto:
+                return estoque_por_texto[chave]
+            digitos = _somente_digitos(chave)
+            if len(digitos) >= 4:
+                achado = estoque_por_digito.get(digitos.lstrip('0'))
+                if achado:
+                    return achado
+        return None
+
+    resultado = []
+    for pe in Protocol.query.filter_by(type='ponta_entrega').order_by(Protocol.id).all():
+        unidades = {}
+        for c in pe.components:
+            unidades.setdefault(_unidade(c.unit), []).append(c)
+        for unit in sorted(unidades, key=_ordem_unidade):
+            comps = sorted(unidades[unit], key=lambda c: (c.sort_order or 0))
+            fonte = next((c.serial_number for c in comps
+                          if c.component_type == 'fonte' and c.serial_number), '')
+            nome = next((c.machine_name for c in comps if c.machine_name), '')
+            vendas = vendas_por_unidade.get((pe.id, unit), [])
+            estoque_id = estoque_da_maquina(comps)
+            data = pe.entry_date or pe.created_at
+            resultado.append({
+                'protocol_id': pe.id,
+                'protocol_number': pe.protocol_number,
+                'unit': unit,
+                'machine_name': nome,
+                'fonte': fonte,
+                'components': [{
+                    'type': c.component_type or '',
+                    'label': COMPONENT_LABELS.get(c.component_type, c.component_type or ''),
+                    'model': c.specification or '',
+                    'serial': c.serial_number or '',
+                } for c in comps if c.component_type],
+                'entry_date': data,
+                'disponivel': not vendas,
+                'vendas': vendas,
+                'estoque_id': estoque_id,
+                'estoque_registrado': bool(estoque_id),
+            })
+    return resultado
 
 
 def avisos_pe_ja_vendida(venda):

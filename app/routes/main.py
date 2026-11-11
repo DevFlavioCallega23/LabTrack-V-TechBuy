@@ -4,7 +4,9 @@ from flask_login import login_required, current_user
 from app import db
 from app.forms import QuickProtocolForm
 from app.models import Protocol
-from app.routes.protocols.helpers import gerar_numero_protocolo, parse_date_br
+from app.routes.protocols.helpers import (
+    gerar_numero_protocolo, parse_date_br, maquinas_pronta_entrega_para_home,
+)
 from sqlalchemy import extract
 
 main_bp = Blueprint('main', __name__)
@@ -51,6 +53,15 @@ def dashboard():
         p.created_at.year for p in Protocol.query.all() if p.created_at
     ), reverse=True)
 
+    pode_ver_estoque = current_user.is_master()
+    pe_maquinas = maquinas_pronta_entrega_para_home(
+        incluir_estoque=pode_ver_estoque)
+    pe_disponiveis = sum(1 for m in pe_maquinas if m['disponivel'])
+    pe_vendidas = len(pe_maquinas) - pe_disponiveis
+    pe_sem_estoque = sum(
+        1 for m in pe_maquinas
+        if m['disponivel'] and not m['estoque_registrado'])
+
     return render_template('dashboard.html',
         total=total,
         andamento=andamento, concluidos=concluidos,
@@ -58,6 +69,9 @@ def dashboard():
         dias_alerta=DIAS_ALERTA,
         anos_disponiveis=anos_disponiveis,
         f_ano=f_ano, f_mes=f_mes,
+        pe_maquinas=pe_maquinas, pe_disponiveis=pe_disponiveis,
+        pe_vendidas=pe_vendidas, pe_sem_estoque=pe_sem_estoque,
+        pode_ver_estoque=pode_ver_estoque,
         quick_form=QuickProtocolForm())
 
 
