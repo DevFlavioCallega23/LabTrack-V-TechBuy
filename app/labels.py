@@ -15,11 +15,11 @@ PROTO_TYPE_LABELS = {
 }
 
 PROTO_TYPE_BADGES = {
-    'venda': 'bg-success',
-    'ponta_entrega': 'bg-warning text-dark',
-    'rma': 'bg-primary',
-    'servico': 'bg-danger',
-    'nao_comprado': 'bg-secondary',
+    'venda': 'badge-type-venda',
+    'ponta_entrega': 'badge-type-ponta-entrega',
+    'rma': 'badge-type-rma',
+    'servico': 'badge-type-servico',
+    'nao_comprado': 'badge-type-nao-comprado',
 }
 
 PROTO_STATUS_LABELS = {

@@ -62,6 +62,55 @@ body {
     font-weight: 500;
 }
 
+/* Selos dos tipos de protocolo — cores suaves para o tema escuro. */
+:root {
+    --tb-type-venda-bg: rgba(34, 197, 94, 0.14);
+    --tb-type-venda-fg: #86efac;
+    --tb-type-venda-borda: rgba(34, 197, 94, 0.35);
+    --tb-type-pe-bg: rgba(245, 158, 11, 0.14);
+    --tb-type-pe-fg: #fcd34d;
+    --tb-type-pe-borda: rgba(245, 158, 11, 0.35);
+    --tb-type-rma-bg: rgba(56, 189, 248, 0.14);
+    --tb-type-rma-fg: #7dd3fc;
+    --tb-type-rma-borda: rgba(56, 189, 248, 0.35);
+    --tb-type-servico-bg: rgba(244, 63, 94, 0.13);
+    --tb-type-servico-fg: #fda4af;
+    --tb-type-servico-borda: rgba(244, 63, 94, 0.32);
+    --tb-type-ntb-bg: rgba(148, 163, 184, 0.12);
+    --tb-type-ntb-fg: #cbd5e1;
+    --tb-type-ntb-borda: rgba(148, 163, 184, 0.28);
+}
+
+.badge-type-venda {
+    background: var(--tb-type-venda-bg);
+    color: var(--tb-type-venda-fg);
+    box-shadow: inset 0 0 0 1px var(--tb-type-venda-borda);
+}
+
+.badge-type-ponta-entrega {
+    background: var(--tb-type-pe-bg);
+    color: var(--tb-type-pe-fg);
+    box-shadow: inset 0 0 0 1px var(--tb-type-pe-borda);
+}
+
+.badge-type-rma {
+    background: var(--tb-type-rma-bg);
+    color: var(--tb-type-rma-fg);
+    box-shadow: inset 0 0 0 1px var(--tb-type-rma-borda);
+}
+
+.badge-type-servico {
+    background: var(--tb-type-servico-bg);
+    color: var(--tb-type-servico-fg);
+    box-shadow: inset 0 0 0 1px var(--tb-type-servico-borda);
+}
+
+.badge-type-nao-comprado {
+    background: var(--tb-type-ntb-bg);
+    color: var(--tb-type-ntb-fg);
+    box-shadow: inset 0 0 0 1px var(--tb-type-ntb-borda);
+}
+
 .pagination .page-link {
     background-color: transparent;
     border-color: rgba(255, 255, 255, 0.1);
