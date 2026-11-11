@@ -30,10 +30,10 @@ PROTO_STATUS_LABELS = {
 }
 
 PROTO_STATUS_BADGES = {
-    'pendente': 'bg-warning text-dark',
-    'andamento': 'bg-dark',
-    'concluido': 'bg-info text-dark',
-    'cancelado': 'bg-danger',
+    'pendente': 'badge-status-pendente',
+    'andamento': 'badge-status-andamento',
+    'concluido': 'badge-status-concluido',
+    'cancelado': 'badge-status-cancelado',
 }
 
 # Agrupamento do relatório de tempo médio

@@ -62,7 +62,7 @@ body {
     font-weight: 500;
 }
 
-/* Selos dos tipos de protocolo — cores suaves para o tema escuro. */
+/* Selos de protocolo — tipos e status com cores suaves para o tema escuro. */
 :root {
     --tb-type-venda-bg: rgba(34, 197, 94, 0.14);
     --tb-type-venda-fg: #86efac;
@@ -79,6 +79,18 @@ body {
     --tb-type-ntb-bg: rgba(148, 163, 184, 0.12);
     --tb-type-ntb-fg: #cbd5e1;
     --tb-type-ntb-borda: rgba(148, 163, 184, 0.28);
+    --tb-status-pendente-bg: rgba(245, 158, 11, 0.14);
+    --tb-status-pendente-fg: #fcd34d;
+    --tb-status-pendente-borda: rgba(245, 158, 11, 0.35);
+    --tb-status-andamento-bg: rgba(59, 130, 246, 0.14);
+    --tb-status-andamento-fg: #93c5fd;
+    --tb-status-andamento-borda: rgba(59, 130, 246, 0.35);
+    --tb-status-concluido-bg: rgba(34, 197, 94, 0.14);
+    --tb-status-concluido-fg: #86efac;
+    --tb-status-concluido-borda: rgba(34, 197, 94, 0.35);
+    --tb-status-cancelado-bg: rgba(244, 63, 94, 0.13);
+    --tb-status-cancelado-fg: #fda4af;
+    --tb-status-cancelado-borda: rgba(244, 63, 94, 0.32);
 }
 
 .badge-type-venda {
@@ -109,6 +121,30 @@ body {
     background: var(--tb-type-ntb-bg);
     color: var(--tb-type-ntb-fg);
     box-shadow: inset 0 0 0 1px var(--tb-type-ntb-borda);
+}
+
+.badge-status-pendente {
+    background: var(--tb-status-pendente-bg);
+    color: var(--tb-status-pendente-fg);
+    box-shadow: inset 0 0 0 1px var(--tb-status-pendente-borda);
+}
+
+.badge-status-andamento {
+    background: var(--tb-status-andamento-bg);
+    color: var(--tb-status-andamento-fg);
+    box-shadow: inset 0 0 0 1px var(--tb-status-andamento-borda);
+}
+
+.badge-status-concluido {
+    background: var(--tb-status-concluido-bg);
+    color: var(--tb-status-concluido-fg);
+    box-shadow: inset 0 0 0 1px var(--tb-status-concluido-borda);
+}
+
+.badge-status-cancelado {
+    background: var(--tb-status-cancelado-bg);
+    color: var(--tb-status-cancelado-fg);
+    box-shadow: inset 0 0 0 1px var(--tb-status-cancelado-borda);
 }
 
 .pagination .page-link {

@@ -14,7 +14,7 @@
             </select>
         </div>
         {% else %}
-        <span class="badge {{ 'bg-warning text-dark' if protocol.status == 'pendente' else 'bg-info' if protocol.status == 'andamento' else 'bg-success' if protocol.status == 'concluido' else 'bg-danger' }} fs-6">{{ protocol.status_label() }}</span>
+        <span class="badge {{ protocol.status_badge() }} fs-6">{{ protocol.status_label() }}</span>
         {% endif %}
         <a href="{{ url_for('protocols.teia_protocol', id=protocol.id) }}" class="btn btn-outline-info">
             <i class="bi bi-diagram-3"></i> Teia
