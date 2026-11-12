@@ -23,7 +23,8 @@
             <i class="bi bi-arrow-left"></i> {{ voltar_label or 'Voltar' }}
         </a>
         {% if current_user.is_manager() %}
-        <a href="{{ url_for('protocols.edit_protocol', id=protocol.id) }}" class="btn btn-warning">
+        <a href="{{ url_for('protocols.edit_protocol', id=protocol.id) }}" class="btn btn-warning"
+           id="btnEditarProtocolo">
             <i class="bi bi-pencil"></i> Editar
         </a>
         <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#novoRetornoModal">
@@ -840,34 +841,18 @@ document.querySelectorAll('.status-select').forEach(function(sel) {
     });
 });
 
-// Depois de salvar uma edição, o formulário volta para este detalhe pelo
-// histórico. Aqui a página se recarrega no mesmo item do histórico para
-// mostrar os dados novos e deixar o "voltar" seguir para a lista.
+// Abrir a edição pelo detalhe substitui esta página no histórico. Assim,
+// depois de salvar, o "voltar" do navegador leva para a página anterior ao
+// detalhe (a Home, quando o caminho começou por lá) e nunca para o formulário.
 (function () {
-    var CHAVE = 'labtrack_atualizar_detalhe';
-    var idAtual = '{{ protocol.id }}';
-
-    function veioDoHistorico(evento) {
-        if (evento && evento.persisted) return true;
-        try {
-            var entradas = performance.getEntriesByType('navigation');
-            return !!(entradas.length && entradas[0].type === 'back_forward');
-        } catch (e) {
-            return false;
-        }
-    }
-
-    window.addEventListener('pageshow', function (evento) {
-        var marcado = null;
-        try {
-            marcado = sessionStorage.getItem(CHAVE);
-        } catch (e) {
-            return;
-        }
-        if (!marcado) return;
-        sessionStorage.removeItem(CHAVE);
-        if (marcado !== idAtual || !veioDoHistorico(evento)) return;
-        window.location.replace(window.location.href);
+    var botao = document.getElementById('btnEditarProtocolo');
+    if (!botao) return;
+    botao.addEventListener('click', function (evento) {
+        // Ctrl/Cmd/Shift + clique continua abrindo em outra aba.
+        if (evento.ctrlKey || evento.metaKey || evento.shiftKey || evento.altKey) return;
+        if (evento.button !== undefined && evento.button !== 0) return;
+        evento.preventDefault();
+        window.location.replace(botao.href);
     });
 })();
 </script>

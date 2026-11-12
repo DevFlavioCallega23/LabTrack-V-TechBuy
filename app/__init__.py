@@ -17,6 +17,26 @@ def get_version():
             return f.read().strip()
     except OSError:
         return '2.0.0'
+
+
+def get_asset_version(app):
+    """Data da última alteração dos arquivos estáticos.
+
+    Vai no endereço do CSS/JS (?v=...) para o navegador não continuar usando
+    uma cópia antiga depois de uma atualização do sistema.
+    """
+    pasta = app.static_folder
+    try:
+        mais_recente = max(
+            os.path.getmtime(os.path.join(raiz, nome))
+            for raiz, _, arquivos in os.walk(pasta)
+            for nome in arquivos
+        )
+        return str(int(mais_recente))
+    except (OSError, ValueError):
+        return get_version()
+
+
 login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Por favor, faça login para acessar o sistema.'
 
@@ -177,9 +197,21 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    app.config['ASSET_VERSION'] = get_asset_version(app)
+
     @app.context_processor
     def inject_version():
-        return dict(app_version=get_version())
+        return dict(app_version=get_version(),
+                    asset_v=app.config['ASSET_VERSION'])
+
+    @app.after_request
+    def paginas_sem_cache(resposta):
+        """Páginas sempre novas: o sistema é atualizado com frequência e uma
+        cópia velha no navegador pode esconder correções."""
+        if resposta.mimetype == 'text/html':
+            resposta.headers['Cache-Control'] = 'no-store, must-revalidate'
+            resposta.headers['Pragma'] = 'no-cache'
+        return resposta
 
     db.init_app(app)
     login_manager.init_app(app)

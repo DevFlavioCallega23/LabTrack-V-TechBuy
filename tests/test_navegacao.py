@@ -77,3 +77,22 @@ def test_formulario_troca_a_entrada_do_formulario_ao_salvar():
     assert 'irParaDepoisDeSalvar' in js
     assert 'window.location.href = resp.url' not in js
     assert 'window.location.replace(destino)' in js
+    # Nada de history.back()/replaceState: o resultado depende do navegador.
+    assert 'history.back()' not in js
+    assert 'history.replaceState' not in js
+
+
+def test_botao_editar_do_detalhe_substitui_a_pagina_no_historico(app, logged_client):
+    pid = _criar(app, 'PRO-2099-9803')
+    try:
+        html = logged_client.get(f'/protocolos/{pid}').get_data(as_text=True)
+        assert 'id="btnEditarProtocolo"' in html
+        assert 'window.location.replace(botao.href)' in html
+    finally:
+        _remover(app, pid)
+
+
+def test_arquivos_estaticos_tem_versao_no_endereco(app, logged_client):
+    html = logged_client.get('/protocolos/novo').get_data(as_text=True)
+    assert 'js/protocol_form.js?v=' in html
+    assert 'css/style.css?v=' in html

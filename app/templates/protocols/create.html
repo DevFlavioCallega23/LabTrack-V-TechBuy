@@ -602,5 +602,5 @@ window.PF_FORM = {
     peRefs: {{ (pe_refs_data or '{}')|tojson }}
 };
 </script>
-<script src="{{ url_for('static', filename='js/protocol_form.js') }}"></script>
+<script src="{{ url_for('static', filename='js/protocol_form.js') }}?v={{ asset_v }}"></script>
 {% endblock %}
