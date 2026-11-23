@@ -1,8 +1,10 @@
 import json
+import re
 from datetime import datetime
+from urllib.parse import unquote
 
 from app import db as _db
-from app.models import Component, Protocol, User
+from app.models import Component, Defect, Protocol, User
 from app.routes.protocols.helpers import historico_por_pedido
 
 
@@ -430,3 +432,137 @@ def test_busca_historico_por_pedido_mostra_passagens(app, logged_client):
     assert 'PRO-2099-9317' in html
     assert 'Passagens registradas' in html
     assert '111111' in html and '222222' in html
+
+
+def _wa_texto(client, pid):
+    """Extrai o texto que vai para o WhatsApp na tela do protocolo."""
+    html = client.get(f'/protocolos/{pid}').get_data(as_text=True)
+    m = re.search(r'href="(https://wa\.me/\?text=[^"]+)"', html)
+    assert m, 'link do WhatsApp não encontrado no detalhe'
+    return unquote(m.group(1).split('text=', 1)[1])
+
+
+def _servico_com_defeito(app, numero, pedido='81804'):
+    """Serviço com 3 peças, sendo 2 com defeito de mesa registrado."""
+    return _criar(
+        app, numero, 'servico',
+        client_name='Cliente WhatsApp',
+        order_number=pedido,
+        rma_entry_date=datetime(2026, 10, 15),
+        exit_date=datetime(2026, 10, 20),
+        rma_equip_itens=json.dumps({'01': {
+            'name': 'Computador 01',
+            'components': [
+                {'type': 'processador', 'model': 'I5-2500', 'serial': '131704'},
+                {'type': 'ssd', 'model': '128GB ValueTech', 'serial': '132548'},
+                {'type': 'fonte', 'model': '230W Slim', 'serial': '132768'},
+            ],
+        }}, ensure_ascii=False),
+        rma_test_result=json.dumps([
+            {'machine': 'Computador 01', 'component': 'ssd',
+             'model': '128GB ValueTech', 'serial': '132548',
+             'defeito': 'Boot não sobe', 'status': 'trocado'},
+            {'machine': 'Computador 01', 'component': 'fonte',
+             'model': '230W Slim', 'serial': '132768',
+             'defeito': 'Passagem de 3V ruim', 'status': 'trocado'},
+        ], ensure_ascii=False),
+        rma_trocados=json.dumps({'01': {
+            'name': 'Computador 01',
+            'components': [
+                {'type': 'ssd', 'model': '120GB WDGreen', 'serial': '158375'},
+                {'type': 'fonte', 'model': '230W Slim Pixxo', 'serial': '144499'},
+            ],
+        }}, ensure_ascii=False),
+    )
+
+
+def _add_defect(app, pid, tipo='placa_mae', modelo='Placa-Mãe 1155',
+                ns='132301', descricao='Sem Start com tempo desligado',
+                status=r'\"aguardando_peca\"', maquina='Máquina 01'):
+    with app.app_context():
+        _db.session.add(Defect(
+            protocol_id=pid,
+            component_type=tipo,
+            specification=modelo,
+            serial_number=ns,
+            description=descricao,
+            defeito_status=status,
+            maquina=maquina,
+        ))
+        _db.session.commit()
+
+
+def test_whatsapp_do_retorno_mostra_defeito_do_proprio_protocolo(app, logged_client):
+    origem_id = _servico_com_defeito(app, 'PRO-2099-9330')
+    logged_client.post(f'/protocolos/{origem_id}/novo-retorno',
+                       data={'type': 'servico'})
+    with app.app_context():
+        novo_id = Protocol.query.filter_by(origin_id=origem_id).one().id
+
+    # O defeito é registrado no próprio retorno (seção "Defeitos Encontrados").
+    _add_defect(app, novo_id)
+
+    texto = _wa_texto(logged_client, novo_id)
+    assert '*Equipamento com defeito:*' in texto
+    assert '*Máquina 01:*' in texto
+    assert 'Placa-Mãe 1155' in texto
+    assert 'NS: 132301' in texto
+    assert 'Defeito: Sem Start com tempo desligado' in texto
+    assert 'Situação: Aguardando peça' in texto
+    # O defeito do protocolo anterior não pode aparecer: é outra passagem.
+    assert 'Boot não sobe' not in texto
+    assert '3V ruim' not in texto
+    assert '158375' not in texto
+    assert '144499' not in texto
+
+
+def test_whatsapp_do_retorno_sem_defeito_nao_usa_o_anterior(app, logged_client):
+    origem_id = _servico_com_defeito(app, 'PRO-2099-9333')
+    logged_client.post(f'/protocolos/{origem_id}/novo-retorno',
+                       data={'type': 'servico'})
+    with app.app_context():
+        novo_id = Protocol.query.filter_by(origin_id=origem_id).one().id
+
+    texto = _wa_texto(logged_client, novo_id)
+    assert 'Equipamento com defeito' not in texto
+    assert 'Boot não sobe' not in texto
+    assert '3V ruim' not in texto
+
+
+def test_whatsapp_passagens_mostram_so_o_numero_do_protocolo(app, logged_client):
+    origem_id = _servico_com_defeito(app, 'PRO-2099-9331')
+    logged_client.post(f'/protocolos/{origem_id}/novo-retorno',
+                       data={'type': 'servico'})
+    with app.app_context():
+        novo_id = Protocol.query.filter_by(origin_id=origem_id).one().id
+
+    texto = _wa_texto(logged_client, novo_id)
+    assert '*Passagens anteriores:*' in texto
+    assert '- PRO-2099-9331' in texto
+    # Não repete NS, pedido nem datas da passagem
+    assert 'NS defeito' not in texto
+    assert 'Novo NS' not in texto
+    assert '| Pedido ' not in texto
+    assert '| Entrada ' not in texto
+
+
+def test_whatsapp_usa_teste_de_mesa_quando_nao_ha_defeitos_encontrados(app, logged_client):
+    """Sem 'Defeitos Encontrados', usa o Teste de Mesa do próprio protocolo."""
+    pid = _criar(
+        app, 'PRO-2099-9332', 'servico',
+        client_name='Cliente Sem Equipamento',
+        rma_test_result=json.dumps([{
+            'machine': 'Computador 01', 'component': 'ram',
+            'model': '8GB DDR3', 'serial': '144010',
+            'defeito': 'Sem Start', 'pedido': '81805',
+            'data_compra': '16/06/2026', 'status': 'em_teste',
+        }], ensure_ascii=False),
+    )
+
+    texto = _wa_texto(logged_client, pid)
+    assert '*Equipamento com defeito:*' in texto
+    assert 'Memória RAM 8GB DDR3' in texto
+    assert 'NS: 144010' in texto
+    assert 'Defeito: Sem Start' in texto
+    assert 'Situação: Em teste' in texto
+    assert 'Itens enviados ao laboratório' not in texto

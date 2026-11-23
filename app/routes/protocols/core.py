@@ -27,6 +27,7 @@ from app.routes.protocols.helpers import (
     criar_protocolo_retorno, historico_do_protocolo, historico_por_pedido,
     protocolos_por_pedido, historico_por_referencia, teia_do_protocolo,
     sugestoes_preenchimento, aplicar_preenchimento,
+    equipamento_com_defeito_whatsapp,
 )
 
 @protocols_bp.route('/')
@@ -357,6 +358,7 @@ def detail_protocol(id):
                            pe_vendas=pe_vendas, pe_origens=pe_origens,
                            origem=origem, retornos=retornos, cadeia=cadeia,
                            pedido_relacionados=pedido_relacionados,
+                           wa_equipamento=equipamento_com_defeito_whatsapp(protocol),
                            voltar_url=voltar_url, voltar_label=voltar_label)
 
 def _maquina_da_url():

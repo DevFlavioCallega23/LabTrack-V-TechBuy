@@ -10,7 +10,7 @@ from flask import current_app
 
 from app import db
 from app.datas import parse_date_br as parse_date_br  # noqa: F401  (reexportado)
-from app.labels import COMPONENT_LABELS, PROTO_TYPE_LABELS
+from app.labels import COMPONENT_LABELS, PROTO_TYPE_LABELS, DEFEITO_STATUS_TODOS
 from app.models import Protocol, Component, Defect, WindowsKey, EstoqueUso
 
 def gerar_numero_protocolo():
@@ -1014,6 +1014,78 @@ def historico_do_protocolo(protocol):
         'equip_itens': _equip_itens_para_retorno(protocol) or {},
         'passagens': _json_ou(protocol.rma_passagens, []) or [],
     }
+
+
+def equipamento_com_defeito_whatsapp(protocol):
+    """Peças com defeito registrado no próprio protocolo, para o WhatsApp.
+
+    Usa primeiro os "Defeitos Encontrados" (tabela ``Defect``) e, se não
+    houver, o resultado do Teste de Mesa (``rma_test_result``). Nunca usa o
+    protocolo anterior: cada passagem tem os seus próprios defeitos.
+
+    Devolve uma lista de máquinas:
+    ``[{'nome': 'Máquina 01', 'componentes': [
+        {'rotulo': 'Placa-Mãe', 'modelo': 'Placa-Mãe 1155',
+         'serial': '132301', 'defeito': 'Sem Start...',
+         'status': 'Aguardando peça'}, ...]}]``
+    """
+    if protocol.type not in ('rma', 'servico'):
+        return []
+
+    itens = []
+
+    # 1) "Defeitos Encontrados" — a mesma seção que aparece na tela.
+    for registro in protocol.defects:
+        descricao = (registro.description or '').strip()
+        if not descricao:
+            continue
+        status = (registro.defeito_status or '').replace('\\', '').strip()
+        status = status.strip('"').strip("'").strip()
+        itens.append({
+            'maquina': (registro.maquina or '').strip(),
+            'rotulo': COMPONENT_LABELS.get(
+                registro.component_type, registro.component_type or ''),
+            'modelo': (registro.specification or '').strip(),
+            'serial': (registro.serial_number or '').strip(),
+            'defeito': descricao,
+            'status': DEFEITO_STATUS_TODOS.get(status, status),
+        })
+
+    # 2) Teste de Mesa — só quando ainda não há "Defeitos Encontrados".
+    if not itens:
+        testes = _json_ou(protocol.rma_test_result, [])
+        if isinstance(testes, list):
+            for item in testes:
+                if not isinstance(item, dict):
+                    continue
+                descricao = (item.get('defeito') or '').strip()
+                if not descricao:
+                    continue
+                status = (item.get('status') or '').replace('\\', '').strip()
+                status = status.strip('"').strip("'").strip()
+                itens.append({
+                    'maquina': (item.get('machine') or '').strip(),
+                    'rotulo': COMPONENT_LABELS.get(
+                        item.get('component'), item.get('component') or ''),
+                    'modelo': (item.get('model') or '').strip(),
+                    'serial': (item.get('serial') or '').strip(),
+                    'defeito': descricao,
+                    'status': DEFEITO_STATUS_TODOS.get(status, status),
+                })
+
+    if not itens:
+        return []
+
+    # Agrupa por máquina, mantendo a ordem em que aparecem.
+    maquinas = []
+    indice = {}
+    for item in itens:
+        nome = item['maquina'] or 'Equipamento'
+        if nome not in indice:
+            indice[nome] = len(maquinas)
+            maquinas.append({'nome': nome, 'componentes': []})
+        maquinas[indice[nome]]['componentes'].append(item)
+    return maquinas
 
 
 def _pedido_normalizado(valor):

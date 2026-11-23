@@ -98,9 +98,14 @@ def test_select_status_tem_somente_duas_opcoes(logged_client, app):
         f'status removidos ainda como opcao: {valores}'
 
     # registro antigo continua sendo exibido com rotulo bonito
+    with app.app_context():
+        d = Defect.query.filter_by(protocol_id=pid).one()
+        d.defeito_status = 'devolvido'
+        db.session.commit()
+
     r = logged_client.get(f'/protocolos/{pid}')
     detalhe = r.get_data(as_text=True)
-    assert 'Em teste' in detalhe
+    assert 'Devolvido ao cliente' in detalhe
 
 
 def test_filtro_de_defeitos_tem_somente_duas_opcoes(logged_client):

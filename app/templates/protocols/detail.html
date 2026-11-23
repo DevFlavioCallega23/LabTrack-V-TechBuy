@@ -54,7 +54,7 @@
         {% elif protocol.type in ('venda', 'ponta_entrega') %}
             {% if protocol.order_number or protocol.original_order %}{% set _ = wa_parts.append('_Pedido:_ ' + (protocol.order_number or protocol.original_order)) %}{% endif %}
         {% endif %}
-        {% if protocol.rma_test_result and protocol.type in ('rma', 'servico', 'nao_comprado') %}
+        {% if protocol.rma_test_result and protocol.type in ('rma', 'servico', 'nao_comprado') and not wa_equipamento %}
             {% set rma_test = protocol.rma_test_result|from_json %}
             {% if rma_test %}
                 {% set _ = wa_parts.append('') %}
@@ -109,21 +109,34 @@
                 {% set _ = wa_parts.append('Total: ' + (rma_test|length|string) + ' item(ns) em análise.') %}
             {% endif %}
         {% endif %}
+        {# Peças com defeito registrado no próprio protocolo ("Defeitos
+           Encontrados" ou Teste de Mesa). Nunca usa o protocolo anterior. #}
+        {% if wa_equipamento %}
+            {% set _ = wa_parts.append('') %}
+            {% set _ = wa_parts.append('*Equipamento com defeito:*') %}
+            {% for maquina in wa_equipamento %}
+                {% set _ = wa_parts.append('') %}
+                {% set _ = wa_parts.append('*' + maquina.nome + ':*') %}
+                {% for comp in maquina.componentes %}
+                    {% set rotulo = comp.rotulo or '' %}
+                    {% set modelo = comp.modelo or '' %}
+                    {% set prefixo = rotulo if rotulo and rotulo.lower() not in modelo.lower() else '' %}
+                    {% set nome_comp = ((prefixo + ' ') if prefixo else '') + modelo %}
+                    {% if not nome_comp %}{% set nome_comp = rotulo or 'Item' %}{% endif %}
+                    {% set _ = wa_parts.append((loop.index|string) + ') *' + nome_comp + '*') %}
+                    {% set _ = wa_parts.append('   NS: ' + (comp.serial or 'sem NS')) %}
+                    {% set _ = wa_parts.append('   Defeito: ' + comp.defeito) %}
+                    {% if comp.status %}{% set _ = wa_parts.append('   Situação: ' + comp.status) %}{% endif %}
+                {% endfor %}
+            {% endfor %}
+        {% endif %}
         {% if protocol.rma_passagens and protocol.type in ('rma', 'servico') %}
             {% set passagens = protocol.rma_passagens|from_json %}
             {% if passagens %}
                 {% set _ = wa_parts.append('') %}
                 {% set _ = wa_parts.append('*Passagens anteriores:*') %}
                 {% for pas in passagens %}
-                    {% set bits = [] %}
-                    {% if pas.protocolo %}{% set _ = bits.append('Protocolo ' ~ pas.protocolo) %}{% endif %}
-                    {% if pas.ns %}{% set _ = bits.append('NS defeito ' ~ pas.ns) %}{% endif %}
-                    {% if pas.ns_novo %}{% set _ = bits.append('Novo NS ' ~ pas.ns_novo) %}{% endif %}
-                    {% if pas.pedido %}{% set _ = bits.append('Pedido ' ~ pas.pedido) %}{% endif %}
-                    {% if pas.data_entrada %}{% set _ = bits.append('Entrada ' ~ pas.data_entrada) %}{% endif %}
-                    {% if pas.data_saida %}{% set _ = bits.append('Saída ' ~ pas.data_saida) %}{% endif %}
-                    {% if not bits %}{% set _ = bits.append('Passagem sem detalhes') %}{% endif %}
-                    {% set _ = wa_parts.append('- ' + bits|join(' | ')) %}
+                    {% set _ = wa_parts.append('- ' + (pas.protocolo or 'Passagem sem número')) %}
                 {% endfor %}
             {% endif %}
         {% endif %}
