@@ -246,6 +246,7 @@ def create_app():
         DEFEITO_STATUS_TODOS,
         PROTO_TYPE_LABELS, peca_label, PROTO_TYPE_BADGES, PROTO_STATUS_LABELS,
         PROTO_STATUS_BADGES, PROTO_FIELD_LABELS, PROTO_SECTION_TITLES,
+        limpar_status_defeito,
     )
     app.jinja_env.globals.update(
         COMP_LABELS=COMPONENT_LABELS,
@@ -254,6 +255,7 @@ def create_app():
         DEFEITO_STATUS_LABELS=DEFEITO_STATUS_LABELS,
         DEFEITO_STATUS_TODOS=DEFEITO_STATUS_TODOS,
         DEFEITO_STATUS_BADGES=DEFEITO_STATUS_BADGES,
+        status_defeito=limpar_status_defeito,
         RESP_LABELS=DEFEITO_RESP_LABELS,
         RESP_BADGES=DEFEITO_RESP_BADGES,
         PROTO_TYPE_LABELS=PROTO_TYPE_LABELS,

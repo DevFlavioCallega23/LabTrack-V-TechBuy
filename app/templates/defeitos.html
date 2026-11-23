@@ -64,8 +64,9 @@
                 <td class="text-danger">{{ d.desc or '-' }}</td>
                 <td>{{ tipo_badge(d.tipo, d.venda_pe) }}</td>
                 <td style="white-space:nowrap">
-                    {% if d.status %}
-                    <span class="badge {{ DEFEITO_STATUS_BADGES.get(d.status, 'bg-secondary') }}">{{ DEFEITO_STATUS_TODOS.get(d.status, d.status) }}</span>
+                    {% set _st = status_defeito(d.status) %}
+                    {% if _st %}
+                    <span class="badge {{ DEFEITO_STATUS_BADGES.get(_st, 'bg-secondary') }}">{{ DEFEITO_STATUS_TODOS.get(_st, _st) }}</span>
                     {% else %}<span class="text-secondary">-</span>{% endif %}
                 </td>
                 <td style="white-space:nowrap">

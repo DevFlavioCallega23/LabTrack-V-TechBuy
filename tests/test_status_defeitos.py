@@ -115,3 +115,42 @@ def test_filtro_de_defeitos_tem_somente_duas_opcoes(logged_client):
     assert 'value="trocado"' in html
     assert 'value="em_teste"' not in html
     assert 'value="concluido"' not in html
+
+
+def test_status_gravado_com_aspas_aparece_limpo(logged_client, app):
+    """Registros antigos gravaram '\\"aguardando_peca\\"'; a tela mostra o rótulo."""
+    pid = _criar(app, 'PRO-2099-9104')
+    with app.app_context():
+        d = Defect.query.filter_by(protocol_id=pid).one()
+        d.defeito_status = r'\"aguardando_peca\"'
+        db.session.commit()
+
+    detalhe = logged_client.get(f'/protocolos/{pid}').get_data(as_text=True)
+    assert 'Aguardando peça' in detalhe
+    assert 'aguardando_peca' not in detalhe
+
+    editar = logged_client.get(f'/protocolos/{pid}/editar').get_data(as_text=True)
+    assert re.search(r'value="aguardando_peca"\s+selected', editar)
+
+    lista = logged_client.get('/defeitos/').get_data(as_text=True)
+    assert 'Aguardando peça' in lista
+    assert '\\"aguardando_peca\\"' not in lista
+
+
+def test_salvar_status_remove_aspas_antigas(logged_client, app):
+    pid = _criar(app, 'PRO-2099-9105')
+    dados = MultiDict([
+        ('type', 'rma'), ('client_name', 'Cliente Status'),
+        ('seller', 'Myris'), ('status', 'andamento'),
+        ('entry_date', '01/02/2026'),
+        ('defect_type[]', 'ssd'), ('defect_maquina[]', '01'),
+        ('defect_model[]', '120GB'), ('defect_serial[]', 'NS1'),
+        ('defect_desc[]', 'Nao liga'),
+        ('defect_status[]', r'\"trocado\"'),
+    ])
+    r = logged_client.post(f'/protocolos/{pid}/editar', data=dados)
+    assert r.status_code == 302, r.get_data(as_text=True)[:400]
+
+    with app.app_context():
+        p = Protocol.query.get(pid)
+        assert p.defects[0].defeito_status == 'trocado'

@@ -81,7 +81,7 @@
                             {% set comp = COMP_LABELS.get(item.component, '') if item.component and item.component != 'outro' and (item.component.lower() not in (item.model or '').lower()) else '' %}
                             {% set nome = (comp + ' ' if comp else '') + ((item.model or '').strip()) %}
                             {% if not nome %}{% set nome = 'Item ' + (idx|length|string) %}{% endif %}
-                            {% set st = DEFEITO_STATUS_TODOS.get(item.status, item.status or 'Em análise') %}
+                            {% set st = DEFEITO_STATUS_TODOS.get(status_defeito(item.status), status_defeito(item.status) or 'Em análise') %}
                             {% if item.pedido and item.data_compra %}{% set origem = ' (compra em ' + item.data_compra.strip() + ')' %}{% else %}{% set origem = '' %}{% endif %}
                             {% set _ = wa_parts.append((idx|length|string) + ') *' + nome + '*') %}
                             {% if item.defeito %}{% set _ = wa_parts.append('   Defeito: ' + item.defeito.strip()) %}{% endif %}
@@ -95,7 +95,7 @@
                         {% set comp = COMP_LABELS.get(item.component, '') if item.component and item.component != 'outro' and (item.component.lower() not in (item.model or '').lower()) else '' %}
                         {% set nome = (comp + ' ' if comp else '') + ((item.model or '').strip()) %}
                         {% if not nome %}{% set nome = 'Item ' + (loop.index|string) %}{% endif %}
-                        {% set st = DEFEITO_STATUS_TODOS.get(item.status, item.status or 'Em análise') %}
+                        {% set st = DEFEITO_STATUS_TODOS.get(status_defeito(item.status), status_defeito(item.status) or 'Em análise') %}
                         {% if item.pedido and item.data_compra %}{% set origem = ' (compra em ' + item.data_compra.strip() + ')' %}{% else %}{% set origem = '' %}{% endif %}
                         {% set _ = wa_parts.append('') %}
                         {% set _ = wa_parts.append((loop.index|string) + ') *' + nome + '*') %}
@@ -620,7 +620,7 @@
                                             <td><code>{{ defect.serial_number or '-' }}</code></td>
                                             <td class="text-danger">{{ defect.description or '-' }}</td>
                                             <td>
-                                                {% if defect.defeito_status %}<span class="badge {{ DEFEITO_STATUS_BADGES.get(defect.defeito_status, 'bg-secondary') }}">{{ DEFEITO_STATUS_TODOS.get(defect.defeito_status, defect.defeito_status) }}</span>{% else %}<span class="text-secondary">-</span>{% endif %}
+                                                {% set _st = status_defeito(defect.defeito_status) %}{% if _st %}<span class="badge {{ DEFEITO_STATUS_BADGES.get(_st, 'bg-secondary') }}">{{ DEFEITO_STATUS_TODOS.get(_st, _st) }}</span>{% else %}<span class="text-secondary">-</span>{% endif %}
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -651,7 +651,7 @@
                                     <td><code>{{ defect.serial_number or '-' }}</code></td>
                                     <td class="text-danger">{{ defect.description or '-' }}</td>
                                     <td>
-                                        {% if defect.defeito_status %}<span class="badge {{ DEFEITO_STATUS_BADGES.get(defect.defeito_status, 'bg-secondary') }}">{{ DEFEITO_STATUS_TODOS.get(defect.defeito_status, defect.defeito_status) }}</span>{% else %}<span class="text-secondary">-</span>{% endif %}
+                                        {% set _st = status_defeito(defect.defeito_status) %}{% if _st %}<span class="badge {{ DEFEITO_STATUS_BADGES.get(_st, 'bg-secondary') }}">{{ DEFEITO_STATUS_TODOS.get(_st, _st) }}</span>{% else %}<span class="text-secondary">-</span>{% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}

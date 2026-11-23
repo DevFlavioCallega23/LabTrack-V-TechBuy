@@ -7,7 +7,7 @@ from app import db
 from app.models import Protocol, Defect, EstoqueUso
 from app.labels import (
     DEFEITO_STATUS_LABELS,
-    PROTO_TYPE_LABELS, peca_label,
+    PROTO_TYPE_LABELS, peca_label, limpar_status_defeito,
 )
 
 
@@ -39,7 +39,7 @@ def build_defeitos_agrupados():
                 'serial': d.serial_number or '',
                 'desc': d.description or '',
                 'responsavel': d.responsavel or '',
-                'status': d.defeito_status or '',
+                'status': limpar_status_defeito(d.defeito_status),
                 'maquina': d.maquina or '',
                 'protocolo': p.protocol_number,
                 'protocolo_id': p.id,
@@ -68,7 +68,7 @@ def build_defeitos_agrupados():
                         'serial': item.get('serial', ''),
                         'desc': item.get('defeito', ''),
                         'responsavel': 'loja' if situacao == 'rma_garantia' else ('cliente' if situacao == 'rma_fora' else ''),
-                        'status': item.get('status', ''),
+                        'status': limpar_status_defeito(item.get('status')),
                         'maquina': item.get('machine', ''),
                         'protocolo': p.protocol_number,
                         'cliente': p.client_name or '',
@@ -218,7 +218,7 @@ def update_defeito_status(id):
         return {'error': 'Sem permissão'}, 403
     defect = Defect.query.get_or_404(id)
     data = request.get_json()
-    novo_status = data.get('status', '')
+    novo_status = limpar_status_defeito(data.get('status', ''))
     if novo_status not in DEFEITO_STATUS_LABELS and novo_status not in ('', None):
         return {'error': 'Status inválido'}, 400
     defect.defeito_status = novo_status or None
@@ -232,7 +232,7 @@ def update_teste_status(id, idx):
         return {'error': 'Sem permissão'}, 403
     protocol = Protocol.query.get_or_404(id)
     data = request.get_json()
-    novo_status = data.get('status', '')
+    novo_status = limpar_status_defeito(data.get('status', ''))
     if novo_status not in DEFEITO_STATUS_LABELS and novo_status not in ('', None):
         return {'error': 'Status inválido'}, 400
     try:

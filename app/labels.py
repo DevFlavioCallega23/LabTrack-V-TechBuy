@@ -199,6 +199,18 @@ DEFEITO_STATUS_BADGES = {
     'concluido': 'bg-success',
 }
 
+
+def limpar_status_defeito(valor):
+    """Remove aspas e barras gravadas por versões antigas do formulário.
+
+    Ex.: ``\\"aguardando_peca\\"`` vira ``aguardando_peca``.
+    """
+    if not valor:
+        return ''
+    texto = str(valor).replace('\\', '').strip()
+    return texto.strip('"').strip("'").strip()
+
+
 DEFEITO_RESP_LABELS = {
     'loja': 'Loja',
     'cliente': 'Cliente',

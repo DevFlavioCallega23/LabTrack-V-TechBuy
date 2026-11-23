@@ -10,7 +10,7 @@ from flask import current_app
 
 from app import db
 from app.datas import parse_date_br as parse_date_br  # noqa: F401  (reexportado)
-from app.labels import COMPONENT_LABELS, PROTO_TYPE_LABELS, DEFEITO_STATUS_TODOS
+from app.labels import COMPONENT_LABELS, PROTO_TYPE_LABELS, DEFEITO_STATUS_TODOS, limpar_status_defeito
 from app.models import Protocol, Component, Defect, WindowsKey, EstoqueUso
 
 def gerar_numero_protocolo():
@@ -273,7 +273,7 @@ def parse_defects(request_form):
                 serial_number=serials[i].strip() if i < len(serials) else '',
                 description=descs[i].strip() if i < len(descs) else '',
                 responsavel=responsaveis[i].strip() if i < len(responsaveis) else '',
-                defeito_status=statuses[i].strip() if i < len(statuses) else '',
+                defeito_status=limpar_status_defeito(statuses[i]) if i < len(statuses) else '',
                 maquina=maquinas[i].strip() if i < len(maquinas) else '',
                 sort_order=i
             ))
@@ -1039,8 +1039,7 @@ def equipamento_com_defeito_whatsapp(protocol):
         descricao = (registro.description or '').strip()
         if not descricao:
             continue
-        status = (registro.defeito_status or '').replace('\\', '').strip()
-        status = status.strip('"').strip("'").strip()
+        status = limpar_status_defeito(registro.defeito_status)
         itens.append({
             'maquina': (registro.maquina or '').strip(),
             'rotulo': COMPONENT_LABELS.get(
@@ -1061,8 +1060,7 @@ def equipamento_com_defeito_whatsapp(protocol):
                 descricao = (item.get('defeito') or '').strip()
                 if not descricao:
                     continue
-                status = (item.get('status') or '').replace('\\', '').strip()
-                status = status.strip('"').strip("'").strip()
+                status = limpar_status_defeito(item.get('status'))
                 itens.append({
                     'maquina': (item.get('machine') or '').strip(),
                     'rotulo': COMPONENT_LABELS.get(

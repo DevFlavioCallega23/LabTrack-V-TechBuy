@@ -143,7 +143,7 @@
             {% endif %}
             <td>{{ item.serial or 'sem NS' }}</td>
             <td>{{ item.defeito or '—' }}</td>
-            {% if protocol.type != 'nao_comprado' %}<td>{{ status_labels.get(item.status, item.status or 'Em análise') }}</td>{% endif %}
+            {% set _st = status_defeito(item.status) %}{% if protocol.type != 'nao_comprado' %}<td>{{ status_labels.get(_st, _st or 'Em análise') }}</td>{% endif %}
         </tr>
         {% endfor %}
     </table>
@@ -171,7 +171,7 @@
         {% endif %}
         <td>{{ item.serial or 'sem NS' }}</td>
         <td>{{ item.defeito or '—' }}</td>
-        {% if protocol.type != 'nao_comprado' %}<td>{{ status_labels.get(item.status, item.status or 'Em análise') }}</td>{% endif %}
+        {% set _st = status_defeito(item.status) %}{% if protocol.type != 'nao_comprado' %}<td>{{ status_labels.get(_st, _st or 'Em análise') }}</td>{% endif %}
     </tr>
     {% endfor %}
 </table>
@@ -272,7 +272,7 @@
         <td>{{ defect.specification or '—' }}</td>
         <td>{{ defect.serial_number or '—' }}</td>
         <td>{{ defect.description or '—' }}</td>
-        <td>{{ dstatus_labels.get(defect.defeito_status, defect.defeito_status or '—') }}</td>
+        {% set _st = status_defeito(defect.defeito_status) %}<td>{{ dstatus_labels.get(_st, _st or '—') }}</td>
     </tr>
     {% endfor %}
 </table>
