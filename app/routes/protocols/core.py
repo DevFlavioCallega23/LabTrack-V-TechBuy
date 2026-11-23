@@ -27,7 +27,7 @@ from app.routes.protocols.helpers import (
     criar_protocolo_retorno, historico_do_protocolo, historico_por_pedido,
     protocolos_por_pedido, historico_por_referencia, teia_do_protocolo,
     sugestoes_preenchimento, aplicar_preenchimento,
-    equipamento_com_defeito_whatsapp,
+    equipamento_com_defeito_whatsapp, aplicar_status_trocado_automatico,
 )
 
 @protocols_bp.route('/')
@@ -179,6 +179,7 @@ def create_protocol():
 
         protocol.components = components
         defects = parse_defects(request.form)
+        aplicar_status_trocado_automatico(defects, protocol.rma_trocados, form.type.data)
         protocol.defects = defects
         windows_keys = parse_windows_keys(request.form)
         if windows_keys:
@@ -600,6 +601,7 @@ def edit_protocol(id):
         protocol.components = components
         Defect.query.filter_by(protocol_id=protocol.id).delete()
         defects = parse_defects(request.form)
+        aplicar_status_trocado_automatico(defects, protocol.rma_trocados, form.type.data)
         protocol.defects = defects
         WindowsKey.query.filter_by(protocol_id=protocol.id).delete()
         windows_keys = parse_windows_keys(request.form)

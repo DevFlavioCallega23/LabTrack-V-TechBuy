@@ -203,6 +203,73 @@ def parse_rma_trocados(request_form):
     except (json.JSONDecodeError, TypeError):
         return None
 
+
+def aplicar_status_trocado_automatico(defects, trocados_json, tipo):
+    """Muda "Aguardando peça" para "Trocado" quando o NS novo foi preenchido.
+
+    Vale para RMA, Serviço e NTB (não comprado). Casa a peça nova com o
+    defeito pelo tipo e, quando possível, pela máquina e pelo modelo. Se
+    houver mais de uma peça do mesmo tipo e não der para saber qual é,
+    não mexe no status.
+    """
+    if tipo not in ('rma', 'servico', 'nao_comprado'):
+        return defects
+
+    trocados = _json_ou(trocados_json, {})
+    if not isinstance(trocados, dict) or not trocados:
+        return defects
+
+    novas = []
+    for entrada in trocados.values():
+        if not isinstance(entrada, dict):
+            continue
+        maquina = (entrada.get('name') or '').strip().lower()
+        for comp in entrada.get('components') or []:
+            if not isinstance(comp, dict):
+                continue
+            tipo_comp = (comp.get('type') or '').strip()
+            serial = (comp.get('serial') or '').strip()
+            if not tipo_comp or not serial:
+                continue
+            novas.append({
+                'tipo': tipo_comp,
+                'modelo': (comp.get('model') or '').strip().lower(),
+                'maquina': maquina,
+                'usado': False,
+            })
+
+    for defect in defects:
+        if limpar_status_defeito(defect.defeito_status) != 'aguardando_peca':
+            continue
+
+        tipo_def = (defect.component_type or '').strip()
+        maquina = (defect.maquina or '').strip().lower()
+        modelo = (defect.specification or '').strip().lower()
+
+        candidatos = [n for n in novas if not n['usado'] and n['tipo'] == tipo_def]
+        if not candidatos:
+            continue
+
+        mesma_maquina = [n for n in candidatos if n['maquina'] and n['maquina'] == maquina]
+        mesmo_modelo = [n for n in candidatos if n['modelo'] and n['modelo'] == modelo]
+        if mesma_maquina:
+            opcoes = mesma_maquina
+        elif mesmo_modelo:
+            opcoes = mesmo_modelo
+        elif len(candidatos) == 1:
+            opcoes = candidatos
+        else:
+            # Ambíguo: não arrisca trocar o status da peça errada.
+            continue
+
+        preferido = [n for n in opcoes if n['modelo'] and n['modelo'] == modelo]
+        escolhido = (preferido or opcoes)[0]
+        escolhido['usado'] = True
+        defect.defeito_status = 'trocado'
+
+    return defects
+
+
 def build_rma_trocados_data_from_form(request_form):
     """Build Equipamentos Mudados from submitted form data for preserving on validation error."""
     data = {}

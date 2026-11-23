@@ -154,3 +154,105 @@ def test_salvar_status_remove_aspas_antigas(logged_client, app):
     with app.app_context():
         p = Protocol.query.get(pid)
         assert p.defects[0].defeito_status == 'trocado'
+
+
+def _post_edicao_com_trocado(client, pid, tipo_trocado, serial_novo='NS-NOVO',
+                             nome_maquina='01', status='aguardando_peca'):
+    trocados = json.dumps({'01': {'name': nome_maquina, 'components': [
+        {'type': tipo_trocado, 'model': 'Modelo Novo', 'serial': serial_novo}]}})
+    dados = MultiDict([
+        ('type', 'rma'), ('client_name', 'Cliente Status'),
+        ('seller', 'Myris'), ('status', 'andamento'),
+        ('entry_date', '01/02/2026'),
+        ('defect_type[]', 'ssd'), ('defect_maquina[]', '01'),
+        ('defect_model[]', '120GB'), ('defect_serial[]', 'NS1'),
+        ('defect_desc[]', 'Nao liga'),
+        ('defect_status[]', status),
+        ('rma_trocados_json', trocados),
+    ])
+    r = client.post(f'/protocolos/{pid}/editar', data=dados)
+    assert r.status_code == 302, r.get_data(as_text=True)[:400]
+
+
+def test_ns_novo_muda_aguardando_peca_para_trocado(logged_client, app):
+    pid = _criar(app, 'PRO-2099-9106')
+    _post_edicao_com_trocado(logged_client, pid, 'ssd')
+
+    with app.app_context():
+        p = Protocol.query.get(pid)
+        assert p.defects[0].defeito_status == 'trocado'
+
+
+def test_ns_novo_de_outro_tipo_nao_muda_status(logged_client, app):
+    pid = _criar(app, 'PRO-2099-9107')
+    _post_edicao_com_trocado(logged_client, pid, 'ram')
+
+    with app.app_context():
+        p = Protocol.query.get(pid)
+        assert p.defects[0].defeito_status == 'aguardando_peca'
+
+
+def test_ns_novo_sem_serial_nao_muda_status(logged_client, app):
+    pid = _criar(app, 'PRO-2099-9108')
+    _post_edicao_com_trocado(logged_client, pid, 'ssd', serial_novo='')
+
+    with app.app_context():
+        p = Protocol.query.get(pid)
+        assert p.defects[0].defeito_status == 'aguardando_peca'
+
+
+def test_ns_novo_muda_status_ao_criar_protocolo(logged_client, app):
+    trocados = json.dumps({'01': {'name': '01', 'components': [
+        {'type': 'ssd', 'model': '240GB', 'serial': 'NS-NOVO'}]}})
+    resp = logged_client.post('/protocolos/novo', data={
+        'type': 'servico',
+        'client_name': 'Cliente Troca Automatica',
+        'status': 'andamento',
+        'entry_date': '01/02/2026',
+        'defect_type[]': 'ssd',
+        'defect_maquina[]': '01',
+        'defect_model[]': '120GB',
+        'defect_serial[]': 'NS1',
+        'defect_desc[]': 'Nao liga',
+        'defect_status[]': 'aguardando_peca',
+        'rma_trocados_json': trocados,
+    })
+    assert resp.status_code == 302, resp.get_data(as_text=True)[:400]
+
+    with app.app_context():
+        p = Protocol.query.filter_by(client_name='Cliente Troca Automatica').one()
+        assert p.defects[0].defeito_status == 'trocado'
+
+
+def test_status_trocado_automatico_nao_vale_para_venda():
+    from app.routes.protocols.helpers import aplicar_status_trocado_automatico
+    d = Defect(component_type='ssd', specification='120GB',
+               defeito_status='aguardando_peca')
+    trocados = json.dumps({'01': {'name': '01', 'components': [
+        {'type': 'ssd', 'model': '240GB', 'serial': 'NS-NOVO'}]}})
+    aplicar_status_trocado_automatico([d], trocados, 'venda')
+    assert d.defeito_status == 'aguardando_peca'
+
+
+def test_status_trocado_automatico_aceita_nome_de_maquina_diferente():
+    from app.routes.protocols.helpers import aplicar_status_trocado_automatico
+    d = Defect(component_type='placa_mae', specification='Placa-Mãe 1155',
+               maquina='Máquina 01', defeito_status='aguardando_peca')
+    trocados = json.dumps({'01': {'name': 'Computador 01', 'components': [
+        {'type': 'placa_mae', 'model': 'Placa-Mãe 1155', 'serial': 'NS-NOVO'}]}})
+    aplicar_status_trocado_automatico([d], trocados, 'servico')
+    assert d.defeito_status == 'trocado'
+
+
+def test_status_trocado_automatico_nao_arrisca_quando_ambiguo():
+    from app.routes.protocols.helpers import aplicar_status_trocado_automatico
+    d = Defect(component_type='ssd', specification='120GB',
+               maquina='Máquina 03', defeito_status='aguardando_peca')
+    trocados = json.dumps({
+        '01': {'name': 'Computador 01', 'components': [
+            {'type': 'ssd', 'model': '240GB', 'serial': 'NS-A'}]},
+        '02': {'name': 'Computador 02', 'components': [
+            {'type': 'ssd', 'model': '480GB', 'serial': 'NS-B'}]},
+    })
+    aplicar_status_trocado_automatico([d], trocados, 'rma')
+    assert d.defeito_status == 'aguardando_peca'
