@@ -1779,6 +1779,21 @@ document.addEventListener('DOMContentLoaded', function() {
             g.style.display = isNaoComprado ? 'none' : 'block';
             g.querySelectorAll('select, input, textarea').forEach(function(f) { f.disabled = isNaoComprado; });
         });
+        // No NTB a "Data de Entrada" é o campo principal (entry_date). A data
+        // de entrada do RMA fica só para RMA/serviço; no NTB ela é apenas
+        // escondida (sem desabilitar) para não apagar o valor de protocolos
+        // antigos que já tinham esse campo preenchido.
+        document.querySelectorAll('.ocultar-no-ntb').forEach(function(g) {
+            g.style.display = isNaoComprado ? 'none' : '';
+        });
+        // Existem dois campos de data de entrada no formulário (um para
+        // venda/RMA/serviço/NTB e outro para ponta de entrega). Só o que está
+        // visível deve ser enviado, para o escondido não sobrescrever o outro.
+        var entryPrincipal = document.getElementById('entry_date');
+        var entryPonta = document.getElementById('entry_date_ponta_entrega');
+        var tiposComDataPrincipal = ['venda', 'rma', 'servico', 'nao_comprado'];
+        if (entryPrincipal) entryPrincipal.disabled = !tiposComDataPrincipal.includes(type);
+        if (entryPonta) entryPonta.disabled = (type !== 'ponta_entrega');
         document.querySelectorAll('.maquina-col').forEach(function(el) {
             el.style.display = '';
             el.querySelectorAll('select').forEach(function(f) { f.disabled = false; });

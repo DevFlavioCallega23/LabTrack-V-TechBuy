@@ -65,3 +65,19 @@ def test_relatorio_filtro_ano_sem_resultado(logged_client):
     r = logged_client.get('/protocolos/relatorio?ano=2098')
     assert r.status_code == 200
     assert b'0</strong>' in r.data or b'<strong>0</strong>' in r.data
+
+
+def test_form_tem_um_unico_campo_entry_date_por_id(logged_client):
+    """O formulário tem dois campos de data de entrada, mas não podem
+    compartilhar o mesmo id (o escondido sobrescrevia o visível)."""
+    html = logged_client.get('/protocolos/novo').get_data(as_text=True)
+    assert html.count('id="entry_date"') == 1
+    assert 'id="entry_date_ponta_entrega"' in html
+
+
+def test_form_esconde_data_de_entrada_duplicada_no_ntb(logged_client):
+    """No NTB o rótulo "Data de Entrada" já vem do campo principal; o campo
+    de RMA fica só para RMA/serviço (era a duplicidade na tela). Ele é
+    escondido sem ser desabilitado, para preservar o valor antigo."""
+    html = logged_client.get('/protocolos/novo').get_data(as_text=True)
+    assert 'ocultar-no-ntb' in html

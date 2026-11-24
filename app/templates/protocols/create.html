@@ -111,7 +111,7 @@
                     <label class="form-label">Quantidade</label>
                     {{ form.lote(class='form-control', placeholder='1', id='rmaLote') }}
                 </div>
-                <div class="col-md-2" data-show-for="rma,servico">
+                <div class="col-md-2 ocultar-no-ntb" data-show-for="rma,servico">
                     <label class="form-label">{{ form.rma_entry_date.label }}</label>
                     {{ form.rma_entry_date(class='form-control date-mask', placeholder='DD/MM/AAAA') }}
                 </div>
@@ -338,7 +338,7 @@
                 </div>
                 <div class="col-md-2 field-group" data-show-for="ponta_entrega">
                     <label class="form-label">Data de Entrada</label>
-                    {{ form.entry_date(class='form-control date-mask', placeholder='DD/MM/AAAA') }}
+                    {{ form.entry_date(class='form-control date-mask', placeholder='DD/MM/AAAA', id='entry_date_ponta_entrega') }}
                 </div>
                 <div class="col-md-3 field-group" data-show-for="venda,rma,servico,nao_comprado">
                     <label class="form-label">{{ form.order_number.label }}</label>
