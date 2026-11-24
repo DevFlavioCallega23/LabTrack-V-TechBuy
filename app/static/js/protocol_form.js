@@ -817,10 +817,58 @@ function currentRmaMachineOpts() {
         names.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
 }
 
+function origemPadraoProtocolo() {
+    const original = document.getElementById('original_order');
+    const order = document.getElementById('order_number');
+    const entrada = document.getElementById('entry_date');
+    const pedido = (original && original.value.trim()) || (order && order.value.trim()) || '';
+    return {
+        pedido: pedido,
+        data: entrada ? entrada.value.trim() : ''
+    };
+}
+
+function marcarOrigemAuto(tr) {
+    if (!tr) return;
+    const pedido = tr.querySelector('input[name="rma_test_pedido[]"]');
+    const data = tr.querySelector('input[name="rma_test_data_compra[]"]');
+    if (pedido) pedido.dataset.autoPedido = '1';
+    if (data) data.dataset.autoData = '1';
+}
+
+function atualizarOrigemTesteAuto() {
+    const origem = origemPadraoProtocolo();
+    document.querySelectorAll('#rmaTestTable input[name="rma_test_pedido[]"]').forEach(function(inp) {
+        if (inp.dataset.autoPedido === '1') inp.value = origem.pedido;
+    });
+    document.querySelectorAll('#rmaTestTable input[name="rma_test_data_compra[]"]').forEach(function(inp) {
+        if (inp.dataset.autoData === '1') inp.value = origem.data;
+    });
+}
+
+function ligarOrigemAutomatica() {
+    ['original_order', 'order_number', 'entry_date'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        ['input', 'change', 'blur'].forEach(function(ev) {
+            el.addEventListener(ev, atualizarOrigemTesteAuto);
+        });
+    });
+    const tabela = document.getElementById('rmaTestTable');
+    if (tabela) {
+        tabela.addEventListener('input', function(e) {
+            const alvo = e.target;
+            if (alvo.name === 'rma_test_pedido[]') alvo.dataset.autoPedido = '0';
+            if (alvo.name === 'rma_test_data_compra[]') alvo.dataset.autoData = '0';
+        });
+    }
+}
+
 function addRmaTestRow() {
     const tbody = document.querySelector('#rmaTestTable tbody');
     const opts = '<option value="">-- Selecione --</option>' +
         Object.entries(COMP_LABELS).map(([k, v]) => `<option value="${escHtml(k)}">${escHtml(v)}</option>`).join('');
+    const origem = origemPadraoProtocolo();
     const tr = document.createElement('tr');
     tr.className = 'rma-test-row';
     tr.innerHTML = `
@@ -829,8 +877,8 @@ function addRmaTestRow() {
         <td><input type="text" name="rma_test_model[]" class="form-control form-control-sm" placeholder="Ex: I5-2400"></td>
         <td class="rma-test-ns-cell" style="display:${rmaTestHasNs() ? '' : 'none'}"><input type="text" name="rma_test_serial[]" class="form-control form-control-sm" placeholder="Nº de Série"></td>
         <td><input type="text" name="rma_test_defeito[]" class="form-control form-control-sm" placeholder="Descrição do defeito"></td>
-        <td class="rma-test-origem-cell" style="display:${rmaTestHasOrigemTechBuy() ? '' : 'none'}"><input type="text" name="rma_test_pedido[]" class="form-control form-control-sm" placeholder="Pedido"${rmaTestHasOrigemTechBuy() ? '' : ' disabled'}></td>
-        <td class="rma-test-origem-cell" style="display:${rmaTestHasOrigemTechBuy() ? '' : 'none'}"><input type="text" name="rma_test_data_compra[]" class="form-control form-control-sm date-mask" placeholder="DD/MM/AAAA"${rmaTestHasOrigemTechBuy() ? '' : ' disabled'}></td>
+        <td class="rma-test-origem-cell" style="display:${rmaTestHasOrigemTechBuy() ? '' : 'none'}"><input type="text" name="rma_test_pedido[]" class="form-control form-control-sm" placeholder="Pedido" value="${escHtml(origem.pedido)}"${rmaTestHasOrigemTechBuy() ? '' : ' disabled'}></td>
+        <td class="rma-test-origem-cell" style="display:${rmaTestHasOrigemTechBuy() ? '' : 'none'}"><input type="text" name="rma_test_data_compra[]" class="form-control form-control-sm date-mask" placeholder="DD/MM/AAAA" value="${escHtml(origem.data)}"${rmaTestHasOrigemTechBuy() ? '' : ' disabled'}></td>
         <td>
             <select name="rma_test_status[]" class="form-select form-select-sm">
                 <option value=\"\">--</option>
@@ -840,6 +888,7 @@ function addRmaTestRow() {
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
     `;
     tbody.appendChild(tr);
+    marcarOrigemAuto(tr);
     if (window.initDateMask) initDateMask(tr);
 }
 
@@ -1560,6 +1609,17 @@ function loadRmaTestItems(items) {
             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
         `;
         tbody.appendChild(tr);
+        const origemPadrao = origemPadraoProtocolo();
+        const pedidoInput = tr.querySelector('input[name="rma_test_pedido[]"]');
+        const dataInput = tr.querySelector('input[name="rma_test_data_compra[]"]');
+        if (pedidoInput && !item.pedido) {
+            pedidoInput.value = origemPadrao.pedido;
+            pedidoInput.dataset.autoPedido = '1';
+        }
+        if (dataInput && !item.data_compra) {
+            dataInput.value = origemPadrao.data;
+            dataInput.dataset.autoData = '1';
+        }
         if (window.initDateMask) initDateMask(tr);
         const selMaquina = tr.querySelector('select[name="rma_test_machine[]"]');
         const alvoMaquina = (item.machine || '').trim();
@@ -1635,6 +1695,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadRmaTestItems(CFG.rmaTestData);
     syncRmaTestMachines();
     loadRmaTrocadosItems(CFG.rmaTrocados);
+    ligarOrigemAutomatica();
 
     syncDefectTipos();
     ['#machinesContainer', '#rmaMachinesContainer', '#rmaTrocadosContainer'].forEach(function(sel) {
@@ -1741,6 +1802,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 : '<i class="bi bi-chat-dots"></i> ' + (CFG.titles.observacoes || 'Observações'));
         }
         updateRmaTestNsColumns();
+        atualizarOrigemTesteAuto();
         syncPEMachineUI();
     }
     if (typeSelect) { typeSelect.addEventListener('change', updateFields); updateFields(); }
